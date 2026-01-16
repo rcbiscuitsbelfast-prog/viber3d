@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { Entity } from '../../../types/quest.types';
 import { useQuestStore } from '../../../store/questStore';
 import { assetRegistry } from '../../../systems/assets/AssetRegistry';
+import { useCharacterAnimation } from '../../../hooks/useCharacterAnimation';
 
 interface NPCEntityProps {
   entity: Entity;
@@ -21,6 +22,14 @@ export function NPCEntity({ entity }: NPCEntityProps) {
 
   const npcData = entity.npcData;
   const interactionRadius = npcData?.interactionRadius || 3;
+
+  // Animation system
+  const { playAnimation, crossfadeTo, isLoaded: animationsLoaded } = useCharacterAnimation({
+    characterId: `npc_${entity.id}`,
+    assetId: entity.assetId,
+    model,
+    defaultAnimation: npcData?.idleAnimation || 'idle',
+  });
 
   // Load NPC model
   useEffect(() => {
@@ -146,6 +155,15 @@ export function NPCEntity({ entity }: NPCEntityProps) {
           showDialogue(entity.id, npcData.dialog);
           console.log('showDialogue called successfully');
           
+          // Play interaction animation
+          if (animationsLoaded && npcData?.interactionAnimation) {
+            playAnimation(npcData.interactionAnimation, { loop: false });
+            // Return to idle after interaction animation
+            setTimeout(() => {
+              crossfadeTo(npcData?.idleAnimation || 'idle', 0.3);
+            }, 2000);
+          }
+          
           // Verify state was updated
           setTimeout(() => {
             const storeState = useQuestStore.getState();
@@ -162,7 +180,7 @@ export function NPCEntity({ entity }: NPCEntityProps) {
 
     window.addEventListener('keydown', handleInteract, true); // Use capture phase
     return () => window.removeEventListener('keydown', handleInteract, true);
-  }, [showInteract, entity.id, npcData?.dialog, showDialogue, activeDialogue]);
+  }, [showInteract, entity.id, npcData?.dialog, showDialogue, activeDialogue, animationsLoaded, playAnimation, crossfadeTo, npcData?.interactionAnimation, npcData?.idleAnimation]);
 
   return (
     <group

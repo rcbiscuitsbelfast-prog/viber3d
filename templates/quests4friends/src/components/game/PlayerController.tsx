@@ -4,6 +4,7 @@ import { useKeyboardControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { useQuestStore } from '../../store/questStore';
 import { assetRegistry } from '../../systems/assets/AssetRegistry';
+import { useCharacterAnimation } from '../../hooks/useCharacterAnimation';
 
 interface PlayerControllerProps {
   spawnPosition: THREE.Vector3;
@@ -26,9 +27,18 @@ export function PlayerController({
   const direction = useRef(new THREE.Vector3());
   const moveSpeed = 5;
   const rotationSpeed = 5;
+  const isMovingRef = useRef(false);
 
   // Keyboard controls subscription
   const [, get] = useKeyboardControls();
+
+  // Animation system
+  const { crossfadeTo, isLoaded: animationsLoaded } = useCharacterAnimation({
+    characterId: `player_${playerAssetId}`,
+    assetId: playerAssetId,
+    model,
+    defaultAnimation: 'idle',
+  });
 
   // Load player model
   useEffect(() => {
@@ -131,8 +141,11 @@ export function PlayerController({
     if (left) direction.current.x -= 1;
     if (right) direction.current.x += 1;
 
+    // Check if player is moving
+    const isMoving = direction.current.length() > 0;
+
     // Normalize direction
-    if (direction.current.length() > 0) {
+    if (isMoving) {
       direction.current.normalize();
       
       // Apply movement
@@ -146,6 +159,18 @@ export function PlayerController({
         targetRotation,
         rotationSpeed * delta
       );
+
+      // Switch to walk animation if not already walking
+      if (!isMovingRef.current && animationsLoaded) {
+        crossfadeTo('walk', 0.2);
+        isMovingRef.current = true;
+      }
+    } else {
+      // Switch to idle animation if not already idle
+      if (isMovingRef.current && animationsLoaded) {
+        crossfadeTo('idle', 0.2);
+        isMovingRef.current = false;
+      }
     }
 
     // Always update store with current position (even when not moving)

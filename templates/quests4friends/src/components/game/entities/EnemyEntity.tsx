@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { Entity } from '../../../types/quest.types';
 import { useQuestStore } from '../../../store/questStore';
 import { assetRegistry } from '../../../systems/assets/AssetRegistry';
+import { useCharacterAnimation } from '../../../hooks/useCharacterAnimation';
 
 interface EnemyEntityProps {
   entity: Entity;
@@ -23,6 +24,14 @@ export function EnemyEntity({ entity }: EnemyEntityProps) {
   const enemyData = entity.enemyData;
   const engageRadius = 3;
   const isBoss = entity.type === 'boss' || enemyData?.isBoss;
+
+  // Animation system
+  const { playAnimation, isLoaded: animationsLoaded } = useCharacterAnimation({
+    characterId: `enemy_${entity.id}`,
+    assetId: entity.assetId,
+    model,
+    defaultAnimation: enemyData?.idleAnimation || 'idle',
+  });
 
   // Load enemy model
   useEffect(() => {
@@ -45,10 +54,16 @@ export function EnemyEntity({ entity }: EnemyEntityProps) {
 
   // Check if enemy is defeated
   useEffect(() => {
-    if (enemyData && enemyData.hp <= 0) {
+    if (enemyData && enemyData.hp <= 0 && !isDefeated) {
       setIsDefeated(true);
+      // Play death animation
+      if (animationsLoaded && enemyData?.deathAnimation) {
+        playAnimation(enemyData.deathAnimation, { 
+          loop: false
+        });
+      }
     }
-  }, [enemyData?.hp]);
+  }, [enemyData?.hp, isDefeated, animationsLoaded, playAnimation, enemyData?.deathAnimation]);
 
   // Check distance to player for engagement
   useFrame(() => {

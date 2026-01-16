@@ -71,6 +71,10 @@ export interface NPCData {
   voiceUrl?: string;
   animation?: string;
   interactionRadius?: number;
+  // Animation settings
+  animationSet?: string; // e.g., "humanoid_basic"
+  idleAnimation?: string; // e.g., "idle"
+  interactionAnimation?: string; // e.g., "wave"
 }
 
 export interface EnemyData {
@@ -81,6 +85,12 @@ export interface EnemyData {
   attackDamage: number;
   attackSpeed: number; // attacks per second
   isBoss?: boolean;
+  // Animation settings
+  animationSet?: string; // e.g., "humanoid_basic"
+  idleAnimation?: string; // e.g., "idle"
+  attackAnimation?: string; // e.g., "attack"
+  hitAnimation?: string; // e.g., "hit"
+  deathAnimation?: string; // e.g., "death"
 }
 
 export interface CollectibleData {
