@@ -28,7 +28,7 @@ export function PlayerController({
   const rotationSpeed = 5;
 
   // Keyboard controls subscription
-  const [sub, get] = useKeyboardControls();
+  const [, get] = useKeyboardControls();
 
   // Load player model
   useEffect(() => {
