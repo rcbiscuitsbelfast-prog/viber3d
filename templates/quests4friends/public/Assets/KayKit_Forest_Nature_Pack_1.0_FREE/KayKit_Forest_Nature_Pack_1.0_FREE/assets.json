@@ -1,0 +1,307 @@
+{
+  "name": "KayKit Forest Nature Pack 1.0 FREE",
+  "version": "1.0",
+  "description": "Free forest and nature environment assets for game development",
+  "categories": {
+    "trees": {
+      "tree_1": [
+        {
+          "name": "Tree 1 A Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Tree 1 B Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Tree 1 C Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        }
+      ],
+      "tree_2": [
+        {
+          "name": "Tree 2 A Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Tree 2 B Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Tree 2 C Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Tree 2 D Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Tree 2 E Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        }
+      ],
+      "tree_3": [
+        {
+          "name": "Tree 3 A Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Tree 3 B Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Tree 3 C Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        }
+      ],
+      "tree_4": [
+        {
+          "name": "Tree 4 A Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Tree 4 B Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Tree 4 C Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        }
+      ],
+      "tree_bare_1": [
+        {
+          "name": "Tree Bare 1 A Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Tree Bare 1 B Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Tree Bare 1 C Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        }
+      ],
+      "tree_bare_2": [
+        {
+          "name": "Tree Bare 2 A Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Tree Bare 2 B Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Tree Bare 2 C Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        }
+      ]
+    },
+    "rocks": {
+      "rock_1": [
+        {
+          "name": "Rock 1 A Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 1 B Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 1 C Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        }
+      ],
+      "rock_2": [
+        {
+          "name": "Rock 2 A Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 2 B Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 2 C Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        }
+      ],
+      "rock_3": [
+        {
+          "name": "Rock 3 A Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 B Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 C Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 D Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 E Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 F Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 G Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 H Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 I Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 J Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 K Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 L Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 M Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 N Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 O Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 P Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 Q Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        },
+        {
+          "name": "Rock 3 R Color1",
+          "formats": ["fbx", "gltf", "obj"],
+          "path": "Assets"
+        }
+      ]
+    },
+    "plants": {
+      "description": "Various plant and vegetation assets",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    },
+    "ground": {
+      "description": "Ground and terrain assets",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    },
+    "misc": {
+      "description": "Miscellaneous nature assets",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    }
+  },
+  "textures": [
+    {
+      "name": "Forest Texture",
+      "file": "Textures/forest_texture.png"
+    }
+  ],
+  "samples": [
+    "Samples/Forest_Nature_Pack_sample1.png"
+  ],
+  "formats": {
+    "fbx": {
+      "description": "Autodesk FBX format",
+      "path": "Assets/fbx",
+      "count": 105
+    },
+    "fbx_unity": {
+      "description": "FBX optimized for Unity",
+      "path": "Assets/fbx(unity)",
+      "count": 105
+    },
+    "gltf": {
+      "description": "glTF format (web-friendly)",
+      "path": "Assets/gltf",
+      "count": 105
+    },
+    "obj": {
+      "description": "Wavefront OBJ format",
+      "path": "Assets/obj",
+      "count": 105
+    }
+  },
+  "statistics": {
+    "total_assets": 105,
+    "tree_variants": 18,
+    "rock_variants": 24,
+    "total_files": 641
+  },
+  "license": "See License.txt",
+  "links": {
+    "discord": "Discord Server.url",
+    "more_assets": "More KayKit Assets.url",
+    "patreon": "Patreon.url"
+  }
+}
