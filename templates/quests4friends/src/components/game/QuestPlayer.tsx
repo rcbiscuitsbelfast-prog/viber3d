@@ -1,4 +1,4 @@
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { KeyboardControls, Sky, Environment } from '@react-three/drei';
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
@@ -8,8 +8,18 @@ import { QuestEntities } from './QuestEntities';
 import { QuestUI } from '../ui/QuestUI';
 import { useQuestStore } from '../../store/questStore';
 import { assetRegistry } from '../../systems/assets/AssetRegistry';
+import { animationManager } from '../../systems/animation/AnimationManager';
 import { Quest } from '../../types/quest.types';
 import * as THREE from 'three';
+
+// Animation update component (must be inside Canvas)
+function AnimationUpdater() {
+  useFrame((_state, delta) => {
+    // Update all animation mixers every frame
+    animationManager.update(delta);
+  });
+  return null;
+}
 
 // Mock quest data for demo
 function createMockQuest(): Quest {
@@ -52,6 +62,9 @@ function createMockQuest(): Quest {
             'Good luck on your quest!',
           ],
           interactionRadius: 3,
+          animationSet: 'humanoid_basic',
+          idleAnimation: 'idle',
+          interactionAnimation: 'wave',
         },
       },
       {
@@ -182,6 +195,9 @@ export function QuestPlayer() {
           }}
           shadows
         >
+          {/* Animation system updater */}
+          <AnimationUpdater />
+
           {/* Lighting based on quest environment */}
           <ambientLight 
             color={currentQuest.environment.ambientLight.color} 

@@ -1,0 +1,76 @@
+{
+  "basePath": "/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Animations/gltf/Rig_Medium",
+  "animationSets": {
+    "humanoid_basic": {
+      "name": "Humanoid Basic Animations",
+      "description": "Basic movement and general animations for humanoid characters",
+      "files": {
+        "movement": "Rig_Medium_MovementBasic.glb",
+        "general": "Rig_Medium_General.glb"
+      },
+      "animations": {
+        "idle": {
+          "file": "general",
+          "clipName": "Idle",
+          "loop": true,
+          "description": "Default idle stance"
+        },
+        "walk": {
+          "file": "movement",
+          "clipName": "Walking",
+          "loop": true,
+          "description": "Walking forward"
+        },
+        "run": {
+          "file": "movement",
+          "clipName": "Running",
+          "loop": true,
+          "description": "Running forward"
+        },
+        "jump": {
+          "file": "movement",
+          "clipName": "Jump",
+          "loop": false,
+          "description": "Single jump"
+        },
+        "attack": {
+          "file": "general",
+          "clipName": "Sword_Slash",
+          "loop": false,
+          "description": "Melee attack animation"
+        },
+        "interact": {
+          "file": "general",
+          "clipName": "Interact",
+          "loop": false,
+          "description": "Interaction gesture"
+        },
+        "wave": {
+          "file": "general",
+          "clipName": "Wave",
+          "loop": false,
+          "description": "Friendly wave gesture"
+        },
+        "hit": {
+          "file": "general",
+          "clipName": "Hit_React",
+          "loop": false,
+          "description": "Taking damage reaction"
+        },
+        "death": {
+          "file": "general",
+          "clipName": "Death",
+          "loop": false,
+          "clampWhenFinished": true,
+          "description": "Death animation"
+        }
+      }
+    }
+  },
+  "characterMappings": {
+    "char_rogue": "humanoid_basic",
+    "char_knight": "humanoid_basic",
+    "char_mage": "humanoid_basic",
+    "char_adventurer": "humanoid_basic"
+  }
+}
