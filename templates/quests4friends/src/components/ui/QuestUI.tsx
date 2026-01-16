@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import { useQuestStore } from '../../store/questStore';
-import { DialogueBox } from './DialogueBox.tsx';
-import { CombatUI } from './CombatUI.tsx';
-import { RewardModal } from './RewardModal.tsx';
-import { TasksList, HealthBar } from './HelperComponents.tsx';
+import { DialogueBox } from './DialogueBox';
+import { CombatUI } from './CombatUI';
+import { RewardModal } from './RewardModal';
+import { TasksList, HealthBar } from './HelperComponents';
 
 export function QuestUI() {
   const combatState = useQuestStore((state) => state.combatState);
