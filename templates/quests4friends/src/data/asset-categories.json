@@ -1,0 +1,222 @@
+{
+  "categories": [
+    {
+      "id": "characters",
+      "name": "Characters",
+      "icon": "👤",
+      "assets": [
+        {
+          "id": "player_knight",
+          "name": "Knight",
+          "assetId": "character_knight",
+          "thumbnail": "/assets/thumbnails/knight.png",
+          "type": "npc"
+        },
+        {
+          "id": "player_archer",
+          "name": "Archer",
+          "assetId": "character_archer",
+          "thumbnail": "/assets/thumbnails/archer.png",
+          "type": "npc"
+        },
+        {
+          "id": "player_mage",
+          "name": "Mage",
+          "assetId": "character_mage",
+          "thumbnail": "/assets/thumbnails/mage.png",
+          "type": "npc"
+        }
+      ]
+    },
+    {
+      "id": "npcs",
+      "name": "NPCs",
+      "icon": "🧙",
+      "assets": [
+        {
+          "id": "npc_merchant",
+          "name": "Merchant",
+          "assetId": "npc_merchant",
+          "thumbnail": "/assets/thumbnails/merchant.png",
+          "type": "npc"
+        },
+        {
+          "id": "npc_guard",
+          "name": "Guard",
+          "assetId": "npc_guard",
+          "thumbnail": "/assets/thumbnails/guard.png",
+          "type": "npc"
+        },
+        {
+          "id": "npc_villager",
+          "name": "Villager",
+          "assetId": "npc_villager",
+          "thumbnail": "/assets/thumbnails/villager.png",
+          "type": "npc"
+        },
+        {
+          "id": "npc_elder",
+          "name": "Elder",
+          "assetId": "npc_elder",
+          "thumbnail": "/assets/thumbnails/elder.png",
+          "type": "npc"
+        }
+      ]
+    },
+    {
+      "id": "enemies",
+      "name": "Enemies",
+      "icon": "⚔️",
+      "assets": [
+        {
+          "id": "enemy_goblin",
+          "name": "Goblin",
+          "assetId": "enemy_goblin",
+          "thumbnail": "/assets/thumbnails/goblin.png",
+          "type": "enemy",
+          "defaultStats": {
+            "hp": 50,
+            "maxHp": 50,
+            "attackDamage": 10,
+            "attackSpeed": 1,
+            "attackPattern": "tap"
+          }
+        },
+        {
+          "id": "enemy_orc",
+          "name": "Orc",
+          "assetId": "enemy_orc",
+          "thumbnail": "/assets/thumbnails/orc.png",
+          "type": "enemy",
+          "defaultStats": {
+            "hp": 80,
+            "maxHp": 80,
+            "attackDamage": 15,
+            "attackSpeed": 0.8,
+            "attackPattern": "timing"
+          }
+        },
+        {
+          "id": "enemy_skeleton",
+          "name": "Skeleton",
+          "assetId": "enemy_skeleton",
+          "thumbnail": "/assets/thumbnails/skeleton.png",
+          "type": "enemy",
+          "defaultStats": {
+            "hp": 40,
+            "maxHp": 40,
+            "attackDamage": 12,
+            "attackSpeed": 1.2,
+            "attackPattern": "dodge"
+          }
+        },
+        {
+          "id": "boss_dragon",
+          "name": "Dragon Boss",
+          "assetId": "boss_dragon",
+          "thumbnail": "/assets/thumbnails/dragon.png",
+          "type": "boss",
+          "defaultStats": {
+            "hp": 200,
+            "maxHp": 200,
+            "attackDamage": 25,
+            "attackSpeed": 0.5,
+            "attackPattern": "timing",
+            "isBoss": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "objects",
+      "name": "Objects",
+      "icon": "📦",
+      "assets": [
+        {
+          "id": "object_tree",
+          "name": "Tree",
+          "assetId": "tree_01",
+          "thumbnail": "/assets/thumbnails/tree.png",
+          "type": "object"
+        },
+        {
+          "id": "object_rock",
+          "name": "Rock",
+          "assetId": "rock_01",
+          "thumbnail": "/assets/thumbnails/rock.png",
+          "type": "object"
+        },
+        {
+          "id": "object_chest",
+          "name": "Chest",
+          "assetId": "chest_01",
+          "thumbnail": "/assets/thumbnails/chest.png",
+          "type": "object"
+        },
+        {
+          "id": "object_door",
+          "name": "Door",
+          "assetId": "door_01",
+          "thumbnail": "/assets/thumbnails/door.png",
+          "type": "object"
+        },
+        {
+          "id": "object_barrel",
+          "name": "Barrel",
+          "assetId": "barrel_01",
+          "thumbnail": "/assets/thumbnails/barrel.png",
+          "type": "object"
+        },
+        {
+          "id": "object_crate",
+          "name": "Crate",
+          "assetId": "crate_01",
+          "thumbnail": "/assets/thumbnails/crate.png",
+          "type": "object"
+        }
+      ]
+    },
+    {
+      "id": "collectibles",
+      "name": "Collectibles",
+      "icon": "💎",
+      "assets": [
+        {
+          "id": "collectible_apple",
+          "name": "Apple",
+          "assetId": "apple_01",
+          "thumbnail": "/assets/thumbnails/apple.png",
+          "type": "collectible"
+        },
+        {
+          "id": "collectible_gem",
+          "name": "Gem",
+          "assetId": "gem_01",
+          "thumbnail": "/assets/thumbnails/gem.png",
+          "type": "collectible"
+        },
+        {
+          "id": "collectible_coin",
+          "name": "Coin",
+          "assetId": "coin_01",
+          "thumbnail": "/assets/thumbnails/coin.png",
+          "type": "collectible"
+        },
+        {
+          "id": "collectible_key",
+          "name": "Key",
+          "assetId": "key_01",
+          "thumbnail": "/assets/thumbnails/key.png",
+          "type": "collectible"
+        },
+        {
+          "id": "collectible_potion",
+          "name": "Potion",
+          "assetId": "potion_01",
+          "thumbnail": "/assets/thumbnails/potion.png",
+          "type": "collectible"
+        }
+      ]
+    }
+  ]
+}
