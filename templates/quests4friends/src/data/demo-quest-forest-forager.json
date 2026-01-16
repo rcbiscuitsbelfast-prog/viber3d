@@ -1,0 +1,380 @@
+{
+  "id": "demo-forest-forager",
+  "ownerId": "demo-cto",
+  "title": "Forest Forager",
+  "templateWorld": "forest",
+  "gameplayStyle": "nonCombat",
+  "createdAt": 1703195420000,
+  "expiresAt": null,
+  "isPremium": false,
+  "environment": {
+    "seed": 42,
+    "spawnPoint": { "x": 0, "y": 0, "z": 0 },
+    "ambientLight": {
+      "color": "#fff5e6",
+      "intensity": 0.6
+    },
+    "directionalLight": {
+      "color": "#FFD54F",
+      "intensity": 1.2,
+      "position": { "x": 10, "y": 15, "z": 5 }
+    }
+  },
+  "entities": [
+    {
+      "id": "forest-keeper",
+      "type": "npc",
+      "assetId": "npc_elder",
+      "position": { "x": 0, "y": 0, "z": 0 },
+      "rotation": { "x": 0, "y": 0.785, "z": 0 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "npcData": {
+        "name": "Forest Keeper",
+        "dialog": [
+          "Welcome, traveler! I'm the Forest Keeper.",
+          "I need your help gathering ingredients for a magical potion.",
+          "Find me 3 mushrooms, 2 apples, and speak to the Wise Owl. You have 5 minutes!"
+        ],
+        "interactionRadius": 3,
+        "animationSet": "humanoid_basic",
+        "idleAnimation": "idle",
+        "interactionAnimation": "wave"
+      }
+    },
+    {
+      "id": "wise-owl",
+      "type": "npc",
+      "assetId": "npc_villager",
+      "position": { "x": -10, "y": 1, "z": 10 },
+      "rotation": { "x": 0, "y": -1.571, "z": 0 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "npcData": {
+        "name": "Wise Villager",
+        "dialog": [
+          "Hoo! You found me, clever traveler.",
+          "The Forest Keeper's potion will be perfect!"
+        ],
+        "interactionRadius": 3,
+        "animationSet": "humanoid_basic",
+        "idleAnimation": "idle",
+        "interactionAnimation": "wave"
+      }
+    },
+    {
+      "id": "mushroom-1",
+      "type": "collectible",
+      "assetId": "collectible-mushroom-red",
+      "position": { "x": 5, "y": 0.5, "z": 3 },
+      "rotation": { "x": 0, "y": 0, "z": 0 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "collectibleData": {
+        "name": "Red Mushroom",
+        "autoCollect": true,
+        "collectionRadius": 2
+      }
+    },
+    {
+      "id": "mushroom-2",
+      "type": "collectible",
+      "assetId": "collectible-mushroom-red",
+      "position": { "x": -4, "y": 0.5, "z": 6 },
+      "rotation": { "x": 0, "y": 1.047, "z": 0 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "collectibleData": {
+        "name": "Red Mushroom",
+        "autoCollect": true,
+        "collectionRadius": 2
+      }
+    },
+    {
+      "id": "mushroom-3",
+      "type": "collectible",
+      "assetId": "collectible-mushroom-red",
+      "position": { "x": 8, "y": 0.5, "z": -2 },
+      "rotation": { "x": 0, "y": 2.094, "z": 0 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "collectibleData": {
+        "name": "Red Mushroom",
+        "autoCollect": true,
+        "collectionRadius": 2
+      }
+    },
+    {
+      "id": "apple-1",
+      "type": "collectible",
+      "assetId": "collectible-apple-red",
+      "position": { "x": 2, "y": 3, "z": 8 },
+      "rotation": { "x": 0, "y": 0.524, "z": 0 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "collectibleData": {
+        "name": "Red Apple",
+        "autoCollect": true,
+        "collectionRadius": 2
+      }
+    },
+    {
+      "id": "apple-2",
+      "type": "collectible",
+      "assetId": "collectible-apple-red",
+      "position": { "x": -6, "y": 3, "z": 4 },
+      "rotation": { "x": 0, "y": 2.618, "z": 0 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "collectibleData": {
+        "name": "Red Apple",
+        "autoCollect": true,
+        "collectionRadius": 2
+      }
+    },
+    {
+      "id": "tree-1",
+      "type": "object",
+      "assetId": "environmental-tree-oak",
+      "position": { "x": -8, "y": 0, "z": -5 },
+      "rotation": { "x": 0, "y": 0.785, "z": 0 },
+      "scale": { "x": 2, "y": 2, "z": 2 }
+    },
+    {
+      "id": "tree-2",
+      "type": "object",
+      "assetId": "environmental-tree-oak",
+      "position": { "x": 7, "y": 0, "z": -7 },
+      "rotation": { "x": 0, "y": -0.524, "z": 0 },
+      "scale": { "x": 2.2, "y": 2.2, "z": 2.2 }
+    },
+    {
+      "id": "tree-3",
+      "type": "object",
+      "assetId": "environmental-tree-oak",
+      "position": { "x": -3, "y": 0, "z": 10 },
+      "rotation": { "x": 0, "y": 1.047, "z": 0 },
+      "scale": { "x": 1.8, "y": 1.8, "z": 1.8 }
+    },
+    {
+      "id": "tree-4",
+      "type": "object",
+      "assetId": "environmental-tree-oak",
+      "position": { "x": 9, "y": 0, "z": -8 },
+      "rotation": { "x": 0, "y": -1.047, "z": 0 },
+      "scale": { "x": 2.1, "y": 2.1, "z": 2.1 }
+    },
+    {
+      "id": "tree-5",
+      "type": "object",
+      "assetId": "environmental-tree-oak",
+      "position": { "x": -6, "y": 0, "z": -7 },
+      "rotation": { "x": 0, "y": 0.262, "z": 0 },
+      "scale": { "x": 1.9, "y": 1.9, "z": 1.9 }
+    },
+    {
+      "id": "rock-1",
+      "type": "object",
+      "assetId": "environmental-rock-gray",
+      "position": { "x": 4, "y": 0.3, "z": -5 },
+      "rotation": { "x": 0.262, "y": 0.524, "z": 0 },
+      "scale": { "x": 1.5, "y": 1, "z": 1.2 }
+    },
+    {
+      "id": "rock-2",
+      "type": "object",
+      "assetId": "environmental-rock-gray",
+      "position": { "x": -7, "y": 0.3, "z": 1 },
+      "rotation": { "x": 0, "y": -0.785, "z": 0.174 },
+      "scale": { "x": 1.3, "y": 0.8, "z": 1.1 }
+    },
+    {
+      "id": "rock-3",
+      "type": "object",
+      "assetId": "environmental-rock-gray",
+      "position": { "x": 6, "y": 0.3, "z": 4 },
+      "rotation": { "x": 0, "y": 1.047, "z": 0 },
+      "scale": { "x": 1.4, "y": 0.9, "z": 1 }
+    },
+    {
+      "id": "mushroom-patch-1",
+      "type": "object",
+      "assetId": "environmental-mushroom-patch",
+      "position": { "x": -2, "y": 0.1, "z": -3 },
+      "rotation": { "x": 0, "y": 0.785, "z": 0 },
+      "scale": { "x": 1.2, "y": 1, "z": 1.2 }
+    },
+    {
+      "id": "mushroom-patch-2",
+      "type": "object",
+      "assetId": "environmental-mushroom-patch",
+      "position": { "x": 3, "y": 0.1, "z": 1 },
+      "rotation": { "x": 0, "y": -0.524, "z": 0 },
+      "scale": { "x": 1.1, "y": 1, "z": 1.1 }
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-meet-keeper",
+      "type": "interact",
+      "description": "Talk to the Forest Keeper",
+      "targetId": "forest-keeper",
+      "isOptional": false,
+      "isCompleted": false,
+      "order": 0
+    },
+    {
+      "id": "task-collect-mushrooms",
+      "type": "collect",
+      "description": "Gather 3 mushrooms for the potion",
+      "targetAssetId": "collectible-mushroom-red",
+      "requiredCount": 3,
+      "currentCount": 0,
+      "isOptional": false,
+      "isCompleted": false,
+      "order": 1
+    },
+    {
+      "id": "task-collect-apples",
+      "type": "collect",
+      "description": "Find 2 apples from the forest",
+      "targetAssetId": "collectible-apple-red",
+      "requiredCount": 2,
+      "currentCount": 0,
+      "isOptional": false,
+      "isCompleted": false,
+      "order": 2
+    },
+    {
+      "id": "task-meet-owl",
+      "type": "interact",
+      "description": "Speak with the Wise Owl (hidden in the forest)",
+      "targetId": "wise-owl",
+      "isOptional": false,
+      "isCompleted": false,
+      "order": 3
+    },
+    {
+      "id": "task-return-to-keeper",
+      "type": "interact",
+      "description": "Return to the Forest Keeper and claim your reward",
+      "targetId": "forest-keeper",
+      "isOptional": false,
+      "isCompleted": false,
+      "order": 4
+    }
+  ],
+  "triggers": [
+    {
+      "id": "trigger-start-quest",
+      "event": "onInteract",
+      "sourceId": "forest-keeper",
+      "fired": false,
+      "condition": {
+        "type": "taskComplete",
+        "value": "task-meet-keeper"
+      },
+      "actions": [
+        {
+          "type": "showText",
+          "payload": "Good luck on your journey! Check your task list in the top-left corner.",
+          "delay": 2500
+        }
+      ]
+    },
+    {
+      "id": "trigger-collectible-feedback",
+      "event": "onTaskComplete",
+      "sourceId": "task-collect-mushrooms",
+      "fired": false,
+      "actions": [
+        {
+          "type": "showText",
+          "payload": "Great job collecting the mushrooms! Now find those apples.",
+          "delay": 0
+        },
+        {
+          "type": "playAudio",
+          "payload": "audio-pickup-success",
+          "delay": 0
+        }
+      ]
+    },
+    {
+      "id": "trigger-all-tasks-complete",
+      "event": "onTaskComplete",
+      "condition": {
+        "type": "allTasksComplete"
+      },
+      "fired": false,
+      "actions": [
+        {
+          "type": "showText",
+          "payload": "Amazing! You've gathered everything! Return to the Forest Keeper for your reward.",
+          "delay": 1000
+        },
+        {
+          "type": "playAnimation",
+          "payload": {
+            "targetId": "forest-keeper",
+            "animation": "celebrate"
+          },
+          "delay": 0
+        },
+        {
+          "type": "unlockReward",
+          "payload": "all-tasks-completed",
+          "delay": 3000
+        }
+      ]
+    },
+    {
+      "id": "trigger-final-reward",
+      "event": "onInteract",
+      "sourceId": "forest-keeper",
+      "fired": false,
+      "condition": {
+        "type": "allTasksComplete"
+      },
+      "actions": [
+        {
+          "type": "unlockReward",
+          "payload": "quest-completion",
+          "delay": 500
+        }
+      ]
+    },
+    {
+      "id": "trigger-meet-owl",
+      "event": "onInteract",
+      "sourceId": "wise-owl",
+      "fired": false,
+      "condition": {
+        "type": "taskComplete",
+        "value": "task-collect-apples"
+      },
+      "actions": [
+        {
+          "type": "showText",
+          "payload": "The Wise Owl nods approvingly. You can feel the forest's magic flowing.",
+          "delay": 2000
+        },
+        {
+          "type": "playAnimation",
+          "payload": {
+            "targetId": "wise-owl",
+            "animation": "approve"
+          },
+          "delay": 0
+        }
+      ]
+    }
+  ],
+  "reward": {
+    "type": "text",
+    "payloadText": "quests4friends://forest-forager/reward",
+    "revealStyle": "portal",
+    "title": "The Magical Potion! ✨",
+    "message": "You've successfully gathered all the ingredients!\n\nThe Forest Keeper smiles warmly as the potion shimmers with magical energy. Your kindness has brought harmony back to the forest.\n\nThank you, brave explorer!"
+  },
+  "limits": {
+    "maxRecipients": 100
+  },
+  "analytics": {
+    "plays": 0,
+    "completions": 0
+  }
+}
