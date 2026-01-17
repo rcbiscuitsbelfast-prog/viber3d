@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Task, TaskType } from '../../types/quest.types';
-import { useBuilderActions, useBuilderStore } from '../../store/builderStore';
+import { useBuilderStore } from '../../store/builderStore';
 
 interface TaskEditModalProps {
   task: Task | null;
@@ -8,8 +8,9 @@ interface TaskEditModalProps {
 }
 
 export function TaskEditModal({ task, onClose }: TaskEditModalProps) {
-  const { currentQuest } = useBuilderStore();
-  const { addTask, updateTask } = useBuilderActions();
+  const currentQuest = useBuilderStore((state) => state.currentQuest);
+  const addTask = useBuilderStore((state) => state.addTask);
+  const updateTask = useBuilderStore((state) => state.updateTask);
 
   const [formData, setFormData] = useState<Partial<Task>>({
     type: task?.type || 'collect',

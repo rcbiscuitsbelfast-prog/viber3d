@@ -68,6 +68,7 @@ export function NPCEntity({ entity }: NPCEntityProps) {
     assetRegistry.loadModel(entity.assetId)
       .then((loadedModel: any) => {
         if (mounted) {
+          console.log(`[NPCEntity] Model loaded for ${entity.id} (assetId: ${entity.assetId}):`, loadedModel);
           const model = loadedModel as THREE.Group;
           
           // Clone the model to avoid modifying the cached version
@@ -77,6 +78,7 @@ export function NPCEntity({ entity }: NPCEntityProps) {
           modelClone.position.set(0, 0, 0);
           modelClone.rotation.set(0, 0, 0);
           modelClone.scale.set(1, 1, 1);
+          modelClone.visible = true;
           
           // Center the model if it has an offset (ensure feet are at y=0)
           const box = new THREE.Box3().setFromObject(modelClone);
@@ -118,20 +120,24 @@ export function NPCEntity({ entity }: NPCEntityProps) {
         }
       })
       .catch((error) => {
-        console.error('Failed to load NPC model:', error);
+        console.error('Failed to load NPC model:', entity.assetId, error);
         // Create fallback NPC model
         if (mounted) {
+          console.warn(`Creating fallback model for ${entity.id} (${entity.assetId})`);
           const fallbackGroup = new THREE.Group();
           const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.2, 4, 8), new THREE.MeshStandardMaterial({ color: '#4ecdc4' }));
           body.position.y = 0.6;
           body.castShadow = true;
+          body.visible = true;
           fallbackGroup.add(body);
           
           const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), new THREE.MeshStandardMaterial({ color: '#ffdbac' }));
           head.position.y = 1.7;
           head.castShadow = true;
+          head.visible = true;
           fallbackGroup.add(head);
           
+          console.warn(`Fallback model created for ${entity.id}`);
           setModel(fallbackGroup);
         }
       });
@@ -242,6 +248,12 @@ export function NPCEntity({ entity }: NPCEntityProps) {
       rotation={[entity.rotation.x, entity.rotation.y, entity.rotation.z]}
       scale={[entity.scale.x, entity.scale.y, entity.scale.z]}
     >
+      {/* Debug: Show position marker */}
+      <mesh position={[0, 0, 0]} visible={false}>
+        <sphereGeometry args={[0.1, 8, 8]} />
+        <meshBasicMaterial color="red" />
+      </mesh>
+
       {model && (
         <primitive 
           object={model} 

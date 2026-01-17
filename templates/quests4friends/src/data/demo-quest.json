@@ -1,0 +1,44 @@
+{
+  "id": "demo-quest",
+  "ownerId": "demo",
+  "title": "Character Animation Demo",
+  "description": "A simple demo to showcase character animations: Idle, Walk, and Run",
+  "templateWorld": "empty",
+  "gameplayStyle": "nonCombat",
+  "createdAt": 1703195420000,
+  "expiresAt": null,
+  "isPremium": false,
+  "environment": {
+    "seed": 0,
+    "spawnPoint": { "x": 0, "y": 0, "z": 0 },
+    "groundColor": "#00aa00",
+    "groundSize": 50,
+    "ambientLight": {
+      "color": "#ffffff",
+      "intensity": 0.8
+    },
+    "directionalLight": {
+      "color": "#ffffff",
+      "intensity": 1.2,
+      "position": { "x": 10, "y": 20, "z": 10 }
+    }
+  },
+  "entities": [
+    {
+      "id": "player-character",
+      "type": "character",
+      "assetId": "char_rogue",
+      "position": { "x": 0, "y": 0, "z": 0 },
+      "rotation": { "x": 0, "y": 0, "z": 0 },
+      "scale": { "x": 1, "y": 1, "z": 1 },
+      "characterData": {
+        "animationSet": "humanoid_basic",
+        "idleAnimation": "idle",
+        "defaultAnimation": "idle"
+      }
+    }
+  ],
+  "objectives": [],
+  "tasks": [],
+  "rewards": []
+}

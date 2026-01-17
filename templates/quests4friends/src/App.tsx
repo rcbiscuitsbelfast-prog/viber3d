@@ -4,6 +4,8 @@ import { QuestPlayerPage } from './pages/QuestPlayerPage';
 import { BuilderPage } from './pages/BuilderPage';
 import { LoginPage } from './pages/LoginPage';
 import { AccountPage } from './pages/AccountPage';
+import { ToonShooterPage } from './pages/ToonShooterPage';
+import { MinimalDemo } from './pages/MinimalDemoPage';
 
 export default function App() {
   return (
@@ -14,6 +16,8 @@ export default function App() {
         <Route path="/builder" element={<BuilderPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/account" element={<AccountPage />} />
+        <Route path="/toonshooter" element={<ToonShooterPage />} />
+        <Route path="/minimal-demo" element={<MinimalDemo />} />
       </Routes>
     </BrowserRouter>
   );

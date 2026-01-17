@@ -68,7 +68,7 @@ export function BuilderPage() {
       createNewQuest();
     }
     setIsInitialized(true);
-  }, [currentQuest, createNewQuest]);
+  }, []); // Only initialize once on mount
 
   // Auto-save every 30 seconds
   useEffect(() => {

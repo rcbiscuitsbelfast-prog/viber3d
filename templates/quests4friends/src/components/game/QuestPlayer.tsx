@@ -1,6 +1,6 @@
 import { Canvas, useFrame } from '@react-three/fiber';
 import { KeyboardControls, Sky, Environment } from '@react-three/drei';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { PlayerController, playerControls } from './PlayerController';
 import { QuestEnvironment } from './QuestEnvironment';
@@ -122,6 +122,7 @@ function createMockQuest(): Quest {
 
 export function QuestPlayer() {
   const { questId } = useParams<{ questId: string }>();
+  const [assetsReady, setAssetsReady] = useState(false);
   
   const {
     currentQuest,
@@ -133,8 +134,33 @@ export function QuestPlayer() {
     setError,
   } = useQuestStore();
 
-  // Load quest data
+  // Initialize asset registry FIRST
   useEffect(() => {
+    let isMounted = true;
+    
+    assetRegistry.initialize()
+      .then(() => {
+        if (isMounted) {
+          setAssetsReady(true);
+          console.log('Asset registry initialized successfully');
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to initialize asset registry:', err);
+        if (isMounted) {
+          setError(`Failed to load game assets: ${err.message}`);
+        }
+      });
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Load quest data (only after assets are ready)
+  useEffect(() => {
+    if (!assetsReady) return;
+    
     setLoading(true);
     
     try {
@@ -147,20 +173,16 @@ export function QuestPlayer() {
       setError('Failed to load quest');
       setLoading(false);
     }
-  }, [questId]);
+  }, [questId, assetsReady]);
 
-  // Initialize asset registry
-  useEffect(() => {
-    assetRegistry.initialize().catch((err) => {
-      console.error('Failed to initialize asset registry:', err);
-    });
-  }, []);
-
-  if (isLoading) {
+  if (!assetsReady || isLoading) {
     return (
       <div className="w-full h-screen flex items-center justify-center bg-gradient-to-b from-blue-900 to-purple-900">
-        <div className="text-white text-2xl font-bold animate-pulse">
-          Loading Quest...
+        <div className="text-white text-center">
+          <div className="text-2xl font-bold animate-pulse">
+            {!assetsReady ? 'Loading game assets...' : 'Loading Quest...'}
+          </div>
+          <div className="text-sm text-gray-300 mt-4">This may take a moment</div>
         </div>
       </div>
     );

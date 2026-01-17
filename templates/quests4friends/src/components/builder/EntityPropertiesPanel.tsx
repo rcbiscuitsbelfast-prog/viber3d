@@ -1,8 +1,12 @@
-import { useSelectedEntity, useBuilderActions } from '../../store/builderStore';
+import { useSelectedEntity } from '../../store/builderStore';
+import { useBuilderStore } from '../../store/builderStore';
 
 export function EntityPropertiesPanel() {
   const selectedEntity = useSelectedEntity();
-  const { updateEntity, deleteEntity, duplicateEntity } = useBuilderActions();
+  // Use individual selectors to avoid object recreation
+  const updateEntity = useBuilderStore((state) => state.updateEntity);
+  const deleteEntity = useBuilderStore((state) => state.deleteEntity);
+  const duplicateEntity = useBuilderStore((state) => state.duplicateEntity);
 
   if (!selectedEntity) {
     return (

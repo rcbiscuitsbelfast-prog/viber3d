@@ -27,7 +27,10 @@ export function useCharacterAnimation({
 
   // Load animations when model is ready
   useEffect(() => {
-    if (!model) return;
+    if (!model) {
+      console.log(`[useCharacterAnimation] No model yet for ${characterId}`);
+      return;
+    }
     
     // Reset auto-play flag when model changes
     hasAutoPlayedRef.current = false;
@@ -37,27 +40,39 @@ export function useCharacterAnimation({
 
     const loadAnimations = async () => {
       try {
-        // Load animation set for this character
-        const animations = await animationSetLoader.loadCharacterAnimations(assetId);
+        console.log(`[useCharacterAnimation] Loading animations for ${characterId} (assetId: ${assetId})`);
         
-        if (!mounted) return;
-
-        if (Object.keys(animations).length === 0) {
-          console.warn(`No animations loaded for character ${characterId} (${assetId}) - will use fallback idle`);
-          setIsLoaded(true);
+        // Load animation set for this character
+        let animations = await animationSetLoader.loadCharacterAnimations(assetId);
+        
+        if (!mounted) {
+          console.log(`[useCharacterAnimation] Component unmounted, skipping animation registration`);
           return;
+        }
+
+        const animationKeys = Object.keys(animations);
+        console.log(`[useCharacterAnimation] Loaded ${animationKeys.length} animations for ${characterId}:`, animationKeys);
+
+        if (animationKeys.length === 0) {
+          console.warn(`[useCharacterAnimation] No animations loaded for character ${characterId} (${assetId})`);
+          
+          // Create a fallback idle animation - freeze the model in current pose
+          const idleClip = new THREE.AnimationClip('idle', 0, []);
+          animations = { idle: idleClip };
+          console.warn(`[useCharacterAnimation] Created fallback idle animation (model will remain static)`);
         }
 
         // Register character with animation manager
         animationManager.registerCharacter(characterId, model, animations);
         animationsRef.current = animations;
+        console.log(`[useCharacterAnimation] Registered ${characterId} with ${Object.keys(animations).length} animations`);
 
         // Play default animation
         if (defaultAnimation && animations[defaultAnimation]) {
+          console.log(`[useCharacterAnimation] Playing default animation '${defaultAnimation}' for ${characterId}`);
           animationManager.playAnimation(characterId, defaultAnimation, { loop: true });
           setCurrentAnimation(defaultAnimation);
           hasAutoPlayedRef.current = true;
-          console.log(`Playing default animation '${defaultAnimation}' for ${characterId}`);
         } else {
           // Find any available animation to play
           const availableAnims = Object.keys(animations);
@@ -69,19 +84,18 @@ export function useCharacterAnimation({
               a.toLowerCase().includes('run')
             ) || availableAnims[0];
             
-            console.log(`Default animation '${defaultAnimation}' not found, using '${fallbackAnim}' instead`);
+            console.log(`[useCharacterAnimation] Default animation '${defaultAnimation}' not found, using '${fallbackAnim}' instead for ${characterId}`);
             animationManager.playAnimation(characterId, fallbackAnim, { loop: true });
             setCurrentAnimation(fallbackAnim);
             hasAutoPlayedRef.current = true;
           } else {
-            console.warn(`No animations available for character ${characterId}`);
+            console.warn(`[useCharacterAnimation] No animations available for character ${characterId}`);
           }
         }
 
         setIsLoaded(true);
-        console.log(`Animations loaded for ${characterId}:`, Object.keys(animations));
       } catch (error) {
-        console.error(`Failed to load animations for ${characterId}:`, error);
+        console.error(`[useCharacterAnimation] Failed to load animations for ${characterId}:`, error);
         setIsLoaded(true);
       }
     };

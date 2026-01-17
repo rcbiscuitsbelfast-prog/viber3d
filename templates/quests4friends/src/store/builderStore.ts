@@ -516,7 +516,8 @@ export const useSelectedEntity = () => {
   return entities.find(entity => entity.id === selectedId) || null;
 };
 
-export const useBuilderActions = () => useBuilderStore((state) => ({
+// Memoized selector to prevent infinite loops from object recreation
+const builderActionsSelector = (state: BuilderStore) => ({
   createNewQuest: state.createNewQuest,
   loadQuest: state.loadQuest,
   saveQuest: state.saveQuest,
@@ -539,4 +540,6 @@ export const useBuilderActions = () => useBuilderStore((state) => ({
   toggleSnapToGrid: state.toggleSnapToGrid,
   undo: state.undo,
   redo: state.redo,
-}));
+});
+
+export const useBuilderActions = () => useBuilderStore(builderActionsSelector);

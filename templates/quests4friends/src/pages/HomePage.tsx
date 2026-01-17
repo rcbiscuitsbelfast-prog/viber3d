@@ -19,7 +19,7 @@ export function HomePage() {
             Not a text. Not a game. A playable message.
           </p>
           
-          <div className="flex gap-4 justify-center">
+          <div className="flex gap-4 justify-center flex-wrap">
             <Link
               to="/builder"
               className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 shadow-xl"
@@ -33,6 +33,21 @@ export function HomePage() {
             >
               Try Demo
             </Link>
+
+            <Link
+              to="/minimal-demo"
+              className="bg-gradient-to-r from-green-600 to-teal-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-green-700 hover:to-teal-700 transition-all transform hover:scale-105 shadow-xl"
+            >
+              Animation Demo
+            </Link>
+
+            <a
+              href="/toonshooter/"
+              className="bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-red-700 hover:to-orange-700 transition-all transform hover:scale-105 shadow-xl"
+              target="_self"
+            >
+              🎮 Toon Shooter
+            </a>
           </div>
         </div>
 

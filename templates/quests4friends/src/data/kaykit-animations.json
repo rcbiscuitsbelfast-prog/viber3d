@@ -498,7 +498,20 @@
     "char_rogue_hooded": "humanoid_basic",
     "char_prototype_pete": "prototype_pete",
     "char_prototype_pete_large": "large_humanoid",
-    "char_animated": "prototype_pete"
+    "char_animated": "prototype_pete",
+    "npc_elder": "humanoid_enhanced",
+    "npc_merchant": "humanoid_enhanced",
+    "npc_villager": "humanoid_enhanced",
+    "npc_guard": "humanoid_enhanced",
+    "npc_priestess": "humanoid_enhanced",
+    "npc_sage": "humanoid_enhanced",
+    "npc_barbarian": "large_humanoid",
+    "npc_rogue": "humanoid_basic",
+    "enemy_goblin": "humanoid_basic",
+    "enemy_orc": "large_humanoid",
+    "enemy_skeleton": "humanoid_enhanced",
+    "enemy_undead": "humanoid_enhanced",
+    "enemy_troll": "large_humanoid"
   },
   "defaultAnimations": {
     "idle": "idle",

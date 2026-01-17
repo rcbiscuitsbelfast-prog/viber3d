@@ -44,78 +44,93 @@ export function QuestEnvironment({ templateWorld, seed }: QuestEnvironmentProps)
   }, [placedAssets]);
 
   async function generateEnvironment() {
-    setIsLoading(true);
+    try {
+      setIsLoading(true);
 
-    const assets: PlacedAsset[] = [];
-    const random = seededRandom(seed);
+      const assets: PlacedAsset[] = [];
+      const random = seededRandom(seed);
 
-    // Get environment assets based on template world
-    const treeAssets = assetRegistry.getAssetsByTags(['tree']);
-    const rockAssets = assetRegistry.getAssetsByTags(['rock']);
+      // Get environment assets based on template world
+      const treeAssets = assetRegistry.getAssetsByTags(['tree']);
+      const rockAssets = assetRegistry.getAssetsByTags(['rock']);
 
-    // Define placement area
-    const placementRadius = 40;
+      // Define placement area
+      const placementRadius = 40;
 
-    // Generate positions for trees
-    const treeCount = templateWorld === 'forest' ? 30 : 15;
-    for (let i = 0; i < treeCount; i++) {
-      const angle = random() * Math.PI * 2;
-      const distance = random() * placementRadius;
-      const x = Math.cos(angle) * distance;
-      const z = Math.sin(angle) * distance;
+      // Only generate trees if we have tree assets
+      if (treeAssets.length > 0) {
+        // Generate positions for trees
+        const treeCount = templateWorld === 'forest' ? 30 : 15;
+        for (let i = 0; i < treeCount; i++) {
+          const angle = random() * Math.PI * 2;
+          const distance = random() * placementRadius;
+          const x = Math.cos(angle) * distance;
+          const z = Math.sin(angle) * distance;
 
-      // Pick random tree asset
-      const treeAsset = treeAssets[Math.floor(random() * treeAssets.length)];
-      
-      if (treeAsset) {
-        assets.push({
-          id: `tree-${i}`,
-          assetId: treeAsset.id,
-          position: new THREE.Vector3(x, 0, z),
-          rotation: new THREE.Vector3(0, random() * Math.PI * 2, 0),
-          scale: new THREE.Vector3(1, 1, 1),
-        });
-      }
-    }
-
-    // Generate positions for rocks
-    const rockCount = 20;
-    for (let i = 0; i < rockCount; i++) {
-      const angle = random() * Math.PI * 2;
-      const distance = random() * placementRadius;
-      const x = Math.cos(angle) * distance;
-      const z = Math.sin(angle) * distance;
-
-      // Pick random rock asset
-      const rockAsset = rockAssets[Math.floor(random() * rockAssets.length)];
-      
-      if (rockAsset) {
-        const scale = 0.5 + random() * 0.5;
-        assets.push({
-          id: `rock-${i}`,
-          assetId: rockAsset.id,
-          position: new THREE.Vector3(x, 0, z),
-          rotation: new THREE.Vector3(0, random() * Math.PI * 2, 0),
-          scale: new THREE.Vector3(scale, scale, scale),
-        });
-      }
-    }
-
-    // Load all models
-    const loadedAssets = await Promise.all(
-      assets.map(async (asset) => {
-        try {
-          const model = await assetRegistry.loadModel(asset.assetId);
-          return { ...asset, model };
-        } catch (error) {
-          console.warn(`Failed to load asset ${asset.assetId}:`, error);
-          return asset;
+          // Pick random tree asset
+          const treeAsset = treeAssets[Math.floor(random() * treeAssets.length)];
+          
+          if (treeAsset) {
+            assets.push({
+              id: `tree-${i}`,
+              assetId: treeAsset.id,
+              position: new THREE.Vector3(x, 0, z),
+              rotation: new THREE.Vector3(0, random() * Math.PI * 2, 0),
+              scale: new THREE.Vector3(1, 1, 1),
+            });
+          }
         }
-      })
-    );
+      } else {
+        console.warn('[QuestEnvironment] No tree assets found, skipping tree generation');
+      }
 
-    setPlacedAssets(loadedAssets);
-    setIsLoading(false);
+      // Only generate rocks if we have rock assets
+      if (rockAssets.length > 0) {
+        // Generate positions for rocks
+        const rockCount = 20;
+        for (let i = 0; i < rockCount; i++) {
+          const angle = random() * Math.PI * 2;
+          const distance = random() * placementRadius;
+          const x = Math.cos(angle) * distance;
+          const z = Math.sin(angle) * distance;
+
+          // Pick random rock asset
+          const rockAsset = rockAssets[Math.floor(random() * rockAssets.length)];
+          
+          if (rockAsset) {
+            const scale = 0.5 + random() * 0.5;
+            assets.push({
+              id: `rock-${i}`,
+              assetId: rockAsset.id,
+              position: new THREE.Vector3(x, 0, z),
+              rotation: new THREE.Vector3(0, random() * Math.PI * 2, 0),
+              scale: new THREE.Vector3(scale, scale, scale),
+            });
+          }
+        }
+      } else {
+        console.warn('[QuestEnvironment] No rock assets found, skipping rock generation');
+      }
+
+      // Load all models
+      const loadedAssets = await Promise.all(
+        assets.map(async (asset) => {
+          try {
+            const model = await assetRegistry.loadModel(asset.assetId);
+            return { ...asset, model };
+          } catch (error) {
+            console.warn(`Failed to load asset ${asset.assetId}:`, error);
+            return asset;
+          }
+        })
+      );
+
+      setPlacedAssets(loadedAssets);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('[QuestEnvironment] Error generating environment:', error);
+      setIsLoading(false);
+    }
   }
 
   return (

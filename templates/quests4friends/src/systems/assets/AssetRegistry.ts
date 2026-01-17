@@ -95,6 +95,61 @@ export class AssetRegistry {
           tags: ['character', 'player', char.name.toLowerCase()]
         });
       });
+
+      // Create NPC aliases that map to character models
+      // This allows the demo to use npc_elder, npc_merchant, etc. by mapping them to actual character models
+      const npcMappings: Record<string, string> = {
+        'npc_elder': 'char_mage',           // Elder -> Mage (wise character)
+        'npc_merchant': 'char_adventurer',  // Merchant -> Adventurer
+        'npc_villager': 'char_ranger',      // Villager -> Ranger
+        'npc_guard': 'char_knight',         // Guard -> Knight
+        'npc_priestess': 'char_mage',       // Priestess -> Mage
+        'npc_sage': 'char_mage',            // Sage -> Mage (the missing character from before!)
+        'npc_barbarian': 'char_barbarian',  // Barbarian NPC
+        'npc_rogue': 'char_rogue'           // Rogue NPC
+      };
+
+      // Add NPC alias mappings - these reference the actual character models
+      for (const [npcId, charId] of Object.entries(npcMappings)) {
+        const charAsset = this.assets.get(charId);
+        if (charAsset) {
+          // Create an alias that points to the same model
+          this.assets.set(npcId, {
+            ...charAsset,
+            id: npcId,
+            name: npcId.replace('npc_', '').charAt(0).toUpperCase() + npcId.replace('npc_', '').slice(1),
+            subcategory: 'npc',
+            tags: [...charAsset.tags, 'npc']
+          });
+          console.log(`[AssetRegistry] Mapped ${npcId} -> ${charId}`);
+        }
+      }
+
+      // Create ENEMY aliases that map to character models
+      // This allows the demo to use enemy_goblin, enemy_orc, etc.
+      const enemyMappings: Record<string, string> = {
+        'enemy_goblin': 'char_rogue',       // Goblin -> smaller character (Rogue)
+        'enemy_orc': 'char_barbarian',      // Orc -> large character (Barbarian)
+        'enemy_skeleton': 'char_mage',      // Skeleton -> mage character
+        'enemy_undead': 'char_knight',      // Undead -> knight
+        'enemy_troll': 'char_barbarian'     // Troll -> large character
+      };
+
+      // Add ENEMY alias mappings
+      for (const [enemyId, charId] of Object.entries(enemyMappings)) {
+        const charAsset = this.assets.get(charId);
+        if (charAsset) {
+          // Create an alias that points to the same model
+          this.assets.set(enemyId, {
+            ...charAsset,
+            id: enemyId,
+            name: enemyId.replace('enemy_', '').charAt(0).toUpperCase() + enemyId.replace('enemy_', '').slice(1),
+            subcategory: 'enemy',
+            tags: [...charAsset.tags, 'enemy']
+          });
+          console.log(`[AssetRegistry] Mapped ${enemyId} -> ${charId}`);
+        }
+      }
     }
 
     // Weapons - Melee
@@ -215,38 +270,47 @@ export class AssetRegistry {
    * Normalize KayKit Character Animations 1.2 character (PrototypePete)
    */
   private normalizePrototypePeteCharacter() {
-    const basePath = '/Assets/KayKit_Character_Animations_1.1/Mannequin Character';
+    // Use Rogue from Adventurers pack as the primary character
+    const adventurersPath = '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf';
+    const animationsPath = '/Assets/KayKit_Character_Animations_1.1/Animations/gltf';
     
-    // Register PrototypePete Medium (standard humanoid)
+    // Register char_rogue using the Adventurers Rogue model
+    this.assets.set('char_rogue', {
+      id: 'char_rogue',
+      category: 'character',
+      subcategory: 'player',
+      name: 'Rogue',
+      gltfPath: `${adventurersPath}/Rogue.glb`,
+      tags: ['character', 'player', 'rogue']
+    });
+    
+    // Register Rig_Medium from animations pack
     this.assets.set('char_prototype_pete', {
       id: 'char_prototype_pete',
       category: 'character',
       subcategory: 'player',
       name: 'Prototype Pete',
-      gltfPath: `${basePath}/characters/Mannequin_Medium.glb`,
-      previewImage: `${basePath}/Textures/mannequin_texture.png`,
+      gltfPath: `${animationsPath}/Rig_Medium/Rig_Medium_General.glb`,
       tags: ['character', 'player', 'prototype', 'medium', 'kaykit_anim_1.2']
     });
 
-    // Register PrototypePete Large (larger humanoid)
+    // Register Rig_Large from animations pack
     this.assets.set('char_prototype_pete_large', {
       id: 'char_prototype_pete_large',
       category: 'character',
       subcategory: 'player',
       name: 'Prototype Pete Large',
-      gltfPath: `${basePath}/characters/Mannequin_Large.glb`,
-      previewImage: `${basePath}/Textures/mannequin_texture.png`,
+      gltfPath: `${animationsPath}/Rig_Large/Rig_Large_General.glb`,
       tags: ['character', 'player', 'prototype', 'large', 'kaykit_anim_1.2']
     });
 
-    // Register animated character
-    const animBasePath = '/Assets/KayKit_Character_Animations_1.1';
+    // Register char_animated as alternative
     this.assets.set('char_animated', {
       id: 'char_animated',
       category: 'character',
       subcategory: 'player',
       name: 'KayKit Animated',
-      gltfPath: `${animBasePath}/Models/gltf/PrototypePete.gltf`,
+      gltfPath: `${animationsPath}/Rig_Medium/Rig_Medium_General.glb`,
       tags: ['character', 'player', 'animated', 'kaykit_anim_1.2']
     });
   }

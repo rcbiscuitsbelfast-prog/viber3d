@@ -121,6 +121,13 @@ export class AnimationSetLoader {
     let loadedCount = 0;
     let failedCount = 0;
 
+    console.log(`[AnimationSetLoader] Processing animations for set ${setName}:`);
+    console.log(`  Files loaded:`, Object.keys(loadedFileClips));
+    
+    for (const [fileKey, clips] of Object.entries(loadedFileClips)) {
+      console.log(`  ${fileKey}: ${clips.length} clips:`, clips.map(c => c.name));
+    }
+
     for (const [animName, config] of Object.entries(animationSet.animations)) {
       const fileClips = loadedFileClips[config.file];
       
@@ -162,9 +169,9 @@ export class AnimationSetLoader {
       // If still not found, use first clip as fallback
       if (!clip && fileClips.length > 0) {
         console.warn(
-          `Clip "${config.clipName}" not found in ${config.file}. Available clips:`,
+          `Clip "${config.clipName}" not found in ${config.file} for animation ${animName}. Available clips:`,
           fileClips.map((c: THREE.AnimationClip) => c.name),
-          `Using first clip as fallback.`
+          `Using first clip "${fileClips[0].name}" as fallback.`
         );
         clip = fileClips[0];
       }
@@ -172,6 +179,7 @@ export class AnimationSetLoader {
       if (clip) {
         animations[animName] = clip;
         loadedCount++;
+        console.log(`[AnimationSetLoader] Mapped animation ${animName} -> ${clip.name}`);
       } else {
         console.warn(`Could not find animation clip for ${animName}`);
         failedCount++;
@@ -187,6 +195,19 @@ export class AnimationSetLoader {
       failed: failedCount,
       available: Object.keys(animations)
     });
+
+    // If we loaded very few animations, try to use any clips we found as fallbacks
+    if (Object.keys(animations).length === 0 && Object.keys(loadedFileClips).length > 0) {
+      console.warn(`[AnimationSetLoader] No animations mapped for ${setName}, creating fallbacks from available clips`);
+      for (const [fileKey, clips] of Object.entries(loadedFileClips)) {
+        if (clips.length > 0) {
+          // Use the first clip from each file as a fallback animation
+          animations[`fallback_${fileKey}`] = clips[0];
+          console.log(`[AnimationSetLoader] Added fallback animation: fallback_${fileKey} -> ${clips[0].name}`);
+        }
+      }
+      this.loadedSets.set(setName, animations);
+    }
     
     return animations;
   }
