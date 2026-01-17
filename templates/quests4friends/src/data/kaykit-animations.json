@@ -1,11 +1,20 @@
 {
+  "_comment": "Base paths for different animation sources. Files are relative to these paths.",
+  "basePaths": {
+    "adventurers2_medium": "/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Animations/gltf/Rig_Medium",
+    "adventurers2_large": "/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Animations/gltf/Rig_Large",
+    "characterAnim11_medium": "/Assets/KayKit_Character_Animations_1.1/Animations/gltf/Rig_Medium",
+    "characterAnim11_large": "/Assets/KayKit_Character_Animations_1.1/Animations/gltf/Rig_Large"
+  },
+  "_deprecated": "Old basePath fields - use basePaths object instead",
   "basePath": "/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Animations/gltf/Rig_Medium",
   "basePathLarge": "/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Animations/gltf/Rig_Large",
-  "basePathV12": "/Assets/KayKit_Character_Animations_1.2/Animations/gltf/Single Animations",
+  "basePathV11": "/Assets/KayKit_Character_Animations_1.1/Animations/gltf/Rig_Medium",
   "animationSets": {
     "humanoid_basic": {
       "name": "Humanoid Basic Animations",
-      "description": "Basic movement and general animations for humanoid characters",
+      "description": "Basic movement and general animations for humanoid characters (Adventurers 2.0 FREE)",
+      "basePath": "adventurers2_medium",
       "files": {
         "movement": "Rig_Medium_MovementBasic.glb",
         "general": "Rig_Medium_General.glb"
@@ -70,7 +79,8 @@
     },
     "humanoid_enhanced": {
       "name": "Humanoid Enhanced Animations",
-      "description": "Extended animation set with combat, tools, and advanced movements",
+      "description": "Extended animation set with combat, tools, and advanced movements (Character Animations 1.1)",
+      "basePath": "characterAnim11_medium",
       "files": {
         "movementBasic": "Rig_Medium_MovementBasic.glb",
         "movementAdvanced": "Rig_Medium_MovementAdvanced.glb",
@@ -267,9 +277,11 @@
     },
     "large_humanoid": {
       "name": "Large Humanoid Animations",
-      "description": "Animations for larger humanoid characters (barbarians, etc.)",
+      "description": "Animations for larger humanoid characters (barbarians, etc.) - Character Animations 1.1",
+      "basePath": "characterAnim11_large",
       "files": {
         "movement": "Rig_Large_MovementBasic.glb",
+        "movementAdvanced": "Rig_Large_MovementAdvanced.glb",
         "general": "Rig_Large_General.glb",
         "combatMelee": "Rig_Large_CombatMelee.glb",
         "simulation": "Rig_Large_Simulation.glb",
@@ -316,8 +328,10 @@
       }
     },
     "prototype_pete": {
+      "_comment": "NOTE: v1.2 animations not found in assets. This is a placeholder for future use.",
       "name": "Prototype Pete Animations (v1.2)",
-      "description": "KayKit Character Animations 1.2 - Single animations for Prototype Pete",
+      "description": "KayKit Character Animations 1.2 - Single animations for Prototype Pete (NOT AVAILABLE - placeholder)",
+      "available": false,
       "files": {
         "single": "KayKit_AnimatedCharacter_v1.2.glb"
       },
@@ -489,7 +503,7 @@
     }
   },
   "characterMappings": {
-    "char_rogue": "humanoid_basic",
+    "char_rogue": "humanoid_enhanced",
     "char_knight": "humanoid_enhanced",
     "char_mage": "humanoid_enhanced",
     "char_ranger": "humanoid_enhanced",
@@ -518,5 +532,56 @@
     "movement": ["walk", "run"],
     "combat": ["idleCombat", "attackMelee"],
     "emotes": ["wave", "bow", "cheer"]
+  },
+  "_metadata": {
+    "lastUpdated": "2024-12-19",
+    "description": "Complete animation mapping for all KayKit animation assets in the project",
+    "availableAssetSources": {
+      "KayKit_Adventurers_2.0_FREE": {
+        "location": "/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Animations/gltf",
+        "rigMediumFiles": 2,
+        "rigLargeFiles": 0,
+        "animationSets": ["humanoid_basic"]
+      },
+      "KayKit_Character_Animations_1.1": {
+        "location": "/Assets/KayKit_Character_Animations_1.1/Animations/gltf",
+        "rigMediumFiles": 8,
+        "rigLargeFiles": 6,
+        "animationSets": ["humanoid_enhanced", "large_humanoid"],
+        "files": {
+          "rigMedium": [
+            "Rig_Medium_CombatMelee.glb",
+            "Rig_Medium_CombatRanged.glb",
+            "Rig_Medium_General.glb",
+            "Rig_Medium_MovementAdvanced.glb",
+            "Rig_Medium_MovementBasic.glb",
+            "Rig_Medium_Simulation.glb",
+            "Rig_Medium_Special.glb",
+            "Rig_Medium_Tools.glb"
+          ],
+          "rigLarge": [
+            "Rig_Large_CombatMelee.glb",
+            "Rig_Large_General.glb",
+            "Rig_Large_MovementAdvanced.glb",
+            "Rig_Large_MovementBasic.glb",
+            "Rig_Large_Simulation.glb",
+            "Rig_Large_Special.glb"
+          ]
+        }
+      }
+    },
+    "usage": {
+      "gettingAnimationPath": "Use basePaths[animationSet.basePath] + '/' + animationSet.files[animation.file]",
+      "example": "basePaths['characterAnim11_medium'] + '/Rig_Medium_General.glb'",
+      "animationLookup": "Use animationSets[characterMapping[characterId]] to find the right animation set for a character"
+    },
+    "notes": [
+      "All paths are relative to the public folder",
+      "The prototype_pete animation set references v1.2 which is not currently available in assets",
+      "humanoid_basic uses Adventurers 2.0 FREE animations (2 files)",
+      "humanoid_enhanced uses Character Animations 1.1 (8 files for Rig_Medium)",
+      "large_humanoid uses Character Animations 1.1 (6 files for Rig_Large)",
+      "Animation clip names must match exactly as they appear in the GLB files"
+    ]
   }
 }

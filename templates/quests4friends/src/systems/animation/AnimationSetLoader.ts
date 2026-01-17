@@ -39,19 +39,40 @@ export class AnimationSetLoader {
    * Supports both regular and large rig animations
    */
   private getBasePath(setName: string): string {
+    const db = animationDatabase as any;
+    const basePaths = db.basePaths || {};
+    const animationSet = db.animationSets?.[setName];
+    
+    // Check if animation set specifies a basePath
+    if (animationSet?.basePath && basePaths[animationSet.basePath]) {
+      return basePaths[animationSet.basePath];
+    }
+    
     // Check if this set uses the v1.2 single animation file path
     if (setName === 'prototype_pete') {
-      return (animationDatabase as any).basePathV12 || 
+      return db.basePathV12 || 
              '/Assets/KayKit_Character_Animations_1.2/Animations/gltf/Single Animations';
     }
     
     // Check if this set uses the large rig base path
     if (setName.includes('large') || setName === 'large_humanoid') {
-      return (animationDatabase as any).basePathLarge || 
-             (animationDatabase as any).basePath?.replace('Rig_Medium', 'Rig_Large') ||
-             '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Animations/gltf/Rig_Large';
+      return basePaths.characterAnim11_large || 
+             basePaths.adventurers2_large ||
+             db.basePathLarge || 
+             db.basePath?.replace('Rig_Medium', 'Rig_Large') ||
+             '/Assets/KayKit_Character_Animations_1.1/Animations/gltf/Rig_Large';
     }
-    return (animationDatabase as any).basePath || 
+    
+    // Use enhanced character animations for enhanced sets
+    if (setName === 'humanoid_enhanced') {
+      return basePaths.characterAnim11_medium ||
+             '/Assets/KayKit_Character_Animations_1.1/Animations/gltf/Rig_Medium';
+    }
+    
+    // Default to medium rig
+    return basePaths.characterAnim11_medium ||
+           basePaths.adventurers2_medium ||
+           db.basePath || 
            '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Animations/gltf/Rig_Medium';
   }
 
