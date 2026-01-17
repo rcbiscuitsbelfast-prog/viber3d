@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, Component, ErrorInfo, ReactNode } from 'react';
 import { useBuilderStore } from '../store/builderStore';
 import { BuilderHeader } from '../components/builder/BuilderHeader';
 import { AssetPalette } from '../components/builder/AssetPalette';
@@ -9,15 +9,65 @@ import { PreviewMode } from '../components/builder/PreviewMode';
 import { AssetDefinition } from '../types/builder.types';
 import * as THREE from 'three';
 
+interface BuilderPageProps {
+  children?: ReactNode;
+}
+
+interface BuilderPageState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends Component<BuilderPageProps, BuilderPageState> {
+  public state: BuilderPageState = {
+    hasError: false,
+    error: null,
+  };
+
+  public static getDerivedStateFromError(error: Error): BuilderPageState {
+    return { hasError: true, error };
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('BuilderPage Error:', error);
+    console.error('Error Info:', errorInfo);
+  }
+
+  public render() {
+    if (this.state.hasError) {
+      return (
+        <div className="h-screen flex flex-col overflow-hidden bg-gray-200">
+          <div className="bg-red-600 text-white px-6 py-4">
+            <h1 className="text-xl font-bold">Builder Error</h1>
+            <p className="text-sm mt-1">{this.state.error?.message || 'Unknown error occurred'}</p>
+          </div>
+          <div className="flex-1 flex items-center justify-center">
+            <button
+              onClick={() => this.setState({ hasError: false, error: null })}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 export function BuilderPage() {
   const { currentQuest, viewMode, createNewQuest, saveQuest } = useBuilderStore();
   const { addEntity } = useBuilderStore();
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     // Initialize with a new quest if none exists
     if (!currentQuest) {
       createNewQuest();
     }
+    setIsInitialized(true);
   }, [currentQuest, createNewQuest]);
 
   // Auto-save every 30 seconds
@@ -127,7 +177,7 @@ export function BuilderPage() {
     }
   };
 
-  if (!currentQuest) {
+  if (!currentQuest || !isInitialized) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-purple-900 via-blue-900 to-black flex items-center justify-center">
         <div className="text-white text-center">
@@ -139,27 +189,29 @@ export function BuilderPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-gray-200">
-      {/* Preview Mode Overlay */}
-      {viewMode === 'preview' && <PreviewMode />}
+    <ErrorBoundary>
+      <div className="h-screen flex flex-col overflow-hidden bg-gray-200">
+        {/* Preview Mode Overlay */}
+        {viewMode === 'preview' && <PreviewMode />}
 
-      {/* Header */}
-      <BuilderHeader />
+        {/* Header */}
+        <BuilderHeader />
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Asset Palette */}
-        <AssetPalette onAssetDragStart={handleAssetDragStart} />
+        {/* Main Content */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left Sidebar - Asset Palette */}
+          <AssetPalette onAssetDragStart={handleAssetDragStart} />
 
-        {/* Center - Canvas */}
-        <BuilderCanvas onDrop={handleCanvasDrop} />
+          {/* Center - Canvas */}
+          <BuilderCanvas onDrop={handleCanvasDrop} />
 
-        {/* Right Sidebar - Properties */}
-        <EntityPropertiesPanel />
+          {/* Right Sidebar - Properties */}
+          <EntityPropertiesPanel />
+        </div>
+
+        {/* Bottom Panel - Tasks */}
+        <TasksPanel />
       </div>
-
-      {/* Bottom Panel - Tasks */}
-      <TasksPanel />
-    </div>
+    </ErrorBoundary>
   );
 }

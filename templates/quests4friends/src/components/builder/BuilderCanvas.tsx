@@ -13,6 +13,7 @@ interface BuilderCanvasProps {
 export function BuilderCanvas({ onDrop }: BuilderCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [canvasError, setCanvasError] = useState<string | null>(null);
   
   const {
     currentQuest,
@@ -94,6 +95,15 @@ export function BuilderCanvas({ onDrop }: BuilderCanvasProps) {
         camera={{ position: [15, 15, 15], fov: 50 }}
         shadows
         onClick={handleCanvasClick}
+        onError={(error) => {
+          console.error('Canvas error:', error);
+          setCanvasError('WebGL rendering error occurred');
+        }}
+        gl={{
+          antialias: true,
+          alpha: true,
+          powerPreference: 'high-performance',
+        }}
       >
         {/* Lighting */}
         <ambientLight
@@ -171,6 +181,22 @@ export function BuilderCanvas({ onDrop }: BuilderCanvasProps) {
             <p className="text-lg font-semibold text-purple-600">
               Drop here to add asset
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Canvas Error Overlay */}
+      {canvasError && (
+        <div className="absolute inset-0 bg-red-500 bg-opacity-90 flex items-center justify-center z-50">
+          <div className="text-white text-center p-6">
+            <p className="text-xl font-bold mb-2">3D Canvas Error</p>
+            <p className="text-sm mb-4">{canvasError}</p>
+            <button
+              onClick={() => setCanvasError(null)}
+              className="px-4 py-2 bg-white text-red-600 rounded font-semibold"
+            >
+              Dismiss
+            </button>
           </div>
         </div>
       )}

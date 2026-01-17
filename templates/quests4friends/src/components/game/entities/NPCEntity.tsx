@@ -24,12 +24,31 @@ export function NPCEntity({ entity }: NPCEntityProps) {
   const interactionRadius = npcData?.interactionRadius || 3;
 
   // Animation system
-  const { playAnimation, crossfadeTo, isLoaded: animationsLoaded } = useCharacterAnimation({
+  const { playAnimation, crossfadeTo, isLoaded: animationsLoaded, hasAnimation } = useCharacterAnimation({
     characterId: `npc_${entity.id}`,
     assetId: entity.assetId,
     model,
     defaultAnimation: npcData?.idleAnimation || 'idle',
   });
+
+  // Auto-play idle animation when model loads
+  useEffect(() => {
+    if (model && animationsLoaded) {
+      console.log(`NPC ${entity.id} model loaded, attempting to play animation`);
+      
+      // Try to play the idle animation
+      const idleAnim = npcData?.idleAnimation || 'idle';
+      const played = playAnimation(idleAnim, { loop: true });
+      
+      if (!played) {
+        console.log(`Animation '${idleAnim}' not available, checking for alternatives`);
+        // Try alternative animations
+        if (hasAnimation('walk')) {
+          playAnimation('walk', { loop: true });
+        }
+      }
+    }
+  }, [model, animationsLoaded, npcData?.idleAnimation, playAnimation, hasAnimation, entity.id]);
 
   // Load NPC model
   useEffect(() => {

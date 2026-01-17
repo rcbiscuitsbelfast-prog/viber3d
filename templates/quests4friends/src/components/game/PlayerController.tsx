@@ -4,6 +4,7 @@ import { useKeyboardControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { useQuestStore } from '../../store/questStore';
 import { assetRegistry } from '../../systems/assets/AssetRegistry';
+import { cameraOcclusionManager } from '../../systems/camera/CameraOcclusionManager';
 import { useCharacterAnimation } from '../../hooks/useCharacterAnimation';
 
 interface PlayerControllerProps {
@@ -182,6 +183,15 @@ export function PlayerController({
     
     camera.position.lerp(targetCameraPosition, 5 * delta);
     camera.lookAt(groupRef.current.position);
+    
+    // Update camera occlusion - hide objects between camera and player
+    const playerPosition = groupRef.current.position.clone();
+    // Player head position (approximate)
+    playerPosition.y += 1.5;
+    
+    // Get scene from camera to access all objects for raycasting
+    const scene = camera.parent?.parent?.parent as THREE.Scene || _state.scene;
+    cameraOcclusionManager.updateOcclusion(camera.position, playerPosition, scene);
   });
 
   return (
@@ -194,7 +204,7 @@ export function PlayerController({
           scale={[1, 1, 1]}
         />
       ) : (
-        // Debug fallback - visible capsule to see player position
+        // Loading fallback - visible capsule to show player position while loading
         <group>
           <mesh castShadow position={[0, 0.6, 0]}>
             <capsuleGeometry args={[0.3, 1.2, 4, 8]} />
@@ -206,16 +216,6 @@ export function PlayerController({
           </mesh>
         </group>
       )}
-      
-      {/* Debug: Always show a visible marker at player position */}
-      <mesh position={[0, 1, 0]}>
-        <boxGeometry args={[0.5, 2, 0.5]} />
-        <meshBasicMaterial color="#00ff00" transparent opacity={0.5} />
-      </mesh>
-      <mesh position={[0, 2.5, 0]}>
-        <sphereGeometry args={[0.3, 8, 8]} />
-        <meshBasicMaterial color="#ff0000" />
-      </mesh>
       
       {/* Player collision sphere (invisible) */}
       <mesh visible={false} castShadow>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 import { animationManager } from '../systems/animation/AnimationManager';
 import { animationSetLoader } from '../systems/animation/AnimationSetLoader';
@@ -23,10 +23,15 @@ export function useCharacterAnimation({
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentAnimation, setCurrentAnimation] = useState<string | null>(null);
   const animationsRef = useRef<Record<string, THREE.AnimationClip> | null>(null);
+  const hasAutoPlayedRef = useRef(false);
 
   // Load animations when model is ready
   useEffect(() => {
     if (!model) return;
+    
+    // Reset auto-play flag when model changes
+    hasAutoPlayedRef.current = false;
+    setIsLoaded(false);
 
     let mounted = true;
 
@@ -38,7 +43,7 @@ export function useCharacterAnimation({
         if (!mounted) return;
 
         if (Object.keys(animations).length === 0) {
-          console.warn(`No animations loaded for character ${characterId} (${assetId})`);
+          console.warn(`No animations loaded for character ${characterId} (${assetId}) - will use fallback idle`);
           setIsLoaded(true);
           return;
         }
@@ -51,6 +56,26 @@ export function useCharacterAnimation({
         if (defaultAnimation && animations[defaultAnimation]) {
           animationManager.playAnimation(characterId, defaultAnimation, { loop: true });
           setCurrentAnimation(defaultAnimation);
+          hasAutoPlayedRef.current = true;
+          console.log(`Playing default animation '${defaultAnimation}' for ${characterId}`);
+        } else {
+          // Find any available animation to play
+          const availableAnims = Object.keys(animations);
+          if (availableAnims.length > 0) {
+            // Prefer idle, walk, run - otherwise use first available
+            const fallbackAnim = availableAnims.find(a => 
+              a.toLowerCase().includes('idle') || 
+              a.toLowerCase().includes('walk') ||
+              a.toLowerCase().includes('run')
+            ) || availableAnims[0];
+            
+            console.log(`Default animation '${defaultAnimation}' not found, using '${fallbackAnim}' instead`);
+            animationManager.playAnimation(characterId, fallbackAnim, { loop: true });
+            setCurrentAnimation(fallbackAnim);
+            hasAutoPlayedRef.current = true;
+          } else {
+            console.warn(`No animations available for character ${characterId}`);
+          }
         }
 
         setIsLoaded(true);
@@ -73,7 +98,7 @@ export function useCharacterAnimation({
   /**
    * Play an animation
    */
-  const playAnimation = (
+  const playAnimation = useCallback((
     animationName: string,
     options?: {
       loop?: boolean;
@@ -81,25 +106,32 @@ export function useCharacterAnimation({
       fadeOutDuration?: number;
       timeScale?: number;
     }
-  ): void => {
-    if (!isLoaded || !animationsRef.current) {
-      console.warn(`Animations not loaded for ${characterId}`);
-      return;
+  ): boolean => {
+    if (!isLoaded) {
+      console.warn(`Animations not loaded yet for ${characterId}`);
+      return false;
+    }
+
+    if (!animationsRef.current) {
+      // No animations available - create procedural animation fallback
+      console.warn(`No animation clips for ${characterId}, creating procedural motion`);
+      return false;
     }
 
     if (!animationsRef.current[animationName]) {
-      console.warn(`Animation ${animationName} not found for ${characterId}`);
-      return;
+      console.warn(`Animation ${animationName} not found for ${characterId}, available:`, Object.keys(animationsRef.current));
+      return false;
     }
 
     animationManager.playAnimation(characterId, animationName, options);
     setCurrentAnimation(animationName);
-  };
+    return true;
+  }, [characterId, isLoaded]);
 
   /**
    * Crossfade to an animation
    */
-  const crossfadeTo = (animationName: string, duration: number = 0.3): void => {
+  const crossfadeTo = useCallback((animationName: string, duration: number = 0.3): void => {
     if (!isLoaded || !animationsRef.current) return;
 
     if (!animationsRef.current[animationName]) {
@@ -109,22 +141,29 @@ export function useCharacterAnimation({
 
     animationManager.crossfadeToAnimation(characterId, animationName, duration);
     setCurrentAnimation(animationName);
-  };
+  }, [characterId, isLoaded]);
 
   /**
    * Stop current animation
    */
-  const stopAnimation = (): void => {
+  const stopAnimation = useCallback((): void => {
     animationManager.stopAnimation(characterId);
     setCurrentAnimation(null);
-  };
+  }, [characterId]);
 
   /**
    * Get available animation names
    */
-  const getAvailableAnimations = (): string[] => {
+  const getAvailableAnimations = useCallback((): string[] => {
     return animationsRef.current ? Object.keys(animationsRef.current) : [];
-  };
+  }, []);
+
+  /**
+   * Check if an animation is loaded and available
+   */
+  const hasAnimation = useCallback((name: string): boolean => {
+    return animationsRef.current ? name in animationsRef.current : false;
+  }, []);
 
   return {
     isLoaded,
@@ -133,5 +172,6 @@ export function useCharacterAnimation({
     crossfadeTo,
     stopAnimation,
     availableAnimations: getAvailableAnimations(),
+    hasAnimation,
   };
 }
