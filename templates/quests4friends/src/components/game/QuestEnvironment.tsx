@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import * as THREE from 'three';
 import { assetRegistry } from '../../systems/assets/AssetRegistry';
+import { cameraOcclusionManager } from '../../systems/camera/CameraOcclusionManager';
 import { Quest } from '../../types/quest.types';
 
 interface QuestEnvironmentProps {
@@ -20,10 +21,27 @@ interface PlacedAsset {
 export function QuestEnvironment({ templateWorld, seed }: QuestEnvironmentProps) {
   const [placedAssets, setPlacedAssets] = useState<PlacedAsset[]>([]);
   const [, setIsLoading] = useState(true);
+  const groupRef = useRef<THREE.Group>(null);
 
   useEffect(() => {
     generateEnvironment();
   }, [templateWorld, seed]);
+
+  useEffect(() => {
+    // Register all placed assets as occludable
+    placedAssets.forEach((asset) => {
+      if (asset.model) {
+        cameraOcclusionManager.registerObject(asset.id, asset.model);
+      }
+    });
+
+    return () => {
+      // Cleanup: unregister when component unmounts or assets change
+      placedAssets.forEach((asset) => {
+        cameraOcclusionManager.unregisterObject(asset.id);
+      });
+    };
+  }, [placedAssets]);
 
   async function generateEnvironment() {
     setIsLoading(true);
@@ -101,7 +119,7 @@ export function QuestEnvironment({ templateWorld, seed }: QuestEnvironmentProps)
   }
 
   return (
-    <group>
+    <group ref={groupRef}>
       {placedAssets.map((asset) => (
         asset.model ? (
           <primitive
@@ -112,6 +130,7 @@ export function QuestEnvironment({ templateWorld, seed }: QuestEnvironmentProps)
             scale={asset.scale.toArray()}
             castShadow
             receiveShadow
+            userData={{ occludable: true, assetId: asset.id }}
           />
         ) : null
       ))}

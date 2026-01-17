@@ -40,7 +40,7 @@ export class AssetRegistry {
    */
   async initialize() {
     try {
-      // Load both asset manifests
+      // Load asset manifests
       const [adventurersData, forestData] = await Promise.all([
         fetch('/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/assets.json').then(r => r.json()),
         fetch('/Assets/KayKit_Forest_Nature_Pack_1.0_FREE/KayKit_Forest_Nature_Pack_1.0_FREE/assets.json').then(r => r.json())
@@ -51,6 +51,9 @@ export class AssetRegistry {
       
       // Normalize forest assets
       this.normalizeForestAssets(forestData);
+
+      // Add KayKit Character Animations 1.2 character (PrototypePete)
+      this.normalizePrototypePeteCharacter();
 
       console.log(`Asset Registry initialized with ${this.assets.size} assets`);
     } catch (error) {
@@ -206,6 +209,46 @@ export class AssetRegistry {
         }
       });
     }
+  }
+
+  /**
+   * Normalize KayKit Character Animations 1.2 character (PrototypePete)
+   */
+  private normalizePrototypePeteCharacter() {
+    const basePath = '/Assets/KayKit_Character_Animations_1.1/Mannequin Character';
+    
+    // Register PrototypePete Medium (standard humanoid)
+    this.assets.set('char_prototype_pete', {
+      id: 'char_prototype_pete',
+      category: 'character',
+      subcategory: 'player',
+      name: 'Prototype Pete',
+      gltfPath: `${basePath}/characters/Mannequin_Medium.glb`,
+      previewImage: `${basePath}/Textures/mannequin_texture.png`,
+      tags: ['character', 'player', 'prototype', 'medium', 'kaykit_anim_1.2']
+    });
+
+    // Register PrototypePete Large (larger humanoid)
+    this.assets.set('char_prototype_pete_large', {
+      id: 'char_prototype_pete_large',
+      category: 'character',
+      subcategory: 'player',
+      name: 'Prototype Pete Large',
+      gltfPath: `${basePath}/characters/Mannequin_Large.glb`,
+      previewImage: `${basePath}/Textures/mannequin_texture.png`,
+      tags: ['character', 'player', 'prototype', 'large', 'kaykit_anim_1.2']
+    });
+
+    // Register animated character
+    const animBasePath = '/Assets/KayKit_Character_Animations_1.1';
+    this.assets.set('char_animated', {
+      id: 'char_animated',
+      category: 'character',
+      subcategory: 'player',
+      name: 'KayKit Animated',
+      gltfPath: `${animBasePath}/Models/gltf/PrototypePete.gltf`,
+      tags: ['character', 'player', 'animated', 'kaykit_anim_1.2']
+    });
   }
 
   /**
