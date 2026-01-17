@@ -507,11 +507,15 @@ export const useBuilderStore = create<BuilderStore>((set, get) => ({
 
 // Selector hooks
 export const useCurrentBuilderQuest = () => useBuilderStore((state) => state.currentQuest);
+
+// Simple stable selector that returns entity by ID
 export const useSelectedEntity = () => {
-  const quest = useBuilderStore((state) => state.currentQuest);
   const selectedId = useBuilderStore((state) => state.selectedEntityId);
-  return quest?.entities.find((e) => e.id === selectedId) || null;
+  const entities = useBuilderStore((state) => state.currentQuest?.entities || []);
+  
+  return entities.find(entity => entity.id === selectedId) || null;
 };
+
 export const useBuilderActions = () => useBuilderStore((state) => ({
   createNewQuest: state.createNewQuest,
   loadQuest: state.loadQuest,
