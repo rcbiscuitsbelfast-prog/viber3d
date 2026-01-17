@@ -39,6 +39,12 @@ export class AnimationSetLoader {
    * Supports both regular and large rig animations
    */
   private getBasePath(setName: string): string {
+    // Check if this set uses the v1.2 single animation file path
+    if (setName === 'prototype_pete') {
+      return (animationDatabase as any).basePathV12 || 
+             '/Assets/KayKit_Character_Animations_1.2/Animations/gltf/Single Animations';
+    }
+    
     // Check if this set uses the large rig base path
     if (setName.includes('large') || setName === 'large_humanoid') {
       return (animationDatabase as any).basePathLarge || 

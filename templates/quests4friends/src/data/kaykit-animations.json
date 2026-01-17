@@ -1,6 +1,7 @@
 {
   "basePath": "/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Animations/gltf/Rig_Medium",
   "basePathLarge": "/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Animations/gltf/Rig_Large",
+  "basePathV12": "/Assets/KayKit_Character_Animations_1.2/Animations/gltf/Single Animations",
   "animationSets": {
     "humanoid_basic": {
       "name": "Humanoid Basic Animations",
@@ -313,6 +314,178 @@
           "description": "Death animation"
         }
       }
+    },
+    "prototype_pete": {
+      "name": "Prototype Pete Animations (v1.2)",
+      "description": "KayKit Character Animations 1.2 - Single animations for Prototype Pete",
+      "files": {
+        "single": "KayKit_AnimatedCharacter_v1.2.glb"
+      },
+      "animations": {
+        "idle": {
+          "file": "single",
+          "clipName": "Idle",
+          "loop": true,
+          "description": "Default idle stance"
+        },
+        "walk": {
+          "file": "single",
+          "clipName": "Walk",
+          "loop": true,
+          "description": "Walking forward"
+        },
+        "run": {
+          "file": "single",
+          "clipName": "Run",
+          "loop": true,
+          "description": "Running forward"
+        },
+        "jump": {
+          "file": "single",
+          "clipName": "Jump",
+          "loop": false,
+          "description": "Single jump"
+        },
+        "hop": {
+          "file": "single",
+          "clipName": "Hop",
+          "loop": false,
+          "description": "Small hop"
+        },
+        "dashFront": {
+          "file": "single",
+          "clipName": "DashFront",
+          "loop": false,
+          "description": "Dash forward"
+        },
+        "dashBack": {
+          "file": "single",
+          "clipName": "DashBack",
+          "loop": false,
+          "description": "Dash backward"
+        },
+        "dashLeft": {
+          "file": "single",
+          "clipName": "DashLeft",
+          "loop": false,
+          "description": "Dash left"
+        },
+        "dashRight": {
+          "file": "single",
+          "clipName": "DashRight",
+          "loop": false,
+          "description": "Dash right"
+        },
+        "roll": {
+          "file": "single",
+          "clipName": "Roll",
+          "loop": false,
+          "description": "Rolling dodge"
+        },
+        "attack1h": {
+          "file": "single",
+          "clipName": "Attack(1h)",
+          "loop": false,
+          "description": "One-handed weapon attack"
+        },
+        "attackCombo": {
+          "file": "single",
+          "clipName": "AttackCombo",
+          "loop": false,
+          "description": "Combo attack sequence"
+        },
+        "attackSpinning": {
+          "file": "single",
+          "clipName": "AttackSpinning",
+          "loop": false,
+          "description": "Spinning attack"
+        },
+        "heavyAttack": {
+          "file": "single",
+          "clipName": "HeavyAttack",
+          "loop": false,
+          "description": "Heavy attack"
+        },
+        "block": {
+          "file": "single",
+          "clipName": "Block",
+          "loop": false,
+          "description": "Block stance"
+        },
+        "shoot1h": {
+          "file": "single",
+          "clipName": "Shoot(1h)",
+          "loop": false,
+          "description": "Shoot with one-handed weapon"
+        },
+        "shoot2h": {
+          "file": "single",
+          "clipName": "Shoot(2h)",
+          "loop": false,
+          "description": "Shoot with two-handed weapon"
+        },
+        "shootBow": {
+          "file": "single",
+          "clipName": "Shoot(2h)Bow",
+          "loop": false,
+          "description": "Shoot bow"
+        },
+        "throw": {
+          "file": "single",
+          "clipName": "Throw",
+          "loop": false,
+          "description": "Throw item/projectile"
+        },
+        "interact": {
+          "file": "single",
+          "clipName": "Interact",
+          "loop": false,
+          "description": "Interaction gesture"
+        },
+        "pickup": {
+          "file": "single",
+          "clipName": "PickUp",
+          "loop": false,
+          "description": "Pick up item"
+        },
+        "wave": {
+          "file": "single",
+          "clipName": "Wave",
+          "loop": false,
+          "description": "Wave hello"
+        },
+        "cheer": {
+          "file": "single",
+          "clipName": "Cheer",
+          "loop": false,
+          "description": "Celebration/cheer"
+        },
+        "dance": {
+          "file": "single",
+          "clipName": "Dance",
+          "loop": false,
+          "description": "Dance move"
+        },
+        "climbing": {
+          "file": "single",
+          "clipName": "Climbing",
+          "loop": true,
+          "description": "Climbing animation"
+        },
+        "layingDownIdle": {
+          "file": "single",
+          "clipName": "LayingDownIdle",
+          "loop": true,
+          "description": "Laying down idle"
+        },
+        "defeat": {
+          "file": "single",
+          "clipName": "Defeat",
+          "loop": false,
+          "clampWhenFinished": true,
+          "description": "Defeat/defall animation"
+        }
+      }
     }
   },
   "characterMappings": {
@@ -322,7 +495,10 @@
     "char_ranger": "humanoid_enhanced",
     "char_barbarian": "large_humanoid",
     "char_adventurer": "humanoid_enhanced",
-    "char_rogue_hooded": "humanoid_basic"
+    "char_rogue_hooded": "humanoid_basic",
+    "char_prototype_pete": "prototype_pete",
+    "char_prototype_pete_large": "large_humanoid",
+    "char_animated": "prototype_pete"
   },
   "defaultAnimations": {
     "idle": "idle",
