@@ -47,11 +47,11 @@ export function PlayerController({
   useEffect(() => {
     let mounted = true;
 
-    console.log(`Loading player model: ${playerAssetId}`);
+    console.log(`[PlayerController] Loading player model: ${playerAssetId}`);
     
     assetRegistry.loadModel(playerAssetId)
       .then((loadedModel) => {
-        console.log('Player model loaded successfully:', loadedModel);
+        console.log('[PlayerController] Player model loaded successfully:', loadedModel);
         if (mounted) {
           const model = loadedModel as THREE.Group;
           
@@ -68,7 +68,7 @@ export function PlayerController({
           const size = box.getSize(new THREE.Vector3());
           const center = box.getCenter(new THREE.Vector3());
           
-          console.log('Model bounding box:', { min: box.min, max: box.max, size, center });
+          console.log('[PlayerController] Model bounding box:', { min: box.min, max: box.max, size, center });
           
           if (box.min.y < 0) {
             // Adjust so model sits on ground (feet at y=0)
@@ -97,30 +97,34 @@ export function PlayerController({
             }
           });
           
-          console.log('Player model positioned at:', modelClone.position);
-          console.log('Player model children count:', modelClone.children.length);
+          console.log('[PlayerController] Player model positioned at:', modelClone.position);
+          console.log('[PlayerController] Player model children count:', modelClone.children.length);
           setModel(modelClone);
         }
       })
       .catch((error: any) => {
-        console.error('Failed to load player model:', error);
-        console.error('Asset ID:', playerAssetId);
-        console.error('Available assets:', assetRegistry.getAllAssets());
+        console.error('[PlayerController] Failed to load player model:', error);
+        console.error('[PlayerController] Asset ID:', playerAssetId);
+        console.error('[PlayerController] Available assets:', assetRegistry.getAllAssets());
         // Create a fallback character representation
         if (mounted) {
+          console.log('[PlayerController] Creating fallback player model');
           const fallbackGroup = new THREE.Group();
           // Body
           const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.2, 4, 8), new THREE.MeshStandardMaterial({ color: '#ff6b6b' }));
           body.position.y = 0.6;
           body.castShadow = true;
+          body.visible = true;
           fallbackGroup.add(body);
           
           // Head
           const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), new THREE.MeshStandardMaterial({ color: '#ffdbac' }));
           head.position.y = 1.7;
           head.castShadow = true;
+          head.visible = true;
           fallbackGroup.add(head);
           
+          console.log('[PlayerController] Fallback player model created with', fallbackGroup.children.length, 'children');
           setModel(fallbackGroup);
         }
       });

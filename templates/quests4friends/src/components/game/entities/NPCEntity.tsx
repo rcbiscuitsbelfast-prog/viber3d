@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Entity } from '../../../types/quest.types';
-import { useQuestStore } from '../../../store/questStore';
+import { useQuestStore, useQuestActions } from '../../../store/questStore';
 import { assetRegistry } from '../../../systems/assets/AssetRegistry';
 import { useCharacterAnimation } from '../../../hooks/useCharacterAnimation';
 
@@ -17,8 +17,8 @@ export function NPCEntity({ entity }: NPCEntityProps) {
   const [showInteract, setShowInteract] = useState(false);
   
   const playerState = useQuestStore((state) => state.playerState);
-  const showDialogue = useQuestStore((state) => state.showDialogue);
   const activeDialogue = useQuestStore((state) => state.activeDialogue);
+  const { showDialogue, completeTask } = useQuestActions();
 
   const npcData = entity.npcData;
   const interactionRadius = npcData?.interactionRadius || 3;
@@ -34,19 +34,29 @@ export function NPCEntity({ entity }: NPCEntityProps) {
   // Auto-play idle animation when model loads
   useEffect(() => {
     if (model && animationsLoaded) {
-      console.log(`NPC ${entity.id} model loaded, attempting to play animation`);
+      console.log(`[NPCEntity] ${entity.id} model loaded, attempting to play animation`);
       
       // Try to play the idle animation
       const idleAnim = npcData?.idleAnimation || 'idle';
       const played = playAnimation(idleAnim, { loop: true });
       
       if (!played) {
-        console.log(`Animation '${idleAnim}' not available, checking for alternatives`);
+        console.log(`[NPCEntity] Animation '${idleAnim}' not available, checking for alternatives`);
         // Try alternative animations
         if (hasAnimation('walk')) {
+          console.log('[NPCEntity] Playing fallback walk animation');
           playAnimation('walk', { loop: true });
+        } else if (hasAnimation('idleCombat')) {
+          console.log('[NPCEntity] Playing fallback idleCombat animation');
+          playAnimation('idleCombat', { loop: true });
+        } else {
+          console.log('[NPCEntity] No suitable animations found, NPC will remain static');
         }
+      } else {
+        console.log(`[NPCEntity] Successfully playing '${idleAnim}' animation`);
       }
+    } else if (model && !animationsLoaded) {
+      console.log(`[NPCEntity] ${entity.id} model loaded but animations not ready yet`);
     }
   }, [model, animationsLoaded, npcData?.idleAnimation, playAnimation, hasAnimation, entity.id]);
 
@@ -174,6 +184,29 @@ export function NPCEntity({ entity }: NPCEntityProps) {
           showDialogue(entity.id, npcData.dialog);
           console.log('showDialogue called successfully');
           
+          // Complete the task associated with talking to this NPC
+          console.log('[NPCEntity] Attempting to complete task for NPC interaction');
+          const currentQuest = useQuestStore.getState().currentQuest;
+          if (currentQuest && currentQuest.tasks) {
+            // Find task that matches this NPC
+            const interactionTask = currentQuest.tasks.find(task => 
+              task.description.toLowerCase().includes(entity.npcData?.name?.toLowerCase() || '') ||
+              task.description.toLowerCase().includes('talk to') ||
+              task.description.toLowerCase().includes('speak to') ||
+              (task.type === 'interact' && !task.isCompleted)
+            );
+            
+            if (interactionTask) {
+              console.log('[NPCEntity] Found task to complete:', interactionTask.description);
+              completeTask(interactionTask.id);
+              console.log('[NPCEntity] Task completed successfully');
+            } else {
+              console.log('[NPCEntity] No matching task found for this NPC');
+            }
+          } else {
+            console.log('[NPCEntity] No current quest or tasks available');
+          }
+          
           // Play interaction animation
           if (animationsLoaded && npcData?.interactionAnimation) {
             playAnimation(npcData.interactionAnimation, { loop: false });
@@ -199,7 +232,7 @@ export function NPCEntity({ entity }: NPCEntityProps) {
 
     window.addEventListener('keydown', handleInteract, true); // Use capture phase
     return () => window.removeEventListener('keydown', handleInteract, true);
-  }, [showInteract, entity.id, npcData?.dialog, showDialogue, activeDialogue, animationsLoaded, playAnimation, crossfadeTo, npcData?.interactionAnimation, npcData?.idleAnimation]);
+  }, [showInteract, entity.id, npcData?.dialog, showDialogue, activeDialogue, animationsLoaded, playAnimation, crossfadeTo, npcData?.interactionAnimation, npcData?.idleAnimation, completeTask, entity.npcData?.name]);
 
   return (
     <group
