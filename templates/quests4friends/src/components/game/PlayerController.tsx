@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useKeyboardControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -26,15 +26,17 @@ export function PlayerController({
   // Movement state
   const velocity = useRef(new THREE.Vector3());
   const direction = useRef(new THREE.Vector3());
-  const moveSpeed = 5;
-  const rotationSpeed = 5;
+  const walkSpeed = 5;
+  const runSpeed = 10;
+  const rotationSpeed = 8;
   const isMovingRef = useRef(false);
+  const isRunningRef = useRef(false);
 
   // Keyboard controls subscription
   const [, get] = useKeyboardControls();
 
   // Animation system
-  const { crossfadeTo, isLoaded: animationsLoaded } = useCharacterAnimation({
+  const { crossfadeTo, isLoaded: animationsLoaded, hasAnimation } = useCharacterAnimation({
     characterId: `player_${playerAssetId}`,
     assetId: playerAssetId,
     model,
@@ -128,11 +130,11 @@ export function PlayerController({
     };
   }, [playerAssetId]);
 
-  useFrame((_state, delta) => {
+  const updateMovement = useCallback((_state: any, delta: number) => {
     if (!groupRef.current || !model || combatState?.isActive) return;
 
     // Get input from keyboard controls
-    const { forward, backward, left, right } = get();
+    const { forward, backward, left, right, sprint } = get();
     
     // Calculate movement direction
     direction.current.set(0, 0, 0);
@@ -144,13 +146,15 @@ export function PlayerController({
 
     // Check if player is moving
     const isMoving = direction.current.length() > 0;
+    const isRunning = sprint && isMoving;
+    const currentSpeed = isRunning ? runSpeed : walkSpeed;
 
     // Normalize direction
     if (isMoving) {
       direction.current.normalize();
       
       // Apply movement
-      velocity.current.copy(direction.current).multiplyScalar(moveSpeed * delta);
+      velocity.current.copy(direction.current).multiplyScalar(currentSpeed * delta);
       groupRef.current.position.add(velocity.current);
 
       // Rotate player to face movement direction
@@ -161,16 +165,37 @@ export function PlayerController({
         rotationSpeed * delta
       );
 
-      // Switch to walk animation if not already walking
-      if (!isMovingRef.current && animationsLoaded) {
-        crossfadeTo('walk', 0.2);
-        isMovingRef.current = true;
+      // Animation state machine
+      if (animationsLoaded) {
+        const canRun = hasAnimation('run') || hasAnimation('sprint');
+        const wasRunning = isRunningRef.current;
+        
+        if (isRunning && canRun) {
+          // Switch to run animation
+          if (!wasRunning || !isMovingRef.current) {
+            crossfadeTo('run', 0.2);
+            isMovingRef.current = true;
+            isRunningRef.current = true;
+          }
+        } else {
+          // Switch to walk animation
+          if (!isMovingRef.current) {
+            crossfadeTo('walk', 0.2);
+            isMovingRef.current = true;
+            isRunningRef.current = false;
+          } else if (wasRunning && !isRunning) {
+            // Was running, now walking
+            crossfadeTo('walk', 0.2);
+            isRunningRef.current = false;
+          }
+        }
       }
     } else {
-      // Switch to idle animation if not already idle
+      // Player is not moving - switch to idle
       if (isMovingRef.current && animationsLoaded) {
         crossfadeTo('idle', 0.2);
         isMovingRef.current = false;
+        isRunningRef.current = false;
       }
     }
 
@@ -192,7 +217,9 @@ export function PlayerController({
     // Get scene from camera to access all objects for raycasting
     const scene = camera.parent?.parent?.parent as THREE.Scene || _state.scene;
     cameraOcclusionManager.updateOcclusion(camera.position, playerPosition, scene);
-  });
+  }, [model, combatState, get, animationsLoaded, crossfadeTo, hasAnimation, updatePlayerPosition, camera]);
+
+  useFrame(updateMovement);
 
   return (
     <group ref={groupRef} position={spawnPosition.toArray()}>
@@ -232,6 +259,7 @@ export const playerControls = [
   { name: 'backward', keys: ['ArrowDown', 'KeyS'] },
   { name: 'left', keys: ['ArrowLeft', 'KeyA'] },
   { name: 'right', keys: ['ArrowRight', 'KeyD'] },
+  { name: 'sprint', keys: ['ShiftLeft', 'ShiftRight'] },
   { name: 'jump', keys: ['Space'] },
   { name: 'interact', keys: ['KeyE'] },
 ];

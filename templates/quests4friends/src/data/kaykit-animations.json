@@ -1,5 +1,6 @@
 {
   "basePath": "/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Animations/gltf/Rig_Medium",
+  "basePathLarge": "/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Animations/gltf/Rig_Large",
   "animationSets": {
     "humanoid_basic": {
       "name": "Humanoid Basic Animations",
@@ -65,12 +66,268 @@
           "description": "Death animation"
         }
       }
+    },
+    "humanoid_enhanced": {
+      "name": "Humanoid Enhanced Animations",
+      "description": "Extended animation set with combat, tools, and advanced movements",
+      "files": {
+        "movementBasic": "Rig_Medium_MovementBasic.glb",
+        "movementAdvanced": "Rig_Medium_MovementAdvanced.glb",
+        "general": "Rig_Medium_General.glb",
+        "combatMelee": "Rig_Medium_CombatMelee.glb",
+        "combatRanged": "Rig_Medium_CombatRanged.glb",
+        "simulation": "Rig_Medium_Simulation.glb",
+        "special": "Rig_Medium_Special.glb",
+        "tools": "Rig_Medium_Tools.glb"
+      },
+      "animations": {
+        "idle": {
+          "file": "general",
+          "clipName": "Idle",
+          "loop": true,
+          "description": "Default idle stance"
+        },
+        "idleCombat": {
+          "file": "combatMelee",
+          "clipName": "Idle_Combat",
+          "loop": true,
+          "description": "Combat-ready idle stance"
+        },
+        "walk": {
+          "file": "movementBasic",
+          "clipName": "Walking",
+          "loop": true,
+          "description": "Walking forward"
+        },
+        "walkBack": {
+          "file": "movementBasic",
+          "clipName": "Walking_Backwards",
+          "loop": true,
+          "description": "Walking backward"
+        },
+        "run": {
+          "file": "movementBasic",
+          "clipName": "Running",
+          "loop": true,
+          "description": "Running forward"
+        },
+        "sprint": {
+          "file": "movementAdvanced",
+          "clipName": "Sprinting",
+          "loop": true,
+          "description": "Sprinting at full speed"
+        },
+        "jump": {
+          "file": "movementBasic",
+          "clipName": "Jump",
+          "loop": false,
+          "description": "Single jump"
+        },
+        "jumpRun": {
+          "file": "movementAdvanced",
+          "clipName": "Jump_Run",
+          "loop": false,
+          "description": "Jump from running"
+        },
+        "strafeLeft": {
+          "file": "movementAdvanced",
+          "clipName": "Strafing_Left",
+          "loop": true,
+          "description": "Strafe left"
+        },
+        "strafeRight": {
+          "file": "movementAdvanced",
+          "clipName": "Strafing_Right",
+          "loop": true,
+          "description": "Strafe right"
+        },
+        "turnLeft": {
+          "file": "movementAdvanced",
+          "clipName": "Turn_Left",
+          "loop": false,
+          "description": "Turn in place left"
+        },
+        "turnRight": {
+          "file": "movementAdvanced",
+          "clipName": "Turn_Right",
+          "loop": false,
+          "description": "Turn in place right"
+        },
+        "attackMelee": {
+          "file": "combatMelee",
+          "clipName": "Sword_Slash",
+          "loop": false,
+          "description": "Melee sword attack"
+        },
+        "attackHeavy": {
+          "file": "combatMelee",
+          "clipName": "Sword_Heavy_Attack",
+          "loop": false,
+          "description": "Heavy melee attack"
+        },
+        "attackStab": {
+          "file": "combatMelee",
+          "clipName": "Sword_Stab",
+          "loop": false,
+          "description": "Thrust/stab attack"
+        },
+        "block": {
+          "file": "combatMelee",
+          "clipName": "Block_Start",
+          "loop": false,
+          "description": "Start blocking"
+        },
+        "blockHold": {
+          "file": "combatMelee",
+          "clipName": "Block_Hold",
+          "loop": true,
+          "description": "Hold blocking stance"
+        },
+        "hit": {
+          "file": "general",
+          "clipName": "Hit_React",
+          "loop": false,
+          "description": "Taking damage reaction"
+        },
+        "hitHeavy": {
+          "file": "simulation",
+          "clipName": "Hit_Heavy",
+          "loop": false,
+          "description": "Heavy hit reaction"
+        },
+        "death": {
+          "file": "general",
+          "clipName": "Death",
+          "loop": false,
+          "clampWhenFinished": true,
+          "description": "Death animation"
+        },
+        "interact": {
+          "file": "general",
+          "clipName": "Interact",
+          "loop": false,
+          "description": "Interaction gesture"
+        },
+        "wave": {
+          "file": "general",
+          "clipName": "Wave",
+          "loop": false,
+          "description": "Friendly wave gesture"
+        },
+        "cheer": {
+          "file": "special",
+          "clipName": "Cheer",
+          "loop": false,
+          "description": "Celebration/cheer"
+        },
+        "bow": {
+          "file": "special",
+          "clipName": "Bow",
+          "loop": false,
+          "description": "Polite bow"
+        },
+        "crouch": {
+          "file": "simulation",
+          "clipName": "Crouching",
+          "loop": true,
+          "description": "Crouch stance"
+        },
+        "crouchWalk": {
+          "file": "simulation",
+          "clipName": "Crouching_Walk",
+          "loop": true,
+          "description": "Walking while crouching"
+        },
+        "pickup": {
+          "file": "tools",
+          "clipName": "Pickup",
+          "loop": false,
+          "description": "Pick up item from ground"
+        },
+        "useItem": {
+          "file": "tools",
+          "clipName": "Use_Item",
+          "loop": false,
+          "description": "Use/consume item"
+        },
+        "cast": {
+          "file": "combatRanged",
+          "clipName": "Cast_Spell",
+          "loop": false,
+          "description": "Cast spell gesture"
+        },
+        "reload": {
+          "file": "combatRanged",
+          "clipName": "Reload",
+          "loop": false,
+          "description": "Reload weapon"
+        }
+      }
+    },
+    "large_humanoid": {
+      "name": "Large Humanoid Animations",
+      "description": "Animations for larger humanoid characters (barbarians, etc.)",
+      "files": {
+        "movement": "Rig_Large_MovementBasic.glb",
+        "general": "Rig_Large_General.glb",
+        "combatMelee": "Rig_Large_CombatMelee.glb",
+        "simulation": "Rig_Large_Simulation.glb",
+        "special": "Rig_Large_Special.glb"
+      },
+      "animations": {
+        "idle": {
+          "file": "general",
+          "clipName": "Idle",
+          "loop": true,
+          "description": "Default idle stance"
+        },
+        "walk": {
+          "file": "movement",
+          "clipName": "Walking",
+          "loop": true,
+          "description": "Walking forward"
+        },
+        "run": {
+          "file": "movement",
+          "clipName": "Running",
+          "loop": true,
+          "description": "Running forward"
+        },
+        "attack": {
+          "file": "combatMelee",
+          "clipName": "Sword_Slash",
+          "loop": false,
+          "description": "Melee attack"
+        },
+        "hit": {
+          "file": "general",
+          "clipName": "Hit_React",
+          "loop": false,
+          "description": "Taking damage reaction"
+        },
+        "death": {
+          "file": "general",
+          "clipName": "Death",
+          "loop": false,
+          "clampWhenFinished": true,
+          "description": "Death animation"
+        }
+      }
     }
   },
   "characterMappings": {
     "char_rogue": "humanoid_basic",
-    "char_knight": "humanoid_basic",
-    "char_mage": "humanoid_basic",
-    "char_adventurer": "humanoid_basic"
+    "char_knight": "humanoid_enhanced",
+    "char_mage": "humanoid_enhanced",
+    "char_ranger": "humanoid_enhanced",
+    "char_barbarian": "large_humanoid",
+    "char_adventurer": "humanoid_enhanced",
+    "char_rogue_hooded": "humanoid_basic"
+  },
+  "defaultAnimations": {
+    "idle": "idle",
+    "movement": ["walk", "run"],
+    "combat": ["idleCombat", "attackMelee"],
+    "emotes": ["wave", "bow", "cheer"]
   }
 }
