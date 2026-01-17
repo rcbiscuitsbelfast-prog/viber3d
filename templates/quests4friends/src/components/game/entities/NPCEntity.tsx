@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
+import { useShallow } from 'zustand/shallow';
 import * as THREE from 'three';
 import { Entity } from '../../../types/quest.types';
 import { useQuestStore, useQuestActions } from '../../../store/questStore';
@@ -16,7 +17,7 @@ export function NPCEntity({ entity }: NPCEntityProps) {
   const [model, setModel] = useState<THREE.Group | null>(null);
   const [showInteract, setShowInteract] = useState(false);
   
-  const playerState = useQuestStore((state) => state.playerState);
+  const playerState = useQuestStore(useShallow((state) => state.playerState));
   const activeDialogue = useQuestStore((state) => state.activeDialogue);
   const { showDialogue, completeTask } = useQuestActions();
 

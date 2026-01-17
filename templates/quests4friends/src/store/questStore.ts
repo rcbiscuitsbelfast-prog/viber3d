@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useShallow } from 'zustand/shallow';
 import { Quest, PlayerState, QuestSession, CombatState } from '../types/quest.types';
 import * as THREE from 'three';
 
@@ -311,16 +312,18 @@ export const useQuestStore = create<QuestStore>((set, get) => ({
 
 // Selector hooks for better performance
 export const useCurrentQuest = () => useQuestStore((state) => state.currentQuest);
-export const usePlayerState = () => useQuestStore((state) => state.playerState);
+export const usePlayerState = () => useQuestStore(useShallow((state) => state.playerState));
 export const useCombatState = () => useQuestStore((state) => state.combatState);
 export const useActiveDialogue = () => useQuestStore((state) => state.activeDialogue);
-export const useQuestActions = () => useQuestStore((state) => ({
+export const useQuestActions = () => useQuestStore(useShallow((state) => ({
   setCurrentQuest: state.setCurrentQuest,
   startQuestSession: state.startQuestSession,
   updatePlayerPosition: state.updatePlayerPosition,
   updatePlayerHealth: state.updatePlayerHealth,
   addToInventory: state.addToInventory,
+  removeFromInventory: state.removeFromInventory,
   completeTask: state.completeTask,
+  fireTrigger: state.fireTrigger,
   startCombat: state.startCombat,
   updateCombat: state.updateCombat,
   endCombat: state.endCombat,
@@ -328,4 +331,6 @@ export const useQuestActions = () => useQuestStore((state) => ({
   hideDialogue: state.hideDialogue,
   completeQuest: state.completeQuest,
   resetQuest: state.resetQuest,
-}));
+  setLoading: state.setLoading,
+  setError: state.setError,
+})));
