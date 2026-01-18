@@ -5,7 +5,6 @@ import { WorldComposer } from '../../systems/world/WorldComposer';
 import { TileRegistry } from '../../systems/world/TileRegistry';
 import { TileLoader } from '../../systems/world/TileLoader';
 import { TileCollisionManager } from '../../systems/world/TileCollisionManager';
-import { WorldGrid } from '../../types/tile.types';
 
 export interface TiledWorldRendererProps {
   worldGrid: string[][]; // 2D array of tile IDs
@@ -96,7 +95,7 @@ export function TiledWorldRenderer({
       
       if (!worldComposer || !isInitialized) return;
       
-      const [x, y, z] = playerPosition;
+      const [x, _y, z] = playerPosition;
       const gridX = Math.floor(x / 10); // Assuming 10x10 tiles
       const gridY = Math.floor(z / 10);
       

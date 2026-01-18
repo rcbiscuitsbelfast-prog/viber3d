@@ -112,6 +112,11 @@ export function BuilderHeader() {
 
       <div className="h-8 w-px bg-purple-700" />
 
+      {/* Quest ID Display */}
+      <div className="text-xs text-gray-400 max-w-[120px] truncate" title={`Quest ID: ${currentQuest.id}`}>
+        ID: {currentQuest.id}
+      </div>
+
       {/* Save Status */}
       <div className="flex items-center gap-2 text-sm">
         {saveStatus === 'saving' && (
