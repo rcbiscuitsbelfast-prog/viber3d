@@ -134,7 +134,7 @@ export interface Trigger {
 
 export interface TriggerCondition {
   type: 'taskComplete' | 'allTasksComplete' | 'hasItem' | 'enemyDefeated';
-  value?: any;
+  value?: unknown;
 }
 
 export type TriggerActionType = 
@@ -147,7 +147,7 @@ export type TriggerActionType =
 
 export interface TriggerAction {
   type: TriggerActionType;
-  payload: any;
+  payload: unknown;
   delay?: number; // milliseconds
 }
 

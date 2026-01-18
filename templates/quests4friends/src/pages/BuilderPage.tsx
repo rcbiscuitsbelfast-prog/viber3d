@@ -9,6 +9,8 @@ import { TasksPanel } from '../components/builder/TasksPanel';
 import { PreviewMode } from '../components/builder/PreviewMode';
 import { AssetDefinition } from '../types/builder.types';
 import * as THREE from 'three';
+import { onAuthStateChange, getCurrentUser } from '../services/auth/authService';
+import type { User } from 'firebase/auth';
 
 interface BuilderPageProps {
   children?: ReactNode;
@@ -63,6 +65,31 @@ export function BuilderPage() {
   const { currentQuest, viewMode, createNewQuest, saveQuest } = useBuilderStore();
   const { addEntity } = useBuilderStore();
   const [isInitialized, setIsInitialized] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // Auth check
+  useEffect(() => {
+    const user = getCurrentUser();
+    setCurrentUser(user);
+    
+    if (!user) {
+      console.log('[BuilderPage] Please sign in to create quests');
+    } else {
+      console.log('[BuilderPage] User authenticated:', user.uid);
+    }
+    
+    // Set up auth listener
+    const unsubscribe = onAuthStateChange((user) => {
+      setCurrentUser(user);
+      if (user) {
+        console.log('[BuilderPage] User authenticated:', user.uid);
+      } else {
+        console.log('[BuilderPage] Please sign in to create quests');
+      }
+    });
+    
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     // Initialize with a new quest if none exists
@@ -70,6 +97,7 @@ export function BuilderPage() {
       createNewQuest();
     }
     setIsInitialized(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only initialize once on mount
 
   // Auto-save every 30 seconds
@@ -193,6 +221,26 @@ export function BuilderPage() {
   return (
     <ErrorBoundary>
       <div className="h-screen flex flex-col overflow-hidden bg-gray-200 relative">
+        {/* Auth Status Indicator */}
+        {currentUser && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '20px',
+              left: '20px',
+              zIndex: 1000,
+              padding: '8px 16px',
+              backgroundColor: '#4CAF50',
+              color: 'white',
+              borderRadius: '4px',
+              fontSize: '12px',
+              fontWeight: 'bold'
+            }}
+          >
+            ✓ Authenticated
+          </div>
+        )}
+        
         {/* Back Button */}
         <button
           onClick={() => navigate('/')}

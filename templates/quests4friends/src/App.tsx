@@ -5,7 +5,7 @@ import { BuilderPage } from './pages/BuilderPage';
 import { LoginPage } from './pages/LoginPage';
 import { AccountPage } from './pages/AccountPage';
 import { ToonShooterPage } from './pages/ToonShooterPage';
-import { MinimalDemo } from './pages/MinimalDemoPage';
+import MinimalDemo from './pages/MinimalDemoPage';
 
 export default function App() {
   return (
