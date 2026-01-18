@@ -1,8 +1,8 @@
-import { TileDefinition, TileInstance, WorldGrid, PlayerPosition } from '../../types/tile.types';
+import { TileInstance, WorldGrid, PlayerPosition } from '../../types/tile.types';
 import { TileRegistry } from './TileRegistry';
 import { TileGenerator } from './TileGenerator';
 import { TileLoader, TileContent } from './TileLoader';
-import { Vector3, Group } from 'three';
+import { Group } from 'three';
 
 /**
  * WorldComposer - Manages tile grid, streaming, and active tile lifecycle
@@ -143,8 +143,17 @@ export class WorldComposer {
         // Mark as active immediately
         this.activeTiles.set(tile.id, tile);
         
-        // Load tile contents
-        const tileContent = await TileLoader.loadTile(tile.id, tile.objects);
+        // Load tile contents - convert TileObjectConfig to PlacedTileObject
+        const placedObjects = tile.objects.map((obj, index) => ({
+          id: `${tile.id}_obj_${index}`,
+          type: 'ground' as const, // Default type
+          modelId: obj.modelId,
+          position: obj.position,
+          rotation: obj.rotation,
+          scale: obj.position.clone().setScalar(obj.scale), // Convert number to Vector3
+          collider: obj.collider
+        }));
+        const tileContent = await TileLoader.loadTile(tile.id, placedObjects);
         this.loadedTileContents.set(tile.id, tileContent);
         
         // Create tile group
@@ -160,7 +169,12 @@ export class WorldComposer {
             
             mesh.position.copy(position);
             mesh.rotation.set(rotation.x, rotation.y, rotation.z);
-            mesh.scale.setScalar(scale);
+            // scale can be Vector3 or number
+            if (typeof scale === 'number') {
+              mesh.scale.setScalar(scale);
+            } else {
+              mesh.scale.copy(scale);
+            }
             
             group.add(mesh);
           }

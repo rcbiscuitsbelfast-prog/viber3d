@@ -1,4 +1,4 @@
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Cache, Group, Object3D } from 'three';
 import { PlacedTileObject } from '../../types/tile.types';
 
@@ -154,18 +154,18 @@ export class TileLoader {
     return new Promise((resolve, reject) => {
       this.loader.load(
         path,
-        (gltf) => {
+        (gltf: any) => {
           console.log(`[TileLoader] Successfully loaded: ${path}`);
           resolve(gltf.scene);
         },
-        (progress) => {
+        (progress: any) => {
           // Progress callback
           if (progress.loaded && progress.total) {
             const percent = (progress.loaded / progress.total) * 100;
             console.log(`[TileLoader] Loading ${path}: ${percent.toFixed(1)}%`);
           }
         },
-        (error) => {
+        (error: any) => {
           console.error(`[TileLoader] Failed to load ${path}:`, error);
           reject(error);
         }
@@ -184,7 +184,7 @@ export class TileLoader {
    * Create a fallback primitive mesh when model loading fails
    */
   private static createFallbackMesh(placedObject: any): Group {
-    const { type } = placedObject;
+    // const type = placedObject.type; // Available for future use
     const group = new Group();
     
     // Create simple colored boxes as fallbacks

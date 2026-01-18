@@ -161,10 +161,79 @@ export const useBuilderStore = create<BuilderStore>((set, get) => ({
     set({ isAutoSaving: true });
 
     try {
-      // Save to localStorage
+      // Save to localStorage (backup)
       localStorage.setItem(`quest-${currentQuest.id}`, JSON.stringify(currentQuest));
       
-      // TODO: Save to backend/Firebase here
+      // Save to Firestore
+      try {
+        const { createQuest, updateQuest } = await import('../services/firestore/questService');
+        const { getCurrentUser } = await import('../services/auth/authService');
+        
+        const user = getCurrentUser();
+        if (user) {
+          // Convert quest to Firestore format
+          const firestoreQuest = {
+            ownerId: user.uid,
+            title: currentQuest.title,
+            templateWorld: currentQuest.templateWorld,
+            gameplayStyle: currentQuest.gameplayStyle,
+            expiresAt: null,
+            isPublished: false,
+            entities: currentQuest.entities.map(e => ({
+              id: e.id,
+              name: e.npcData?.name || e.enemyData?.name || e.collectibleData?.name || '',
+              type: e.type === 'npc' ? 'npc' as const : e.type === 'collectible' ? 'item' as const : 'object' as const,
+            })),
+            tasks: currentQuest.tasks.map(t => ({
+              id: t.id,
+              description: t.description,
+              type: (t.type === 'interact' || t.type === 'collect' || t.type === 'defeat') 
+                ? t.type 
+                : 'interact' as const,
+              isCompleted: t.isCompleted,
+            })),
+            triggers: currentQuest.triggers.map(tr => ({
+              id: tr.id,
+              type: tr.event,
+            })),
+            reward: {
+              type: 'coins' as const,
+              amount: 100,
+            },
+            analytics: {
+              plays: currentQuest.analytics.plays,
+              completions: currentQuest.analytics.completions,
+            },
+          };
+          
+          // Check if quest has a valid Firestore ID (not local temp ID)
+          const hasFirestoreId = !currentQuest.id.includes('-') || currentQuest.id.length > 20;
+          
+          if (hasFirestoreId && currentQuest.ownerId !== 'temp-owner') {
+            // Update existing quest
+            await updateQuest(currentQuest.id, firestoreQuest);
+            console.log('[BuilderStore] Quest updated in Firestore:', currentQuest.id);
+          } else {
+            // Create new quest
+            const questId = await createQuest(firestoreQuest);
+            console.log('[BuilderStore] Quest created in Firestore:', questId);
+            
+            // Update the quest ID in the store
+            set({
+              currentQuest: {
+                ...currentQuest,
+                id: questId,
+                ownerId: user.uid,
+              },
+            });
+          }
+        } else {
+          console.log('[BuilderStore] User not authenticated, skipping Firestore save');
+        }
+      } catch (firestoreError) {
+        console.error('[BuilderStore] Firestore save failed:', firestoreError);
+        // Continue - at least localStorage is saved
+      }
       
       set({
         lastSaved: Date.now(),

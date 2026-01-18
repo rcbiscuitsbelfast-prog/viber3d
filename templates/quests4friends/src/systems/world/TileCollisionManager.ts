@@ -323,7 +323,7 @@ export class TileCollisionManager {
    * Calculate box normal at hit point
    */
   private calculateBoxNormal(point: Vector3, collider: ColliderConfig): Vector3 {
-    const halfSize = collider.size.clone().multiplyScalar(0.5);
+    // const halfSize = collider.size.clone().multiplyScalar(0.5); // Reserved for future use
     const localPoint = point.clone().sub(collider.offset);
     
     // Determine which face was hit

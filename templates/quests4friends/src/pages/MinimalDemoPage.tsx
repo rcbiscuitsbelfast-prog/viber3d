@@ -29,8 +29,7 @@ interface CameraSettings {
 
 // Simple Player Controller Component
 function PlayerController({ 
-  input, 
-  cameraSettings 
+  input 
 }: { 
   input: CharacterInput; 
   cameraSettings: CameraSettings;
@@ -59,7 +58,7 @@ function PlayerController({
   }, [input]);
   
   return (
-    <group position={position}>
+    <group position={position as [number, number, number]}>
       {/* Simple character representation - red capsule for player */}
       <mesh position={[0, 1, 0]}>
         <capsuleGeometry args={[0.3, 1, 4, 8]} />
@@ -76,13 +75,12 @@ function PlayerController({
 
 // NPC Component with simple animation
 function NPC({ position = [5, 0, -5] }: { position?: [number, number, number] }) {
-  const meshRef = useRef<any>();
   const [scale, setScale] = useState(1);
   
   useEffect(() => {
     // Simple breathing animation
     const interval = setInterval(() => {
-      setScale(prev => 1 + Math.sin(Date.now() * 0.005) * 0.05);
+      setScale(() => 1 + Math.sin(Date.now() * 0.005) * 0.05);
     }, 50);
     
     return () => clearInterval(interval);
@@ -116,7 +114,7 @@ export function MinimalDemoPage() {
     jump: false,
   });
   
-  const [cameraSettings, setCameraSettings] = useState<CameraSettings>({
+  const [cameraSettings] = useState<CameraSettings>({
     pitch: Math.PI / 6, // 30 degrees
     zoom: 8
   });
@@ -130,8 +128,7 @@ export function MinimalDemoPage() {
   ], []);
 
   // Real-time player position tracking
-  const [playerWorldPos, setPlayerWorldPos] = useState([0, 0, 0]);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [playerWorldPos] = useState([0, 0, 0]);
   
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
