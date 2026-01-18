@@ -48,6 +48,15 @@ export function HomePage() {
             >
               🎮 Toon Shooter
             </a>
+
+            <a
+              href="http://localhost:3000"
+              className="bg-gradient-to-r from-amber-600 to-yellow-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-amber-700 hover:to-yellow-700 transition-all transform hover:scale-105 shadow-xl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              🏰 Clear the Dungeon
+            </a>
           </div>
         </div>
 

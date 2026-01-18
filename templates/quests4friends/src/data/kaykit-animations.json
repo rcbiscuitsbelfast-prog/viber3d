@@ -503,7 +503,7 @@
     }
   },
   "characterMappings": {
-    "char_rogue": "humanoid_enhanced",
+    "char_rogue": "humanoid_basic",
     "char_knight": "humanoid_enhanced",
     "char_mage": "humanoid_enhanced",
     "char_ranger": "humanoid_enhanced",

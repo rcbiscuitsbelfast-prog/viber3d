@@ -1,201 +1,614 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { PerspectiveCamera } from '@react-three/drei';
-import { useEffect, useState, useRef, createContext, useContext } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { GLTF, GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { useCharacterAnimation } from '../hooks/useCharacterAnimation';
+import { animationManager } from '../systems/animation/AnimationManager';
 
-// Create context for zoom control
-const ZoomContext = createContext({ zoomDistance: 8, setZoomDistance: (d: number) => {} });
+// ==================== GLTF Utils (from clear_the_dungeon) ====================
+// This properly clones models with skeleton binding
 
-const keyState: Record<string, boolean> = {
-  'w': false,
-  'a': false,
-  's': false,
-  'd': false,
-  'arrowup': false,
-  'arrowdown': false,
-  'arrowleft': false,
-  'arrowright': false,
-  ' ': false,
-};
+function cloneGltf(gltf: GLTF): GLTF {
+  const clone = {
+    animations: gltf.animations,
+    scene: gltf.scene.clone(true),
+  } as GLTF;
 
-// Character player component
-function PlayerCharacter() {
+  const skinnedMeshes: Record<string, THREE.SkinnedMesh> = {};
+
+  gltf.scene.traverse((node) => {
+    if (node instanceof THREE.SkinnedMesh) skinnedMeshes[node.name] = node;
+  });
+
+  const cloneBones: Record<string, THREE.Bone> = {};
+  const cloneSkinnedMeshes: Record<string, THREE.SkinnedMesh> = {};
+
+  clone.scene.traverse((node) => {
+    if (node instanceof THREE.Bone) cloneBones[node.name] = node;
+    if (node instanceof THREE.SkinnedMesh) cloneSkinnedMeshes[node.name] = node;
+  });
+
+  for (const name in skinnedMeshes) {
+    const skinnedMesh = skinnedMeshes[name];
+    const skeleton = skinnedMesh.skeleton;
+    const cloneSkinnedMesh = cloneSkinnedMeshes[name];
+
+    const orderedCloneBones: THREE.Bone[] = [];
+
+    for (let i = 0; i < skeleton.bones.length; ++i) {
+      const cloneBone = cloneBones[skeleton.bones[i].name];
+      orderedCloneBones.push(cloneBone);
+    }
+
+    cloneSkinnedMesh.bind(new THREE.Skeleton(orderedCloneBones, skeleton.boneInverses), cloneSkinnedMesh.matrixWorld);
+  }
+
+  return clone;
+}
+
+// ==================== Animation Updater ====================
+
+function AnimationUpdater() {
+  useFrame((_state, delta) => {
+    animationManager.update(delta);
+  });
+  return null;
+}
+
+// ==================== Character Component ====================
+
+interface CharacterInput {
+  forward: boolean;
+  backward: boolean;
+  left: boolean;
+  right: boolean;
+  jump: boolean;
+}
+
+interface CameraSettings {
+  pitch: number; // Camera pitch angle in radians (0 to PI/2)
+  zoom: number; // Camera distance from character
+}
+
+function CharacterModel({ input, cameraSettings }: { input: CharacterInput; cameraSettings: CameraSettings }) {
   const groupRef = useRef<THREE.Group>(null);
-  const modelRef = useRef<THREE.Object3D | null>(null);
-  const placeholderRef = useRef<THREE.Mesh>(null);
-  const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
-  const [animationClips, setAnimationClips] = useState<Record<string, THREE.AnimationClip>>({});
-  const [currentAction, setCurrentAction] = useState<THREE.AnimationAction | null>(null);
-  const [isMoving, setIsMoving] = useState(false);
+  const [model, setModel] = useState<THREE.Object3D | null>(null);
   const velocityRef = useRef(new THREE.Vector3());
-  const directionRef = useRef(new THREE.Vector3());
-  const targetRotationRef = useRef(0);
-  const currentRotationRef = useRef(0);
-  const verticalVelocityRef = useRef(0);
-  const isJumpingRef = useRef(false);
-
+  const directionRef = useRef<'idle' | 'walk' | 'run'>('idle');
   const { camera } = useThree();
-  const { zoomDistance } = useContext(ZoomContext);
 
-  // Load character
+  // Load character model (NO ANIMATIONS - animations are in separate files)
   useEffect(() => {
+    if (!groupRef.current) return;
+
     const loadCharacter = async () => {
       try {
-        console.log('[PlayerCharacter] Loading model...');
         const loader = new GLTFLoader();
+        console.log('[CharacterModel] Loading Rogue.glb (character model only, no animations)...');
         
-        // Load character model
-        const characterGltf = await new Promise<any>((resolve, reject) => {
+        const gltf = await new Promise<GLTF>((resolve, reject) => {
           loader.load(
             '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Rogue.glb',
-            resolve,
+            (data) => {
+              console.log('[CharacterModel] Character model loaded (animations will load separately)');
+              resolve(data);
+            },
             undefined,
-            reject
+            (err) => {
+              console.error('[CharacterModel] Load error:', err);
+              reject(err);
+            }
           );
         });
 
-        // Load animation files from Character Animations 1.1 (has better idle animations)
-        // Using enhanced set with 8 files for better animation options
-        const basePath = '/Assets/KayKit_Character_Animations_1.1/Animations/gltf/Rig_Medium';
+        // Use proper cloning with skeleton binding (like clear_the_dungeon)
+        const clonedGltf = cloneGltf(gltf);
+        const characterScene = clonedGltf.scene;
         
-        const movementBasicGltf = await new Promise<any>((resolve, reject) => {
-          loader.load(`${basePath}/Rig_Medium_MovementBasic.glb`, resolve, undefined, reject);
-        });
+        // Clear and add model
+        groupRef.current!.clear();
+        groupRef.current!.add(characterScene);
+        characterScene.scale.setScalar(1.5);
 
-        const generalGltf = await new Promise<any>((resolve, reject) => {
-          loader.load(`${basePath}/Rig_Medium_General.glb`, resolve, undefined, reject);
-        });
-
-        // Add scene elements
-        if (groupRef.current) {
-          // Add the model to the group
-          const model = characterGltf.scene;
-          model.castShadow = true;
-          model.receiveShadow = true;
-          model.traverse((child: any) => {
+        // Ensure model is visible and positioned correctly
+        characterScene.position.set(0, 0, 0);
+        characterScene.visible = true;
+        characterScene.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
             child.castShadow = true;
             child.receiveShadow = true;
-          });
-          groupRef.current.add(model);
-          modelRef.current = model;
-
-          // Hide placeholder mesh now that model is loaded
-          if (placeholderRef.current) {
-            placeholderRef.current.visible = false;
           }
+        });
 
-          // Create mixer on the character
-          const newMixer = new THREE.AnimationMixer(model);
-          setMixer(newMixer);
-
-          // Collect all animation clips from both sources
-          const clips: Record<string, THREE.AnimationClip> = {};
-          
-          // Add movement animations
-          movementBasicGltf.animations.forEach((clip: THREE.AnimationClip) => {
-            clips[clip.name] = clip;
-          });
-
-          // Add general animations
-          generalGltf.animations.forEach((clip: THREE.AnimationClip) => {
-            clips[clip.name] = clip;
-          });
-          
-          console.log('[PlayerCharacter] All animations found:', Object.keys(clips));
-          setAnimationClips(clips);
-
-          // WORKAROUND: Play Walking briefly first to break out of T-pose, then switch to idle
-          // This fixes the issue where Idle doesn't fully override the rest pose
-          let walkClip: THREE.AnimationClip | null = null;
-          let idleClip: THREE.AnimationClip | null = null;
-          
-          // Find walking animation first
-          if (clips['Walking']) {
-            walkClip = clips['Walking'];
-          } else {
-            for (const [name, clip] of Object.entries(clips)) {
-              if (name.toLowerCase().includes('walk')) {
-                walkClip = clip;
-                break;
-              }
-            }
-          }
-          
-          // Find idle animation
-          if (clips['Idle']) {
-            idleClip = clips['Idle'];
-            console.log('[PlayerCharacter] Found exact "Idle" animation');
-          } else {
-            for (const [name, clip] of Object.entries(clips)) {
-              if (name.toLowerCase() === 'idle' || name.toLowerCase().includes('idle')) {
-                idleClip = clip;
-                console.log('[PlayerCharacter] Found idle animation:', name);
-                break;
-              }
-            }
-          }
-          
-          // Try Character Animations 1.1 Idle - should have better arm positions
-          if (idleClip) {
-            const idleAction = newMixer.clipAction(idleClip);
-            idleAction.loop = THREE.LoopRepeat;
-            idleAction.weight = 1.0;
-            idleAction.enabled = true;
-            idleAction.paused = false;
-            idleAction.reset();
-            idleAction.time = 0;
-            idleAction.clampWhenFinished = false;
-            idleAction.play();
-            setCurrentAction(idleAction);
-            console.log('[PlayerCharacter] Playing idle animation from Character Animations 1.1:', idleClip.name);
-            
-            // Force mixer to update immediately to apply the animation
-            newMixer.update(0.1);
-          } else {
-            console.warn('[PlayerCharacter] No idle animation found. Available animations:', Object.keys(clips));
-            // Try first available animation as fallback
-            const firstClip = Object.values(clips)[0];
-            if (firstClip) {
-              console.log('[PlayerCharacter] Playing fallback animation:', firstClip.name);
-              const fallbackAction = newMixer.clipAction(firstClip);
-              fallbackAction.loop = THREE.LoopRepeat;
-              fallbackAction.weight = 1.0;
-              fallbackAction.enabled = true;
-              fallbackAction.reset();
-              fallbackAction.time = 0;
-              fallbackAction.play();
-              setCurrentAction(fallbackAction);
-            } else {
-              console.error('[PlayerCharacter] No animations available at all!');
-            }
-          }
-        }
-      } catch (err) {
-        console.error('[PlayerCharacter] Failed to load:', err);
+        // Set model for animation hook - use the scene directly
+        setModel(characterScene);
+        console.log('[CharacterModel] ✓ Character model ready, animations loading...');
+      } catch (error) {
+        console.error('[CharacterModel] ❌ Failed to load character:', error);
       }
     };
 
     loadCharacter();
   }, []);
 
-  // Handle keyboard input
+  // Use the existing animation hook - it loads animations from SEPARATE files
+  const { crossfadeTo, isLoaded: animationsLoaded, hasAnimation } = useCharacterAnimation({
+    characterId: 'minimal-demo-player',
+    assetId: 'char_rogue', // Maps to humanoid_basic animation set in kaykit-animations.json
+    model: model,
+    defaultAnimation: 'idle',
+  });
+
+  // Determine movement direction and update animations
+  useEffect(() => {
+    if (!animationsLoaded || !model) {
+      console.log('[CharacterModel] Waiting for animations or model...', { animationsLoaded, hasModel: !!model });
+      return;
+    }
+
+    let newDirection: typeof directionRef.current = 'idle';
+
+    if (input.forward) {
+      newDirection = hasAnimation('run') ? 'run' : 'walk';
+    } else if (input.backward || input.left || input.right) {
+      newDirection = 'walk'; // Use walk for any movement
+    }
+
+    // Only update if direction changed
+    if (newDirection !== directionRef.current) {
+      directionRef.current = newDirection;
+      console.log(`[CharacterModel] Changing animation to: ${newDirection}`);
+      
+      if (hasAnimation(newDirection)) {
+        crossfadeTo(newDirection, 0.2);
+      } else if (hasAnimation('walk')) {
+        crossfadeTo('walk', 0.2);
+      } else if (hasAnimation('idle')) {
+        crossfadeTo('idle', 0.2);
+      } else {
+        console.warn('[CharacterModel] No animations available!');
+      }
+    }
+  }, [input, animationsLoaded, model, crossfadeTo, hasAnimation]);
+
+  // Update movement and camera (isometric)
+  useFrame((_state, dt) => {
+    if (!groupRef.current) return;
+
+    // Camera-relative movement: transform input based on camera orientation
+    const moveSpeed = 5;
+    const inputDir = new THREE.Vector3();
+    
+    if (input.forward) inputDir.z = -1;
+    else if (input.backward) inputDir.z = 1;
+
+    if (input.left) inputDir.x = -1;
+    else if (input.right) inputDir.x = 1;
+
+    if (inputDir.length() > 0) {
+      inputDir.normalize();
+      
+      // Get camera's forward and right vectors (projected onto XZ plane)
+      const cameraForward = new THREE.Vector3();
+      camera.getWorldDirection(cameraForward);
+      cameraForward.y = 0; // Project to XZ plane
+      cameraForward.normalize();
+
+      const cameraRight = new THREE.Vector3();
+      cameraRight.crossVectors(cameraForward, new THREE.Vector3(0, 1, 0));
+      cameraRight.normalize();
+
+      // Transform input direction to camera-relative direction
+      velocityRef.current
+        .copy(cameraForward.multiplyScalar(-inputDir.z))
+        .add(cameraRight.multiplyScalar(inputDir.x))
+        .multiplyScalar(moveSpeed);
+    } else {
+      velocityRef.current.set(0, 0, 0);
+    }
+
+    // Apply movement to GROUP (character moves in world)
+    groupRef.current.position.add(velocityRef.current.clone().multiplyScalar(dt));
+
+    // Clamp position (increased world size)
+    const worldSize = 100; // Increased from 20
+    groupRef.current.position.x = Math.max(-worldSize, Math.min(worldSize, groupRef.current.position.x));
+    groupRef.current.position.z = Math.max(-worldSize, Math.min(worldSize, groupRef.current.position.z));
+
+    // Isometric camera FOLLOWS character with adjustable pitch and zoom
+    const angle = Math.PI * 0.25; // Base angle
+    const distance = cameraSettings.zoom; // Use setting
+    const height = Math.sin(cameraSettings.pitch) * distance; // Pitch affects height
+    const horizontalDistance = Math.cos(cameraSettings.pitch) * distance; // Horizontal distance
+    
+    const charPosition = groupRef.current.position;
+
+    camera.position.x = charPosition.x + Math.sin(angle) * horizontalDistance;
+    camera.position.y = charPosition.y + height;
+    camera.position.z = charPosition.z + Math.cos(angle) * horizontalDistance;
+    camera.lookAt(
+      charPosition.x,
+      charPosition.y + 0.5,
+      charPosition.z
+    );
+
+    // Face direction of movement
+    if (velocityRef.current.length() > 0.1) {
+      const targetRotation = Math.atan2(velocityRef.current.x, velocityRef.current.z);
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(
+        groupRef.current.rotation.y,
+        targetRotation,
+        0.1
+      );
+    }
+  });
+
+  return <group ref={groupRef} position={[0, 0, 0]} />;
+}
+
+// ==================== Tree Component ====================
+
+function Tree({ position }: { position: [number, number, number] }) {
+  const treeRef = useRef<THREE.Group>(null);
+  const [treeScene, setTreeScene] = useState<THREE.Group | null>(null);
+
+  useEffect(() => {
+    const loader = new GLTFLoader();
+    loader.load(
+      '/Assets/KayKit_Forest_Nature_Pack_1.0_FREE/KayKit_Forest_Nature_Pack_1.0_FREE/Assets/gltf/Tree_1_A_Color1.gltf',
+      (gltf) => {
+        const cloned = gltf.scene.clone();
+        cloned.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        setTreeScene(cloned);
+      },
+      undefined,
+      (error) => console.warn('Failed to load tree:', error)
+    );
+  }, []);
+
+  if (!treeScene) return null;
+
+  return (
+    <group ref={treeRef} position={position}>
+      <primitive object={treeScene} />
+    </group>
+  );
+}
+
+// ==================== Environment ====================
+
+function Environment() {
+  // Larger world - generate more trees (stable placement)
+  const trees: [number, number, number][] = useMemo(() => {
+    const result: [number, number, number][] = [];
+    const spacing = 15;
+    const worldRadius = 100;
+    // Use seeded random-like pattern (x * 37 + z * 23) mod 10 for consistent placement
+    for (let x = -worldRadius; x <= worldRadius; x += spacing) {
+      for (let z = -worldRadius; z <= worldRadius; z += spacing) {
+        const hash = ((x * 37 + z * 23) % 10);
+        if (hash > 3 && (x !== 0 || z !== 0)) {
+          result.push([x, 0, z]);
+        }
+      }
+    }
+    return result;
+  }, []);
+
+  return (
+    <>
+      {/* Grass ground - larger world */}
+      <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[200, 200]} />
+        <meshStandardMaterial color="#3d6b2d" />
+      </mesh>
+
+      {/* Grid helper (subtle) - larger grid */}
+      <gridHelper args={[200, 100, 0x666666, 0x444444]} position={[0, 0.01, 0]} />
+
+      {/* Trees scattered around */}
+      {trees.map((pos, i) => (
+        <Tree key={i} position={pos} />
+      ))}
+    </>
+  );
+}
+
+// ==================== NPC Component ====================
+
+interface NPCData {
+  id: string;
+  assetId: string;
+  weaponPath?: string;
+  position: [number, number, number];
+  waypoints: [number, number, number][]; // Path to follow
+}
+
+function WalkingNPC({ npcData }: { npcData: NPCData }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const [model, setModel] = useState<THREE.Object3D | null>(null);
+  const currentWaypointIndex = useRef(0);
+  const isMovingRef = useRef(false);
+
+  // Load NPC model
+  useEffect(() => {
+    if (!groupRef.current) return;
+
+    const loadNPC = async () => {
+      try {
+        const loader = new GLTFLoader();
+        const charPath = npcData.assetId === 'char_knight' 
+          ? '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Knight.glb'
+          : '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Mage.glb';
+
+        const gltf = await new Promise<GLTF>((resolve, reject) => {
+          loader.load(charPath, resolve, undefined, reject);
+        });
+
+        const clonedGltf = cloneGltf(gltf);
+        const npcScene = clonedGltf.scene;
+        
+        groupRef.current!.clear();
+        groupRef.current!.add(npcScene);
+        npcScene.scale.setScalar(1.5);
+        npcScene.position.set(0, 0, 0);
+        npcScene.visible = true;
+
+        npcScene.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+
+        setModel(npcScene);
+
+        // Load weapon if specified
+        if (npcData.weaponPath) {
+          const weaponGltf = await new Promise<GLTF>((resolve, reject) => {
+            loader.load(npcData.weaponPath!, resolve, undefined, reject);
+          });
+
+          const weapon = weaponGltf.scene.clone();
+          
+          // Find hand bone
+          let handBone: THREE.Bone | null = null;
+          npcScene.traverse((node) => {
+            if (node instanceof THREE.Bone && (node.name === 'handslotr' || node.name === 'handr')) {
+              handBone = node;
+            }
+          });
+
+          if (handBone) {
+            weapon.scale.setScalar(0.8);
+            weapon.position.set(0.1, 0, 0);
+            weapon.rotation.set(0, 0, Math.PI / 4);
+            (handBone as THREE.Object3D).add(weapon);
+          }
+        }
+      } catch (error) {
+        console.error(`[NPC ${npcData.id}] Failed to load:`, error);
+      }
+    };
+
+    loadNPC();
+  }, [npcData]);
+
+  // Use animation hook
+  const { crossfadeTo, isLoaded } = useCharacterAnimation({
+    characterId: `npc-${npcData.id}`,
+    assetId: npcData.assetId,
+    model: model,
+    defaultAnimation: 'idle', // Start with idle, will switch to walk when moving
+  });
+
+  // Ensure walk animation is playing when moving
+  useEffect(() => {
+    if (isLoaded && model && npcData.waypoints.length > 0) {
+      // Start walking immediately if NPC has waypoints
+      crossfadeTo('walk', 0.2);
+      isMovingRef.current = true;
+    }
+  }, [isLoaded, model, crossfadeTo, npcData.waypoints.length]);
+
+  // Waypoint following behavior
+  useFrame((_state, dt) => {
+    if (!groupRef.current || !isLoaded || npcData.waypoints.length === 0) return;
+
+    const currentPos = groupRef.current.position;
+    const currentWaypoint = new THREE.Vector3(...npcData.waypoints[currentWaypointIndex.current]);
+    
+    // Check if reached current waypoint
+    const distanceToWaypoint = currentPos.distanceTo(currentWaypoint);
+    
+    if (distanceToWaypoint < 2) {
+      // Move to next waypoint (loop around)
+      currentWaypointIndex.current = (currentWaypointIndex.current + 1) % npcData.waypoints.length;
+    }
+
+    const targetWaypoint = new THREE.Vector3(...npcData.waypoints[currentWaypointIndex.current]);
+    
+    // Smooth movement direction
+    const direction = new THREE.Vector3()
+      .subVectors(targetWaypoint, currentPos)
+      .normalize();
+
+    // Only move if we have a valid direction
+    if (direction.length() > 0.01) {
+      const moveSpeed = 2;
+      groupRef.current.position.add(direction.multiplyScalar(moveSpeed * dt));
+
+      // Smooth rotation using lerp (prevent abrupt turns that cause T-pose)
+      const targetRotation = Math.atan2(direction.x, direction.z);
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(
+        groupRef.current.rotation.y,
+        targetRotation,
+        0.1 // Smooth rotation
+      );
+
+      // Ensure walk animation stays active
+      if (!isMovingRef.current) {
+        crossfadeTo('walk', 0.2);
+        isMovingRef.current = true;
+      }
+    } else {
+      // Stop and idle if no valid direction
+      if (isMovingRef.current) {
+        crossfadeTo('idle', 0.2);
+        isMovingRef.current = false;
+      }
+    }
+  });
+
+  return <group ref={groupRef} position={npcData.position} />;
+}
+
+// ==================== Main Component ====================
+
+// Load/save camera settings from localStorage
+function useCameraSettings() {
+  const [settings, setSettings] = useState<CameraSettings>(() => {
+    const stored = localStorage.getItem('minimal-demo-camera-settings');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        // Fallback to defaults
+      }
+    }
+    return { pitch: Math.PI / 6, zoom: 8 }; // Default: 30 degrees pitch, distance 8
+  });
+
+  const updateSettings = (updates: Partial<CameraSettings>) => {
+    const newSettings = { ...settings, ...updates };
+    setSettings(newSettings);
+    localStorage.setItem('minimal-demo-camera-settings', JSON.stringify(newSettings));
+  };
+
+  return [settings, updateSettings] as const;
+}
+
+export function MinimalDemo() {
+  const navigate = useNavigate();
+  const [input, setInput] = useState<CharacterInput>({
+    forward: false,
+    backward: false,
+    left: false,
+    right: false,
+    jump: false,
+  });
+  const [cameraSettings, updateCameraSettings] = useCameraSettings();
+  const [showSettings, setShowSettings] = useState(false);
+
+  // NPCs data with waypoint paths
+  const npcs: NPCData[] = [
+    {
+      id: 'knight1',
+      assetId: 'char_knight',
+      weaponPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Assets/gltf/sword_1handed.gltf',
+      position: [20, 0, 20],
+      waypoints: [
+        [20, 0, 20],
+        [30, 0, 20],
+        [30, 0, 30],
+        [20, 0, 30],
+        [20, 0, 20], // Loop back
+      ],
+    },
+    {
+      id: 'knight2',
+      assetId: 'char_knight',
+      weaponPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Assets/gltf/sword_2handed.gltf',
+      position: [-20, 0, 20],
+      waypoints: [
+        [-20, 0, 20],
+        [-30, 0, 20],
+        [-30, 0, 10],
+        [-20, 0, 10],
+        [-20, 0, 20],
+      ],
+    },
+    {
+      id: 'mage1',
+      assetId: 'char_mage',
+      weaponPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Assets/gltf/staff.gltf',
+      position: [20, 0, -20],
+      waypoints: [
+        [20, 0, -20],
+        [10, 0, -20],
+        [10, 0, -30],
+        [20, 0, -30],
+        [20, 0, -20],
+      ],
+    },
+    {
+      id: 'mage2',
+      assetId: 'char_mage',
+      position: [-20, 0, -20],
+      waypoints: [
+        [-20, 0, -20],
+        [-30, 0, -20],
+        [-30, 0, -30],
+        [-20, 0, -30],
+        [-20, 0, -20],
+      ],
+    },
+  ];
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
-      if (key in keyState) {
-        keyState[key] = true;
-        e.preventDefault();
-      }
+      setInput((prev) => {
+        switch (key) {
+          case 'w':
+          case 'arrowup':
+            return { ...prev, forward: true, backward: false };
+          case 's':
+          case 'arrowdown':
+            return { ...prev, backward: true, forward: false };
+          case 'a':
+          case 'arrowleft':
+            return { ...prev, left: true, right: false };
+          case 'd':
+          case 'arrowright':
+            return { ...prev, right: true, left: false };
+          case ' ':
+            return { ...prev, jump: true };
+          default:
+            return prev;
+        }
+      });
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
-      if (key in keyState) {
-        keyState[key] = false;
-        e.preventDefault();
-      }
+      setInput((prev) => {
+        switch (key) {
+          case 'w':
+          case 'arrowup':
+            return { ...prev, forward: false };
+          case 's':
+          case 'arrowdown':
+            return { ...prev, backward: false };
+          case 'a':
+          case 'arrowleft':
+            return { ...prev, left: false };
+          case 'd':
+          case 'arrowright':
+            return { ...prev, right: false };
+          case ' ':
+            return { ...prev, jump: false };
+          default:
+            return prev;
+        }
+      });
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -207,341 +620,130 @@ function PlayerCharacter() {
     };
   }, []);
 
-  // Animation loop
-  useFrame((state, delta) => {
-    if (!groupRef.current || !mixer) return;
-
-    // Update mixer
-    mixer.update(delta);
-
-    // Handle movement input
-    directionRef.current.set(0, 0, 0);
-    let isInputMoving = false;
-
-    if (keyState['w']) {
-      directionRef.current.z -= 1;
-      isInputMoving = true;
-    }
-    if (keyState['s']) {
-      directionRef.current.z += 1;
-      isInputMoving = true;
-    }
-    if (keyState['a']) {
-      directionRef.current.x -= 1;
-      isInputMoving = true;
-    }
-    if (keyState['d']) {
-      directionRef.current.x += 1;
-      isInputMoving = true;
-    }
-
-    // Arrow keys
-    if (keyState['arrowup']) {
-      directionRef.current.z -= 1;
-      isInputMoving = true;
-    }
-    if (keyState['arrowdown']) {
-      directionRef.current.z += 1;
-      isInputMoving = true;
-    }
-    if (keyState['arrowleft']) {
-      directionRef.current.x -= 1;
-      isInputMoving = true;
-    }
-    if (keyState['arrowright']) {
-      directionRef.current.x += 1;
-      isInputMoving = true;
-    }
-
-    // Handle jump
-    if (keyState[' '] && !isJumpingRef.current && groupRef.current.position.y < 0.1) {
-      verticalVelocityRef.current = 15;
-      isJumpingRef.current = true;
-    }
-
-    if (directionRef.current.length() > 0) {
-      directionRef.current.normalize();
-      
-      // Calculate target rotation to face movement direction
-      targetRotationRef.current = Math.atan2(directionRef.current.x, directionRef.current.z);
-
-      // Move character
-      const speed = 8;
-      velocityRef.current.copy(directionRef.current).multiplyScalar(speed);
-      groupRef.current.position.add(velocityRef.current.clone().multiplyScalar(delta));
-    }
-
-    // Smooth rotation towards target
-    let rotationDiff = targetRotationRef.current - currentRotationRef.current;
-    
-    // Normalize angle difference to -PI to PI
-    while (rotationDiff > Math.PI) rotationDiff -= Math.PI * 2;
-    while (rotationDiff < -Math.PI) rotationDiff += Math.PI * 2;
-    
-    const rotationSpeed = 8;
-    if (Math.abs(rotationDiff) > 0.05) {
-      currentRotationRef.current += rotationDiff * rotationSpeed * delta;
-      groupRef.current.rotation.y = currentRotationRef.current;
-    }
-
-    // Handle gravity and jumping
-    const gravity = 30;
-    verticalVelocityRef.current -= gravity * delta;
-    groupRef.current.position.y += verticalVelocityRef.current * delta;
-
-    // Ground collision
-    if (groupRef.current.position.y < 0) {
-      groupRef.current.position.y = 0;
-      verticalVelocityRef.current = 0;
-      isJumpingRef.current = false;
-    }
-
-    // Handle animation switching - only switch between idle and walk/run, not on direction change
-    const shouldBeMoving = isInputMoving;
-    if (shouldBeMoving !== isMoving) {
-      setIsMoving(shouldBeMoving);
-
-      if (shouldBeMoving && animationClips && mixer) {
-        // Find a walk/run animation
-        let moveAnimation = null;
-        for (const [name, clip] of Object.entries(animationClips)) {
-          if (name.toLowerCase().includes('walk')) {
-            moveAnimation = clip;
-            break;
-          }
-        }
-        
-        // If no walk, try run or move
-        if (!moveAnimation) {
-          for (const [name, clip] of Object.entries(animationClips)) {
-            if (name.toLowerCase().includes('run') || name.toLowerCase().includes('move')) {
-              moveAnimation = clip;
-              break;
-            }
-          }
-        }
-
-        if (moveAnimation) {
-          const newAction = mixer.clipAction(moveAnimation);
-          newAction.loop = THREE.LoopRepeat;
-          newAction.paused = false; // Ensure it's playing
-          if (currentAction) {
-            currentAction.fadeOut(0.3);
-            if (currentAction.paused) {
-              currentAction.paused = false; // Unpause if it was paused
-            }
-          }
-          newAction.reset();
-          newAction.fadeIn(0.3);
-          newAction.play();
-          setCurrentAction(newAction);
-        }
-      } else if (!shouldBeMoving && animationClips && mixer) {
-        // Return to idle animation from Character Animations 1.1
-        let idleAnimation = null;
-        if (animationClips['Idle']) {
-          idleAnimation = animationClips['Idle'];
-        } else {
-          // Case-insensitive search
-          for (const [name, clip] of Object.entries(animationClips)) {
-            if (name.toLowerCase() === 'idle' || name.toLowerCase().includes('idle')) {
-              idleAnimation = clip;
-              break;
-            }
-          }
-        }
-
-        if (idleAnimation) {
-          const newAction = mixer.clipAction(idleAnimation);
-          newAction.loop = THREE.LoopRepeat;
-          newAction.weight = 1.0;
-          newAction.enabled = true;
-          newAction.paused = false;
-          newAction.clampWhenFinished = false;
-          
-          if (currentAction) {
-            currentAction.fadeOut(0.3);
-          }
-          
-          newAction.reset();
-          newAction.time = 0;
-          newAction.fadeIn(0.3);
-          newAction.play();
-          setCurrentAction(newAction);
-        }
-      }
-    }
-
-    // Update camera to follow player from isometric angle
-    const distance = zoomDistance;
-    const height = zoomDistance * 0.75;
-    const angle = Math.PI * 0.25; // 45 degree isometric angle
-    
-    camera.position.x = groupRef.current.position.x + Math.sin(angle) * distance;
-    camera.position.y = groupRef.current.position.y + height;
-    camera.position.z = groupRef.current.position.z + Math.cos(angle) * distance;
-    camera.lookAt(groupRef.current.position.x, groupRef.current.position.y + 0.5, groupRef.current.position.z);
-  });
-
   return (
-    <group ref={groupRef} position={[0, 0, 0]}>
-      {/* Placeholder if model hasn't loaded */}
-      <mesh ref={placeholderRef} castShadow receiveShadow>
-        <capsuleGeometry args={[0.3, 1.5, 4, 8]} />
-        <meshStandardMaterial color="#ff0000" transparent opacity={0.3} />
-      </mesh>
-    </group>
-  );
-}
+    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+      <button
+        onClick={() => navigate('/')}
+        style={{
+          position: 'absolute',
+          top: '20px',
+          left: '20px',
+          zIndex: 10,
+          padding: '10px 20px',
+          background: '#333',
+          color: 'white',
+          border: 'none',
+          borderRadius: '5px',
+          cursor: 'pointer',
+          fontSize: '16px',
+          fontWeight: 'bold',
+        }}
+      >
+        ← Back
+      </button>
 
-// Ground component with grid
-function Ground() {
-  return (
-    <group>
-      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-        <planeGeometry args={[200, 200]} />
-        <meshStandardMaterial color="#00aa00" />
-      </mesh>
-      
-      {/* Grid helper */}
-      <gridHelper args={[200, 40, 0xffffff, 0xcccccc]} position={[0, 0.01, 0]} />
-    </group>
-  );
-}
-
-// UI overlay
-function UI() {
-  const { zoomDistance, setZoomDistance } = useContext(ZoomContext);
-  const [isMinimized, setIsMinimized] = useState(false);
-
-  const handleZoomIn = () => {
-    setZoomDistance(Math.max(zoomDistance - 1, 3));
-  };
-
-  const handleZoomOut = () => {
-    setZoomDistance(Math.min(zoomDistance + 1, 15));
-  };
-
-  return (
-    <div style={{
-      position: 'absolute',
-      top: '20px',
-      left: '20px',
-      color: '#000',
-      backgroundColor: 'rgba(255,255,255,0.95)',
-      padding: '20px',
-      borderRadius: '8px',
-      fontFamily: 'Arial, sans-serif',
-      zIndex: 10,
-      minWidth: '250px'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-        <h2 style={{ margin: 0 }}>Character Demo</h2>
+      <div
+        style={{
+          position: 'absolute',
+          top: '80px',
+          left: '20px',
+          color: 'white',
+          zIndex: 10,
+          background: 'rgba(0,0,0,0.7)',
+          padding: '15px',
+          borderRadius: '5px',
+          fontFamily: 'monospace',
+          fontSize: '12px',
+        }}
+      >
+        <h2 style={{ margin: '0 0 10px 0' }}>Animation Demo</h2>
+        <p style={{ margin: '5px 0' }}>Use WASD or Arrow Keys to move</p>
+        <p style={{ margin: '5px 0' }}>
+          Forward: {input.forward ? '✓' : '✗'} | Back: {input.backward ? '✓' : '✗'}
+        </p>
+        <p style={{ margin: '5px 0' }}>
+          Left: {input.left ? '✓' : '✗'} | Right: {input.right ? '✓' : '✗'}
+        </p>
         <button
-          onClick={() => setIsMinimized(!isMinimized)}
+          onClick={() => setShowSettings(!showSettings)}
           style={{
-            background: 'none',
-            border: 'none',
-            fontSize: '18px',
-            cursor: 'pointer',
-            padding: '0 5px'
-          }}
-          title={isMinimized ? 'Expand' : 'Minimize'}
-        >
-          {isMinimized ? '▲' : '▼'}
-        </button>
-      </div>
-      
-      {!isMinimized && (
-        <>
-          <p style={{ margin: '5px 0' }}>Use WASD or Arrow Keys to move</p>
-          <p style={{ margin: '5px 0' }}>Press Spacebar to jump</p>
-          <p style={{ fontSize: '12px', color: '#666', margin: '5px 0' }}>Isometric view - character will walk and face the direction you're moving</p>
-          
-          <div style={{ marginTop: '15px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <button 
-              onClick={handleZoomIn}
-              style={{
-                padding: '8px 12px',
-                backgroundColor: '#4CAF50',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              🔍 Zoom In
-            </button>
-            <button 
-              onClick={handleZoomOut}
-              style={{
-                padding: '8px 12px',
-                backgroundColor: '#4CAF50',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >
-              🔍 Zoom Out
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-export function MinimalDemo() {
-  const navigate = useNavigate();
-  const [zoomDistance, setZoomDistance] = useState(8);
-
-  return (
-    <ZoomContext.Provider value={{ zoomDistance, setZoomDistance }}>
-      <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-        {/* Back Button */}
-        <button
-          onClick={() => navigate('/')}
-          style={{
-            position: 'absolute',
-            top: '20px',
-            right: '20px',
-            zIndex: 20,
-            padding: '10px 20px',
-            backgroundColor: '#2196F3',
+            marginTop: '10px',
+            padding: '5px 10px',
+            background: '#555',
             color: 'white',
             border: 'none',
-            borderRadius: '4px',
+            borderRadius: '3px',
             cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: 'bold'
+            fontSize: '11px',
           }}
         >
-          ← Back to Home
+          {showSettings ? '▼' : '▶'} Camera Settings
         </button>
-        <Canvas shadows camera={{ position: [5, 5, 5], near: 0.1, far: 1000 }}>
-          <PerspectiveCamera makeDefault position={[5, 5, 5]} fov={50} />
-          
-          <ambientLight intensity={0.8} />
-          <directionalLight 
-            position={[20, 30, 20]} 
-            intensity={1.5}
-            castShadow
-            shadow-mapSize-width={2048}
-            shadow-mapSize-height={2048}
-            shadow-camera-left={-50}
-            shadow-camera-right={50}
-            shadow-camera-top={50}
-            shadow-camera-bottom={-50}
-          />
-          
-          <Ground />
-          <PlayerCharacter />
-        </Canvas>
-        <UI />
+        {showSettings && (
+          <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #555' }}>
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px' }}>
+                Pitch: {(cameraSettings.pitch * 180 / Math.PI).toFixed(0)}°
+              </label>
+              <input
+                type="range"
+                min="0"
+                max={Math.PI / 2}
+                step={0.01}
+                value={cameraSettings.pitch}
+                onChange={(e) => updateCameraSettings({ pitch: parseFloat(e.target.value) })}
+                style={{ width: '150px' }}
+              />
+            </div>
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontSize: '11px' }}>
+                Zoom: {cameraSettings.zoom.toFixed(1)}
+              </label>
+              <input
+                type="range"
+                min="3"
+                max="20"
+                step="0.5"
+                value={cameraSettings.zoom}
+                onChange={(e) => updateCameraSettings({ zoom: parseFloat(e.target.value) })}
+                style={{ width: '150px' }}
+              />
+            </div>
+            <p style={{ margin: '5px 0', fontSize: '10px', color: '#aaa' }}>
+              Settings saved automatically
+            </p>
+          </div>
+        )}
+        <p style={{ margin: '10px 0 0 0', fontSize: '11px', color: '#aaa' }}>
+          NPCs walking around with weapons
+        </p>
       </div>
-    </ZoomContext.Provider>
+
+      <Canvas shadows camera={{ position: [5, 5, 5], near: 0.1, far: 1000 }}>
+        <PerspectiveCamera makeDefault position={[5, 5, 5]} fov={50} />
+
+        <ambientLight intensity={0.8} />
+        <directionalLight
+          position={[15, 20, 10]}
+          intensity={1.0}
+          castShadow
+          shadow-mapSize-width={2048}
+          shadow-mapSize-height={2048}
+          shadow-camera-left={-30}
+          shadow-camera-right={30}
+          shadow-camera-top={30}
+          shadow-camera-bottom={-30}
+        />
+
+        {/* AnimationUpdater - MUST be inside Canvas to update mixers */}
+        <AnimationUpdater />
+
+        <Environment />
+        <CharacterModel input={input} cameraSettings={cameraSettings} />
+        {npcs.map(npc => (
+          <WalkingNPC key={npc.id} npcData={npc} />
+        ))}
+      </Canvas>
+    </div>
   );
 }
