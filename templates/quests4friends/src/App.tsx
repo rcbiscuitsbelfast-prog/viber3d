@@ -7,6 +7,8 @@ import { AccountPage } from './pages/AccountPage';
 import { ToonShooterPage } from './pages/ToonShooterPage';
 import MinimalDemo from './pages/MinimalDemoPage';
 import TileWorldDemoPage from './pages/TileWorldDemoPage';
+import TileEditorPage from './pages/TileEditorPage';
+import WorldBuilderPage from './pages/WorldBuilderPage';
 
 export default function App() {
   return (
@@ -20,6 +22,8 @@ export default function App() {
         <Route path="/toonshooter" element={<ToonShooterPage />} />
         <Route path="/minimal-demo" element={<MinimalDemo />} />
         <Route path="/tile-world-demo" element={<TileWorldDemoPage />} />
+        <Route path="/tile-editor" element={<TileEditorPage />} />
+        <Route path="/world-builder" element={<WorldBuilderPage />} />
       </Routes>
     </BrowserRouter>
   );

@@ -840,8 +840,6 @@ function Environment({ groundTiles, defaultTerrainTiles }: EnvironmentProps) {
     return result;
   }, [worldSize, tileSize, allTiles]);
 
-  const worldRadius = worldSize / 2;
-
   return (
     <>
       {/* Merged terrain mesh (single draw call) */}
@@ -2182,3 +2180,5 @@ export function MinimalDemo() {
       </div>
   );
 }
+
+export default MinimalDemo;
