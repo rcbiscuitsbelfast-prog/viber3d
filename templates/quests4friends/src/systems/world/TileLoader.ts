@@ -131,15 +131,15 @@ export class TileLoader {
    */
   private static getModelPath(modelId: string): string {
     // Simple mapping for now - in production, use a proper mapping system
-    // Map tree_1 to tree_1_A_Color1.gltf, etc.
+    // Map tree_1 to Tree_1_A_Color1.gltf, etc.
     if (modelId.startsWith('tree_')) {
       const variant = modelId.split('_')[1];
-      return `/assets/KayKit_Forest_Nature_Pack_1.0_FREE/KayKit_Forest_Nature_Pack_1.0_FREE/Assets/gltf/tree_${variant}/Tree_${variant}_A_Color1.gltf`;
+      return `/Assets/KayKit_Forest_Nature_Pack_1.0_FREE/KayKit_Forest_Nature_Pack_1.0_FREE/Assets/gltf/Tree_${variant}_A_Color1.gltf`;
     }
     
     if (modelId.startsWith('rock_')) {
       const variant = modelId.split('_')[1];
-      return `/assets/KayKit_Forest_Nature_Pack_1.0_FREE/KayKit_Forest_Nature_Pack_1.0_FREE/Assets/gltf/rock_${variant}/Rock_${variant}_A_Color1.gltf`;
+      return `/Assets/KayKit_Forest_Nature_Pack_1.0_FREE/KayKit_Forest_Nature_Pack_1.0_FREE/Assets/gltf/Rock_${variant}_A_Color1.gltf`;
     }
 
     // For now, return a path that will 404 - we'll add proper flower assets later

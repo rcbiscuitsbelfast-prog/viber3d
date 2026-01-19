@@ -6,24 +6,24 @@ import { Vector3 } from 'three';
  * Defines 9 base tile types using KayKit Forest Nature Pack assets
  */
 
-// Base asset paths from KayKit Forest Nature Pack
-const ASSET_BASE_PATH = '/assets/KayKit_Forest_Nature_Pack_1.0_FREE/KayKit_Forest_Nature_Pack_1.0_FREE/Assets/gltf';
+// Base asset paths from KayKit Forest Nature Pack (use /Assets for consistency)
+const ASSET_BASE_PATH = '/Assets/KayKit_Forest_Nature_Pack_1.0_FREE/KayKit_Forest_Nature_Pack_1.0_FREE/Assets/gltf';
 
-// Tree model variants
+// Tree model base path (files live directly under ASSET_BASE_PATH)
 const TREE_MODELS = {
-  tree_1: `${ASSET_BASE_PATH}/tree_1`,
-  tree_2: `${ASSET_BASE_PATH}/tree_2`,
-  tree_3: `${ASSET_BASE_PATH}/tree_3`,
-  tree_4: `${ASSET_BASE_PATH}/tree_4`,
-  tree_bare_1: `${ASSET_BASE_PATH}/tree_bare_1`,
-  tree_bare_2: `${ASSET_BASE_PATH}/tree_bare_2`
+  tree_1: `${ASSET_BASE_PATH}/Tree_1_A_Color1.gltf`,
+  tree_2: `${ASSET_BASE_PATH}/Tree_2_A_Color1.gltf`,
+  tree_3: `${ASSET_BASE_PATH}/Tree_3_A_Color1.gltf`,
+  tree_4: `${ASSET_BASE_PATH}/Tree_4_A_Color1.gltf`,
+  tree_bare_1: `${ASSET_BASE_PATH}/Tree_Bare_1_A_Color1.gltf`,
+  tree_bare_2: `${ASSET_BASE_PATH}/Tree_Bare_2_A_Color1.gltf`
 };
 
-// Rock model variants
+// Rock model base path (files live directly under ASSET_BASE_PATH)
 const ROCK_MODELS = {
-  rock_1: `${ASSET_BASE_PATH}/rock_1`, // Small rocks
-  rock_2: `${ASSET_BASE_PATH}/rock_2`, // Medium rocks
-  rock_3: `${ASSET_BASE_PATH}/rock_3`  // Large boulders
+  rock_1: `${ASSET_BASE_PATH}/Rock_1_A_Color1.gltf`, // Small rocks
+  rock_2: `${ASSET_BASE_PATH}/Rock_2_A_Color1.gltf`, // Medium rocks
+  rock_3: `${ASSET_BASE_PATH}/Rock_3_A_Color1.gltf`  // Large boulders
 };
 
 export class TileRegistry {
@@ -418,17 +418,17 @@ export class TileRegistry {
     // Map modelIds to actual file paths
     const modelPaths: Record<string, string> = {
       // Trees
-      'tree_1': `${TREE_MODELS.tree_1}/Tree_1_A_Color1.gltf`,
-      'tree_2': `${TREE_MODELS.tree_2}/Tree_2_A_Color1.gltf`,
-      'tree_3': `${TREE_MODELS.tree_3}/Tree_3_A_Color1.gltf`,
-      'tree_4': `${TREE_MODELS.tree_4}/Tree_4_A_Color1.gltf`,
-      'tree_bare_1': `${TREE_MODELS.tree_bare_1}/Tree_Bare_1_A_Color1.gltf`,
-      'tree_bare_2': `${TREE_MODELS.tree_bare_2}/Tree_Bare_2_A_Color1.gltf`,
+      'tree_1': TREE_MODELS.tree_1,
+      'tree_2': TREE_MODELS.tree_2,
+      'tree_3': TREE_MODELS.tree_3,
+      'tree_4': TREE_MODELS.tree_4,
+      'tree_bare_1': TREE_MODELS.tree_bare_1,
+      'tree_bare_2': TREE_MODELS.tree_bare_2,
       
       // Rocks
-      'rock_1': `${ROCK_MODELS.rock_1}/Rock_1_A_Color1.gltf`,
-      'rock_2': `${ROCK_MODELS.rock_2}/Rock_2_A_Color1.gltf`,
-      'rock_3': `${ROCK_MODELS.rock_3}/Rock_3_A_Color1.gltf`,
+      'rock_1': ROCK_MODELS.rock_1,
+      'rock_2': ROCK_MODELS.rock_2,
+      'rock_3': ROCK_MODELS.rock_3,
       
       // Flowers (using simplified names - actual flower models would be in plants category)
       'plant_flower_red': `${ASSET_BASE_PATH}/plant_flower_red.gltf`,

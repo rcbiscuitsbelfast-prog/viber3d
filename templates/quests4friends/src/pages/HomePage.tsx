@@ -51,10 +51,10 @@ export function HomePage() {
             </Link>
             
             <Link
-              to="/tile-builder"
+              to="/tile-creation"
               className="bg-gradient-to-r from-emerald-600 to-cyan-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-emerald-700 hover:to-cyan-700 transition-all transform hover:scale-105 shadow-xl"
             >
-              🧱 Tile Builder
+              🧱 Tile Creation
             </Link>
             
             <Link
