@@ -192,40 +192,55 @@ function CharacterModel({ input, cameraSettings, placedAssets, groundTiles, worl
     playerPosition.y += 1.5; // Player head height
     cameraOcclusionManager.updateOcclusion(camera.position, playerPosition, _state.scene);
 
-    // Camera-relative movement: transform input based on camera orientation
+    // Camera-relative movement: forward/backward relative to camera, left/right in world space
     const moveSpeed = 5;
-    const inputDir = new THREE.Vector3();
+    const moveDir = new THREE.Vector3();
     
-    if (input.forward) inputDir.z = -1;
-    else if (input.backward) inputDir.z = 1;
+    // Get camera's forward and right vectors (projected onto XZ plane) - only needed for forward/backward
+    const cameraForward = new THREE.Vector3();
+    camera.getWorldDirection(cameraForward);
+    cameraForward.y = 0; // Project to XZ plane
+    cameraForward.normalize();
 
-    if (input.left) inputDir.x = -1;
-    else if (input.right) inputDir.x = 1;
-
-    if (inputDir.length() > 0) {
-      inputDir.normalize();
-      
-      // Get camera's forward and right vectors (projected onto XZ plane)
-      const cameraForward = new THREE.Vector3();
-      camera.getWorldDirection(cameraForward);
-      cameraForward.y = 0; // Project to XZ plane
-      cameraForward.normalize();
-
-      const cameraRight = new THREE.Vector3();
-      cameraRight.crossVectors(cameraForward, new THREE.Vector3(0, 1, 0));
-      cameraRight.normalize();
-
-      // Transform input direction to camera-relative direction
-      velocityRef.current
-        .copy(cameraForward.multiplyScalar(-inputDir.z))
-        .add(cameraRight.multiplyScalar(inputDir.x))
-        .multiplyScalar(moveSpeed);
-    } else {
-      velocityRef.current.set(0, 0, 0);
+    const cameraRight = new THREE.Vector3();
+    cameraRight.crossVectors(cameraForward, new THREE.Vector3(0, 1, 0));
+    cameraRight.normalize();
+    
+    // Validate camera vectors are valid (not NaN)
+    if (!isFinite(cameraForward.length()) || !isFinite(cameraRight.length())) {
+      cameraForward.set(0, 0, 1);
+      cameraRight.set(1, 0, 0);
     }
 
-    // Calculate new position
-    const newPosition = groupRef.current.position.clone().add(velocityRef.current.clone().multiplyScalar(dt));
+    // Forward/Backward: camera-relative (move towards/away from camera)
+    if (input.forward) {
+      moveDir.addScaledVector(cameraForward, moveSpeed);  // Move away from camera
+    } else if (input.backward) {
+      moveDir.addScaledVector(cameraForward, -moveSpeed);  // Move towards camera
+    }
+
+    // Left/Right: world-relative (straight left or right in world space)
+    if (input.left) {
+      moveDir.x -= moveSpeed;  // Move directly left in world space
+    } else if (input.right) {
+      moveDir.x += moveSpeed;  // Move directly right in world space
+    }
+
+    // Validate moveDir and store velocity for animations and other uses
+    if (!isFinite(moveDir.length())) {
+      moveDir.set(0, 0, 0);
+    }
+    velocityRef.current.copy(moveDir);
+
+    // Calculate new position with validation
+    const movementDelta = moveDir.clone().multiplyScalar(dt);
+    const newPosition = groupRef.current.position.clone().add(movementDelta);
+    
+    // Ensure newPosition is valid
+    if (!isFinite(newPosition.x) || !isFinite(newPosition.y) || !isFinite(newPosition.z)) {
+      // Keep current position if calculation produced NaN
+      newPosition.copy(groupRef.current.position);
+    }
     
     // Get terrain elevation at new position
     const terrainWorldSize = 100;
@@ -269,28 +284,33 @@ function CharacterModel({ input, cameraSettings, placedAssets, groundTiles, worl
     let canMove = true;
     
     for (const asset of placedAssets) {
+      // Skip invalid assets
+      if (!asset.position || !isFinite(asset.position[0]) || !isFinite(asset.position[2]) || asset.scale <= 0) {
+        continue;
+      }
+      
       // Different collision radii for trees vs rocks (trees are bigger)
       const baseRadius = asset.type === 'tree' ? 1.5 : 0.8;
-      const assetRadius = asset.scale * baseRadius;
+      const assetRadius = Math.max(0.1, asset.scale * baseRadius); // Ensure minimum radius
       
-      const distance = Math.sqrt(
-        Math.pow(asset.position[0] - newPosition.x, 2) +
-        Math.pow(asset.position[2] - newPosition.z, 2)
-      );
+      const dx = asset.position[0] - newPosition.x;
+      const dz = asset.position[2] - newPosition.z;
+      const distanceSquared = dx * dx + dz * dz;
+      const minDistance = playerRadius + assetRadius;
       
-      // Collision if player is too close to asset
-      if (distance < playerRadius + assetRadius) {
+      // Collision if player is too close to asset (use squared distance to avoid sqrt)
+      if (distanceSquared < minDistance * minDistance && distanceSquared > 0.001) {
         canMove = false;
-              break;
-            }
-          }
+        break;
+      }
+    }
           
     // Only apply movement if no collision - smooth movement with lerp to reduce jitter
     if (canMove) {
       groupRef.current.position.lerp(newPosition, 1.0); // Smooth transition
     } else {
       // If blocked, try to slide along the obstruction (partial movement)
-      const slideFactor = 0.3; // Allow slight movement when blocked
+      const slideFactor = 0.5; // Allow more sliding when blocked
       const partialPosition = groupRef.current.position.clone().lerp(newPosition, slideFactor);
       groupRef.current.position.copy(partialPosition);
     }
@@ -837,7 +857,7 @@ function SmallRock({ position, rotation, variant, scale }: { position: [number, 
 // ==================== Tree Component (for existing trees) ====================
 
 function Tree({ position }: { position: [number, number, number] }) {
-  return <PlacedAsset assetType="tree1" position={position} />;
+  return <PlacedAsset assetType="tree" position={position} />;
 }
 
 // ==================== Environment ====================
@@ -1282,6 +1302,7 @@ function GroundClickHandler({
   eraseBrushSize,
   placedAssets,
   groundTiles,
+  worldSize,
   isDragging,
   setIsDragging,
   dragStart,
@@ -1299,6 +1320,7 @@ function GroundClickHandler({
   eraseBrushSize: number;
   placedAssets: Array<{ id: string; position: [number, number, number] }>;
   groundTiles: Map<string, { type: 'grass' | 'water'; elevation: number }>;
+  worldSize: number;
   isDragging: boolean;
   setIsDragging: (value: boolean) => void;
   dragStart: THREE.Vector3 | null;
@@ -1716,6 +1738,44 @@ export function MinimalDemo() {
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, []);
+
+  // Initialize environment trees as collision objects once
+  useEffect(() => {
+    if (placedAssets.length === 0 && allTerrainTiles.size > 0) {
+      // Generate environment trees for collisions (same logic as Environment component)
+      const spacing = 12;
+      const worldRadius = worldSize / 2;
+      const tileSize = 1;
+      const envTrees: Array<{ id: string; type: string; position: [number, number, number]; rotation: number; scale: number }> = [];
+      const safeZoneRadius = 8; // Exclude trees within 8 units of origin to prevent invisible wall
+      
+      for (let x = -worldRadius; x <= worldRadius; x += spacing) {
+        for (let z = -worldRadius; z <= worldRadius; z += spacing) {
+          const hash = ((x * 37 + z * 23) % 10);
+          const gridX = Math.floor((x + worldRadius) / tileSize);
+          const gridZ = Math.floor((z + worldRadius) / tileSize);
+          const key = `${gridX},${gridZ}`;
+          const tile = allTerrainTiles.get(key);
+          
+          // Exclude center zone and check for grass tiles
+          const distFromOrigin = Math.sqrt(x * x + z * z);
+          if (hash > 3 && distFromOrigin > safeZoneRadius && tile && tile.type === 'grass') {
+            envTrees.push({
+              id: `env-tree-${x}-${z}`,
+              type: 'tree',
+              position: [x, tile.elevation, z],
+              rotation: 0,
+              scale: 1,
+            });
+          }
+        }
+      }
+      
+      if (envTrees.length > 0) {
+        setPlacedAssets(envTrees);
+      }
+    }
+  }, [worldSize, allTerrainTiles]);
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
@@ -2523,7 +2583,7 @@ export function MinimalDemo() {
         <AnimationUpdater />
 
         {/* Always use default Environment for now - TiledWorldRenderer can be added later */}
-        <Environment groundTiles={groundTiles} defaultTerrainTiles={defaultTerrainTiles} />
+        <Environment groundTiles={groundTiles} defaultTerrainTiles={defaultTerrainTiles} worldSize={worldSize} />
         
         {/* Loaded world mesh (merged, optimized) */}
         {loadedWorldMesh && <LoadedWorldMesh mesh={loadedWorldMesh} />}
@@ -2598,6 +2658,7 @@ export function MinimalDemo() {
           eraseBrushSize={eraseBrushSize}
           placedAssets={placedAssets}
           groundTiles={allTerrainTiles}
+          worldSize={worldSize}
           isDragging={isDragging}
           setIsDragging={setIsDragging}
           dragStart={dragStart}
