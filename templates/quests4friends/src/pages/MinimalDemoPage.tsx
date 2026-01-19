@@ -2182,3 +2182,5 @@ export function MinimalDemo() {
       </div>
   );
 }
+
+export default MinimalDemo;
