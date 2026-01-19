@@ -8,6 +8,11 @@ import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUti
 import { useCharacterAnimation } from '../hooks/useCharacterAnimation';
 import { animationManager } from '../systems/animation/AnimationManager';
 import { cameraOcclusionManager } from '../systems/camera/CameraOcclusionManager';
+import { CoastlinePlane } from '../components/water/CoastlinePlane';
+import { CoastlineWaveBand } from '../components/water/CoastlineWaveBand';
+
+// ==================== Constants ====================
+const BLANK_TILE_ID = '__blank_grass__';
 
 // ==================== GLTF Utils (from clear_the_dungeon) ====================
 // This properly clones models with skeleton binding
@@ -192,59 +197,44 @@ function CharacterModel({ input, cameraSettings, placedAssets, groundTiles, worl
     playerPosition.y += 1.5; // Player head height
     cameraOcclusionManager.updateOcclusion(camera.position, playerPosition, _state.scene);
 
-    // Camera-relative movement: forward/backward relative to camera, left/right in world space
+    // Fixed isometric movement vectors (camera is always at 45° angle)
+    // This prevents floating-point errors from recalculating camera direction every frame
     const moveSpeed = 5;
     const moveDir = new THREE.Vector3();
     
-    // Get camera's forward and right vectors (projected onto XZ plane) - only needed for forward/backward
-    const cameraForward = new THREE.Vector3();
-    camera.getWorldDirection(cameraForward);
-    cameraForward.y = 0; // Project to XZ plane
-    cameraForward.normalize();
-
-    const cameraRight = new THREE.Vector3();
-    cameraRight.crossVectors(cameraForward, new THREE.Vector3(0, 1, 0));
-    cameraRight.normalize();
+    // Isometric camera at 45° means:
+    // - Forward (away from camera) = diagonal toward -X, -Z
+    // - Right (perpendicular) = diagonal toward +X, -Z
+    const SQRT2_INV = 0.7071067811865476; // 1/sqrt(2) for normalized 45° vectors
     
-    // Validate camera vectors are valid (not NaN)
-    if (!isFinite(cameraForward.length()) || !isFinite(cameraRight.length())) {
-      cameraForward.set(0, 0, 1);
-      cameraRight.set(1, 0, 0);
-    }
-
-    // Forward/Backward: camera-relative (move towards/away from camera)
+    // Forward/Backward: move along the camera's view axis
     if (input.forward) {
-      moveDir.addScaledVector(cameraForward, moveSpeed);  // Move away from camera
+      moveDir.x -= moveSpeed * SQRT2_INV; // Move away from camera (negative X)
+      moveDir.z -= moveSpeed * SQRT2_INV; // Move away from camera (negative Z)
     } else if (input.backward) {
-      moveDir.addScaledVector(cameraForward, -moveSpeed);  // Move towards camera
+      moveDir.x += moveSpeed * SQRT2_INV; // Move toward camera (positive X)
+      moveDir.z += moveSpeed * SQRT2_INV; // Move toward camera (positive Z)
     }
 
-    // Left/Right: world-relative (straight left or right in world space)
+    // Left/Right: move perpendicular to camera view
     if (input.left) {
-      moveDir.x -= moveSpeed;  // Move directly left in world space
+      moveDir.x -= moveSpeed * SQRT2_INV; // Move left (negative X)
+      moveDir.z += moveSpeed * SQRT2_INV; // Move left (positive Z)
     } else if (input.right) {
-      moveDir.x += moveSpeed;  // Move directly right in world space
+      moveDir.x += moveSpeed * SQRT2_INV; // Move right (positive X)
+      moveDir.z -= moveSpeed * SQRT2_INV; // Move right (negative Z)
     }
 
-    // Validate moveDir and store velocity for animations and other uses
-    if (!isFinite(moveDir.length())) {
-      moveDir.set(0, 0, 0);
-    }
+    // Store velocity for rotation and animations
     velocityRef.current.copy(moveDir);
 
-    // Calculate new position with validation
+    // Calculate new position
     const movementDelta = moveDir.clone().multiplyScalar(dt);
     const newPosition = groupRef.current.position.clone().add(movementDelta);
     
-    // Ensure newPosition is valid
-    if (!isFinite(newPosition.x) || !isFinite(newPosition.y) || !isFinite(newPosition.z)) {
-      // Keep current position if calculation produced NaN
-      newPosition.copy(groupRef.current.position);
-    }
-    
     // Get terrain elevation at new position
     const terrainWorldSize = 100;
-    const terrainTileSize = 1; // Smaller tiles
+    const terrainTileSize = 1;
     const terrainWorldRadius = terrainWorldSize / 2;
     const gridX = Math.floor((newPosition.x + terrainWorldRadius) / terrainTileSize);
     const gridZ = Math.floor((newPosition.z + terrainWorldRadius) / terrainTileSize);
@@ -256,7 +246,7 @@ function CharacterModel({ input, cameraSettings, placedAssets, groundTiles, worl
     if (tile) {
       terrainElevation = tile.elevation;
     } else {
-      // If tile not found, sample from nearby tiles for smooth interpolation
+      // Sample from nearby tiles for smooth interpolation
       const nearbyKeys = [
         `${gridX},${gridZ}`,
         `${gridX + 1},${gridZ}`,
@@ -276,75 +266,71 @@ function CharacterModel({ input, cameraSettings, placedAssets, groundTiles, worl
       terrainElevation = count > 0 ? totalElevation / count : 0;
     }
     
-    // Set Y position to terrain elevation (smooth lerp)
-    newPosition.y = THREE.MathUtils.lerp(groupRef.current.position.y, terrainElevation + 0.5, 0.15);
+    // Set Y position to terrain elevation (direct, no lerp to prevent floating)
+    newPosition.y = terrainElevation + 0.5;
     
     // Check collision with placed assets
-    const playerRadius = 0.8; // Player collision radius
-    let canMove = true;
+    const playerRadius = 0.8;
+    let collision = false;
     
     for (const asset of placedAssets) {
-      // Skip invalid assets
-      if (!asset.position || !isFinite(asset.position[0]) || !isFinite(asset.position[2]) || asset.scale <= 0) {
-        continue;
-      }
+      if (!asset.position || asset.scale <= 0) continue;
       
-      // Different collision radii for trees vs rocks (trees are bigger)
       const baseRadius = asset.type === 'tree' ? 1.5 : 0.8;
-      const assetRadius = Math.max(0.1, asset.scale * baseRadius); // Ensure minimum radius
+      const assetRadius = asset.scale * baseRadius;
       
       const dx = asset.position[0] - newPosition.x;
       const dz = asset.position[2] - newPosition.z;
-      const distanceSquared = dx * dx + dz * dz;
-      const minDistance = playerRadius + assetRadius;
+      const distSq = dx * dx + dz * dz;
+      const minDist = playerRadius + assetRadius;
       
-      // Collision if player is too close to asset (use squared distance to avoid sqrt)
-      if (distanceSquared < minDistance * minDistance && distanceSquared > 0.001) {
-        canMove = false;
+      if (distSq < minDist * minDist) {
+        collision = true;
         break;
       }
     }
           
-    // Only apply movement if no collision - smooth movement with lerp to reduce jitter
-    if (canMove) {
-      groupRef.current.position.lerp(newPosition, 1.0); // Smooth transition
+    // Apply movement based on collision
+    if (!collision) {
+      // Direct copy for responsive movement (no lerp)
+      groupRef.current.position.copy(newPosition);
     } else {
-      // If blocked, try to slide along the obstruction (partial movement)
-      const slideFactor = 0.5; // Allow more sliding when blocked
-      const partialPosition = groupRef.current.position.clone().lerp(newPosition, slideFactor);
-      groupRef.current.position.copy(partialPosition);
+      // Keep current position on collision (no sliding to prevent glitches)
+      groupRef.current.position.y = newPosition.y; // Still update Y for terrain following
     }
 
-    // Clamp position (world size)
+    // Clamp position to world bounds
     const clampWorldSize = (worldSize || 100) / 2;
-    groupRef.current.position.x = Math.max(-clampWorldSize, Math.min(clampWorldSize, groupRef.current.position.x));
-    groupRef.current.position.z = Math.max(-clampWorldSize, Math.min(clampWorldSize, groupRef.current.position.z));
+    groupRef.current.position.x = THREE.MathUtils.clamp(groupRef.current.position.x, -clampWorldSize, clampWorldSize);
+    groupRef.current.position.z = THREE.MathUtils.clamp(groupRef.current.position.z, -clampWorldSize, clampWorldSize);
 
-    // Isometric camera FOLLOWS character with adjustable pitch and zoom
-    const angle = Math.PI * 0.25; // Base angle
-    const distance = cameraSettings.zoom; // Use setting
-    const height = Math.sin(cameraSettings.pitch) * distance; // Pitch affects height
-    const horizontalDistance = Math.cos(cameraSettings.pitch) * distance; // Horizontal distance
+    // Isometric camera follows character
+    const angle = Math.PI * 0.25;
+    const distance = cameraSettings.zoom;
+    const height = Math.sin(cameraSettings.pitch) * distance;
+    const horizontalDistance = Math.cos(cameraSettings.pitch) * distance;
     
     const charPosition = groupRef.current.position;
 
     camera.position.x = charPosition.x + Math.sin(angle) * horizontalDistance;
     camera.position.y = charPosition.y + height;
     camera.position.z = charPosition.z + Math.cos(angle) * horizontalDistance;
-    camera.lookAt(
-      charPosition.x,
-      charPosition.y + 0.5,
-      charPosition.z
-    );
+    camera.lookAt(charPosition.x, charPosition.y + 0.5, charPosition.z);
 
-    // Face direction of movement
-    if (velocityRef.current.length() > 0.1) {
+    // Smooth character rotation toward movement direction
+    if (velocityRef.current.lengthSq() > 0.01) {
       const targetRotation = Math.atan2(velocityRef.current.x, velocityRef.current.z);
-      groupRef.current.rotation.y = THREE.MathUtils.lerp(
-        groupRef.current.rotation.y,
-        targetRotation,
-        0.1
-      );
+      
+      // Normalize angle difference to prevent 360° spins
+      let currentRotation = groupRef.current.rotation.y;
+      let angleDiff = targetRotation - currentRotation;
+      
+      // Wrap to [-PI, PI] range
+      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+      
+      // Apply smooth rotation
+      groupRef.current.rotation.y += angleDiff * 0.15;
     }
   });
 
@@ -804,6 +790,211 @@ function GroundBasePlane({ worldSize }: { worldSize: number }) {
   );
 }
 
+// ==================== Ocean Water Component ====================
+function OceanWater({ worldSize }: { worldSize: number }) {
+  const waterRef = useRef<THREE.Mesh>(null);
+  const oceanSize = worldSize * 4; // Large ocean extending far beyond island
+
+  useFrame((state) => {
+    if (waterRef.current) {
+      const time = state.clock.getElapsedTime();
+      // Subtle wave effect
+      (waterRef.current.material as THREE.MeshStandardMaterial).roughness = 0.2 + Math.sin(time * 0.5) * 0.05;
+    }
+  });
+
+  return (
+    <mesh
+      ref={waterRef}
+      position={[0, -1.5, 0]} // Below ground level
+      rotation={[-Math.PI / 2, 0, 0]}
+      receiveShadow
+    >
+      <planeGeometry args={[oceanSize, oceanSize, 50, 50]} />
+      <meshStandardMaterial 
+        color="#1e6ba8"
+        metalness={0.4}
+        roughness={0.2}
+        transparent
+        opacity={0.85}
+      />
+    </mesh>
+  );
+}
+
+// ==================== Island Cliff Edges Component ====================
+function IslandCliffEdges({ worldSize }: { worldSize: number }) {
+  const [texture, setTexture] = useState<THREE.Texture | null>(null);
+  
+  // Load rock/cliff texture
+  useEffect(() => {
+    const loader = new THREE.TextureLoader();
+    loader.load(
+      '/Assets/Stylized Nature MegaKit[Standard]/Textures/Rock_01.png',
+      (loadedTexture) => {
+        loadedTexture.wrapS = THREE.RepeatWrapping;
+        loadedTexture.wrapT = THREE.RepeatWrapping;
+        loadedTexture.repeat.set(worldSize / 4, 1); // Repeat texture along cliff length
+        setTexture(loadedTexture);
+      },
+      undefined,
+      (error) => {
+        console.warn('Failed to load cliff texture, using fallback color:', error);
+      }
+    );
+  }, [worldSize]);
+
+  const cliffGeometry = useMemo(() => {
+    const halfSize = worldSize / 2;
+    const cliffHeight = 3; // Taller cliff for more dramatic effect
+    const geometries: THREE.BufferGeometry[] = [];
+    
+    // Create 4 cliff walls with proper UV mapping
+    // North wall (positive Z)
+    const northWall = new THREE.PlaneGeometry(worldSize, cliffHeight, 10, 1);
+    northWall.translate(0, -cliffHeight / 2, halfSize);
+    northWall.rotateY(Math.PI);
+    geometries.push(northWall);
+    
+    // South wall (negative Z)
+    const southWall = new THREE.PlaneGeometry(worldSize, cliffHeight, 10, 1);
+    southWall.translate(0, -cliffHeight / 2, -halfSize);
+    geometries.push(southWall);
+    
+    // East wall (positive X)
+    const eastWall = new THREE.PlaneGeometry(worldSize, cliffHeight, 10, 1);
+    eastWall.translate(halfSize, -cliffHeight / 2, 0);
+    eastWall.rotateY(Math.PI / 2);
+    geometries.push(eastWall);
+    
+    // West wall (negative X)
+    const westWall = new THREE.PlaneGeometry(worldSize, cliffHeight, 10, 1);
+    westWall.translate(-halfSize, -cliffHeight / 2, 0);
+    westWall.rotateY(-Math.PI / 2);
+    geometries.push(westWall);
+    
+    return BufferGeometryUtils.mergeGeometries(geometries);
+  }, [worldSize]);
+
+  return (
+    <mesh geometry={cliffGeometry} castShadow receiveShadow>
+      <meshStandardMaterial 
+        map={texture || undefined}
+        color={texture ? '#ffffff' : '#6b5a4a'}
+        roughness={0.95}
+        metalness={0.1}
+      />
+    </mesh>
+  );
+}
+
+// ==================== Crashing Waves Component ====================
+function CrashingWaves({ worldSize }: { worldSize: number }) {
+  const wavesRef = useRef<THREE.Group>(null);
+  
+  // Create wave particles along each edge
+  const waveParticles = useMemo(() => {
+    const particles: Array<{
+      position: THREE.Vector3;
+      offset: number; // Time offset for lag effect
+      edge: 'north' | 'south' | 'east' | 'west';
+    }> = [];
+    
+    const halfSize = worldSize / 2;
+    const spacing = 2; // Space between wave particles
+    const numParticles = Math.floor(worldSize / spacing);
+    
+    // North edge
+    for (let i = 0; i < numParticles; i++) {
+      const x = -halfSize + (i * spacing);
+      particles.push({
+        position: new THREE.Vector3(x, -1.2, halfSize),
+        offset: i * 0.3, // Stagger the waves
+        edge: 'north'
+      });
+    }
+    
+    // South edge
+    for (let i = 0; i < numParticles; i++) {
+      const x = -halfSize + (i * spacing);
+      particles.push({
+        position: new THREE.Vector3(x, -1.2, -halfSize),
+        offset: i * 0.3 + 1.5,
+        edge: 'south'
+      });
+    }
+    
+    // East edge
+    for (let i = 0; i < numParticles; i++) {
+      const z = -halfSize + (i * spacing);
+      particles.push({
+        position: new THREE.Vector3(halfSize, -1.2, z),
+        offset: i * 0.3 + 3,
+        edge: 'east'
+      });
+    }
+    
+    // West edge
+    for (let i = 0; i < numParticles; i++) {
+      const z = -halfSize + (i * spacing);
+      particles.push({
+        position: new THREE.Vector3(-halfSize, -1.2, z),
+        offset: i * 0.3 + 4.5,
+        edge: 'west'
+      });
+    }
+    
+    return particles;
+  }, [worldSize]);
+  
+  // Animate waves with lag
+  useFrame((state) => {
+    if (!wavesRef.current) return;
+    
+    const time = state.clock.getElapsedTime();
+    
+    wavesRef.current.children.forEach((wave, index) => {
+      const particle = waveParticles[index];
+      if (!particle) return;
+      
+      // Wave animation with offset for lag effect
+      const animTime = time * 2 + particle.offset;
+      const waveHeight = Math.sin(animTime) * 0.15;
+      const scale = 0.8 + Math.sin(animTime * 1.5) * 0.3;
+      const opacity = Math.abs(Math.sin(animTime)) * 0.6 + 0.2;
+      
+      wave.position.y = particle.position.y + waveHeight;
+      wave.scale.setScalar(scale);
+      
+      if ((wave as THREE.Mesh).material) {
+        ((wave as THREE.Mesh).material as THREE.MeshStandardMaterial).opacity = opacity;
+      }
+    });
+  });
+  
+  return (
+    <group ref={wavesRef}>
+      {waveParticles.map((particle, i) => (
+        <mesh
+          key={i}
+          position={[particle.position.x, particle.position.y, particle.position.z]}
+        >
+          <sphereGeometry args={[0.3, 8, 8]} />
+          <meshStandardMaterial
+            color="#e0f4ff"
+            transparent
+            opacity={0.6}
+            emissive="#b0d8f0"
+            emissiveIntensity={0.3}
+            roughness={0.1}
+            metalness={0.2}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 // ==================== Small Rock Component ====================
 
 function SmallRock({ position, rotation, variant, scale }: { position: [number, number, number]; rotation: number; variant: string; scale?: number }) {
@@ -930,6 +1121,15 @@ function Environment({ groundTiles, defaultTerrainTiles, worldSize }: Environmen
     <>
       {/* Flat ground base plane */}
       <GroundBasePlane worldSize={worldSize} />
+      
+      {/* Ocean water surrounding the island - fades into distance */}
+      <OceanWater worldSize={worldSize} />
+      
+      {/* Cliff edges around world perimeter */}
+      <IslandCliffEdges worldSize={worldSize} />
+      
+      {/* Crashing waves at cliff base */}
+      <CrashingWaves worldSize={worldSize} />
       
       {/* Base grass instanced mesh - one per 10x10 cell (same as tiles) */}
       {Array.from({ length: numCellsX * numCellsZ }, (_, i) => {
@@ -1582,7 +1782,7 @@ export function MinimalDemo() {
   const [groundTiles, setGroundTiles] = useState<Map<string, { type: 'grass' | 'water'; elevation: number }>>(new Map());
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<THREE.Vector3 | null>(null);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['ground', 'nature']));
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['ground', 'nature', 'water']));
   const [elevationMode, setElevationMode] = useState(false);
   const [elevationValue, setElevationValue] = useState(0);
   const [brushSize, setBrushSize] = useState(3);
@@ -1590,6 +1790,69 @@ export function MinimalDemo() {
   const [showLoadWorldDialog, setShowLoadWorldDialog] = useState(false);
   const [savedWorlds, setSavedWorlds] = useState<string[]>([]);
   const [loadedWorldMesh, setLoadedWorldMesh] = useState<THREE.Group | null>(null);
+
+  // Wave/Ocean tuning state
+  const [waterSettings, setWaterSettings] = useState({
+    planeSizeMultiplier: 1.6,
+    shorelineBlend: 3.0,
+    waveHeight: 0.12,
+    distortionStrength: 0.28,
+    foamIntensity: 0.85,
+    bandWidth: 2.0,
+    tiltDegrees: 6,
+    amplitude: 0.25,
+    speed: 1.0,
+    bandShorelineBlend: 2.0,
+    bandFoamIntensity: 1.0,
+    bandWaveHeight: 0.14,
+    bandDistortionStrength: 0.26,
+  });
+
+  // Helper: add a row of rocks aligned to tile centers along an edge
+  const addRockRow = (edge: 'north' | 'south' | 'east' | 'west') => {
+    const tileSize = 1;
+    const gridSize = Math.floor(worldSize / tileSize);
+    const worldRadius = worldSize / 2;
+    const newRocks: Array<{ id: string; type: string; position: [number, number, number]; rotation: number; scale: number; variant?: string }> = [];
+
+    if (edge === 'north' || edge === 'south') {
+      const gridZ = edge === 'north' ? gridSize - 1 : 0;
+      const worldZ = (gridZ * tileSize) - worldRadius + (tileSize / 2);
+      for (let gx = 0; gx < gridSize; gx++) {
+        const worldX = (gx * tileSize) - worldRadius + (tileSize / 2);
+        const key = `${gx},${gridZ}`;
+        const tile = (groundTiles.get(key) || defaultTerrainTiles.get(key));
+        if (!tile || tile.type !== 'grass') continue;
+        newRocks.push({
+          id: `rock-row-${edge}-${gx}-${gridZ}-${Math.random()}`,
+          type: 'rock',
+          position: [worldX, tile.elevation, worldZ],
+          rotation: (Math.random() - 0.5) * 0.4,
+          scale: 1.6 + Math.random() * 0.4,
+        });
+      }
+    } else {
+      const gridX = edge === 'east' ? gridSize - 1 : 0;
+      const worldX = (gridX * tileSize) - worldRadius + (tileSize / 2);
+      for (let gz = 0; gz < gridSize; gz++) {
+        const worldZ = (gz * tileSize) - worldRadius + (tileSize / 2);
+        const key = `${gridX},${gz}`;
+        const tile = (groundTiles.get(key) || defaultTerrainTiles.get(key));
+        if (!tile || tile.type !== 'grass') continue;
+        newRocks.push({
+          id: `rock-row-${edge}-${gridX}-${gz}-${Math.random()}`,
+          type: 'rock',
+          position: [worldX, tile.elevation, worldZ],
+          rotation: (Math.random() - 0.5) * 0.4,
+          scale: 1.6 + Math.random() * 0.4,
+        });
+      }
+    }
+
+    if (newRocks.length > 0) {
+      setPlacedAssets(prev => [...prev, ...newRocks]);
+    }
+  };
 
   // Type for world grid cells (matches WorldFromTilesPage)
   type WorldCell = {
@@ -1878,10 +2141,11 @@ export function MinimalDemo() {
                             URL.revokeObjectURL(url);
                           },
                           undefined,
-                          (error) => {
+                          (error: unknown) => {
                             console.error('[MinimalDemo] Error loading GLB:', error);
                             URL.revokeObjectURL(url);
-                            alert(`Failed to load world GLB: ${error.message || 'Unknown error'}`);
+                            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                            alert(`Failed to load world GLB: ${errorMessage}`);
                           }
                         );
                       };
@@ -2041,6 +2305,7 @@ export function MinimalDemo() {
                               });
                             });
                             
+                            console.log(`[MinimalDemo] Loaded ${colliderAssets.length} collision assets from world`);
                             setPlacedAssets(colliderAssets);
                           }
                         } catch (error) {
@@ -2056,7 +2321,7 @@ export function MinimalDemo() {
                             const parsed = JSON.parse(worldData);
                             if (parsed.grid && Array.isArray(parsed.grid)) {
                               const cellSize = 10;
-                              const allAssets: Array<{ position: [number, number, number]; scale: number; type: string }> = [];
+                              const allAssets: Array<{ id: string; position: [number, number, number]; scale: number; type: string; rotation: number; variant?: string }> = [];
                               
                               parsed.grid.forEach((row: WorldCell[], rowIndex: number) => {
                                 row.forEach((cell: WorldCell, colIndex: number) => {
@@ -2077,13 +2342,16 @@ export function MinimalDemo() {
                                             const rotatedZ = asset.position[0] * sin + asset.position[2] * cos;
                                             
                                             allAssets.push({
+                                              id: `asset-${cell.tileId}-${Math.random()}`,
                                               position: [
                                                 cellCenterX + rotatedX,
                                                 asset.position[1],
                                                 cellCenterZ + rotatedZ
                                               ],
                                               scale: asset.scale || 1,
-                                              type: asset.type
+                                              type: asset.type,
+                                              rotation: asset.rotation || 0,
+                                              variant: asset.variant
                                             });
                                           });
                                         }
@@ -2275,6 +2543,28 @@ export function MinimalDemo() {
         </button>
           </div>
           <div style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+            {/* Quick access: Wave tuning panel toggle */}
+            <button
+              onClick={() => {
+                const newSet = new Set(expandedCategories);
+                if (newSet.has('water')) newSet.delete('water'); else newSet.add('water');
+                setExpandedCategories(newSet);
+              }}
+              style={{
+                width: '100%',
+                padding: '8px',
+                marginBottom: '10px',
+                background: expandedCategories.has('water') ? '#4a9eff' : '#555',
+                color: 'white',
+                border: expandedCategories.has('water') ? '2px solid #fff' : '1px solid #555',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: 'bold',
+              }}
+            >
+              ⚙️ Wave Tuning
+            </button>
             {/* Erase Button */}
             <button
               onClick={() => {
@@ -2485,6 +2775,88 @@ export function MinimalDemo() {
     </div>
             </CategorySection>
 
+            {/* Water (Wave Tuning) Category */}
+            <CategorySection
+              title="Water"
+              isExpanded={expandedCategories.has('water')}
+              onToggle={() => {
+                const newSet = new Set(expandedCategories);
+                if (newSet.has('water')) newSet.delete('water'); else newSet.add('water');
+                setExpandedCategories(newSet);
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ padding: '8px', background: '#333', borderRadius: '4px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px', color: '#aaa' }}>Ocean Size × {waterSettings.planeSizeMultiplier.toFixed(2)}</label>
+                  <input type="range" min="1.0" max="2.5" step="0.05" value={waterSettings.planeSizeMultiplier} onChange={(e) => setWaterSettings(s => ({ ...s, planeSizeMultiplier: parseFloat(e.target.value) }))} style={{ width: '100%' }} />
+                </div>
+                <div style={{ padding: '8px', background: '#333', borderRadius: '4px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px', color: '#aaa' }}>Shoreline Blend: {waterSettings.shorelineBlend.toFixed(2)}</label>
+                  <input type="range" min="0" max="5" step="0.05" value={waterSettings.shorelineBlend} onChange={(e) => setWaterSettings(s => ({ ...s, shorelineBlend: parseFloat(e.target.value) }))} style={{ width: '100%' }} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+                  <div style={{ padding: '8px', background: '#333', borderRadius: '4px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px', color: '#aaa' }}>Wave Height: {waterSettings.waveHeight.toFixed(2)}</label>
+                    <input type="range" min="0" max="0.5" step="0.01" value={waterSettings.waveHeight} onChange={(e) => setWaterSettings(s => ({ ...s, waveHeight: parseFloat(e.target.value) }))} style={{ width: '100%' }} />
+                  </div>
+                  <div style={{ padding: '8px', background: '#333', borderRadius: '4px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px', color: '#aaa' }}>Distortion: {waterSettings.distortionStrength.toFixed(2)}</label>
+                    <input type="range" min="0" max="1" step="0.01" value={waterSettings.distortionStrength} onChange={(e) => setWaterSettings(s => ({ ...s, distortionStrength: parseFloat(e.target.value) }))} style={{ width: '100%' }} />
+                  </div>
+                  <div style={{ padding: '8px', background: '#333', borderRadius: '4px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px', color: '#aaa' }}>Foam Intensity: {waterSettings.foamIntensity.toFixed(2)}</label>
+                    <input type="range" min="0" max="2" step="0.01" value={waterSettings.foamIntensity} onChange={(e) => setWaterSettings(s => ({ ...s, foamIntensity: parseFloat(e.target.value) }))} style={{ width: '100%' }} />
+                  </div>
+                </div>
+                <div style={{ padding: '8px', background: '#333', borderRadius: '4px', marginTop: '4px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px', color: '#aaa' }}>Band Width: {waterSettings.bandWidth.toFixed(2)}</label>
+                  <input type="range" min="0.5" max="5" step="0.1" value={waterSettings.bandWidth} onChange={(e) => setWaterSettings(s => ({ ...s, bandWidth: parseFloat(e.target.value) }))} style={{ width: '100%' }} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div style={{ padding: '8px', background: '#333', borderRadius: '4px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px', color: '#aaa' }}>Tilt: {waterSettings.tiltDegrees.toFixed(0)}°</label>
+                    <input type="range" min="0" max="20" step="1" value={waterSettings.tiltDegrees} onChange={(e) => setWaterSettings(s => ({ ...s, tiltDegrees: parseFloat(e.target.value) }))} style={{ width: '100%' }} />
+                  </div>
+                  <div style={{ padding: '8px', background: '#333', borderRadius: '4px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px', color: '#aaa' }}>Amplitude: {waterSettings.amplitude.toFixed(2)}</label>
+                    <input type="range" min="0" max="0.6" step="0.01" value={waterSettings.amplitude} onChange={(e) => setWaterSettings(s => ({ ...s, amplitude: parseFloat(e.target.value) }))} style={{ width: '100%' }} />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div style={{ padding: '8px', background: '#333', borderRadius: '4px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px', color: '#aaa' }}>Speed: {waterSettings.speed.toFixed(2)}</label>
+                    <input type="range" min="0.2" max="3" step="0.05" value={waterSettings.speed} onChange={(e) => setWaterSettings(s => ({ ...s, speed: parseFloat(e.target.value) }))} style={{ width: '100%' }} />
+                  </div>
+                  <div style={{ padding: '8px', background: '#333', borderRadius: '4px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px', color: '#aaa' }}>Band Foam: {waterSettings.bandFoamIntensity.toFixed(2)}</label>
+                    <input type="range" min="0" max="2" step="0.01" value={waterSettings.bandFoamIntensity} onChange={(e) => setWaterSettings(s => ({ ...s, bandFoamIntensity: parseFloat(e.target.value) }))} style={{ width: '100%' }} />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div style={{ padding: '8px', background: '#333', borderRadius: '4px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px', color: '#aaa' }}>Band Blend: {waterSettings.bandShorelineBlend.toFixed(2)}</label>
+                    <input type="range" min="0" max="5" step="0.05" value={waterSettings.bandShorelineBlend} onChange={(e) => setWaterSettings(s => ({ ...s, bandShorelineBlend: parseFloat(e.target.value) }))} style={{ width: '100%' }} />
+                  </div>
+                  <div style={{ padding: '8px', background: '#333', borderRadius: '4px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px', color: '#aaa' }}>Band Wave: {waterSettings.bandWaveHeight.toFixed(2)}</label>
+                    <input type="range" min="0" max="0.5" step="0.01" value={waterSettings.bandWaveHeight} onChange={(e) => setWaterSettings(s => ({ ...s, bandWaveHeight: parseFloat(e.target.value) }))} style={{ width: '100%' }} />
+                  </div>
+                </div>
+                <div style={{ padding: '8px', background: '#333', borderRadius: '4px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px', color: '#aaa' }}>Band Distortion: {waterSettings.bandDistortionStrength.toFixed(2)}</label>
+                  <input type="range" min="0" max="1" step="0.01" value={waterSettings.bandDistortionStrength} onChange={(e) => setWaterSettings(s => ({ ...s, bandDistortionStrength: parseFloat(e.target.value) }))} style={{ width: '100%' }} />
+                </div>
+
+                {/* Rock row helpers aligned to tiles */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginTop: '8px' }}>
+                  <button onClick={() => addRockRow('north')} style={{ padding: '6px', background: '#666', color: 'white', border: '1px solid #555', borderRadius: '4px', cursor: 'pointer' }}>Add Rock Row (North)</button>
+                  <button onClick={() => addRockRow('south')} style={{ padding: '6px', background: '#666', color: 'white', border: '1px solid #555', borderRadius: '4px', cursor: 'pointer' }}>Add Rock Row (South)</button>
+                  <button onClick={() => addRockRow('east')} style={{ padding: '6px', background: '#666', color: 'white', border: '1px solid #555', borderRadius: '4px', cursor: 'pointer' }}>Add Rock Row (East)</button>
+                  <button onClick={() => addRockRow('west')} style={{ padding: '6px', background: '#666', color: 'white', border: '1px solid #555', borderRadius: '4px', cursor: 'pointer' }}>Add Rock Row (West)</button>
+                </div>
+              </div>
+            </CategorySection>
+
             {/* Buildings Category */}
             <CategorySection
               title="Buildings"
@@ -2582,17 +2954,46 @@ export function MinimalDemo() {
         {/* AnimationUpdater - MUST be inside Canvas to update mixers */}
         <AnimationUpdater />
 
-        {/* Always use default Environment for now - TiledWorldRenderer can be added later */}
-        <Environment groundTiles={groundTiles} defaultTerrainTiles={defaultTerrainTiles} worldSize={worldSize} />
+        {/* Coastline water + Environment (rotated to match isometric camera) */}
+        <group rotation={[0, Math.PI / 4, 0]}>
+          {/* Base ocean plane */}
+          <CoastlinePlane
+            size={worldSize * waterSettings.planeSizeMultiplier}
+            position={[0, -1.2, 0]}
+            shorelineBlend={waterSettings.shorelineBlend}
+            waveHeight={waterSettings.waveHeight}
+            distortionStrength={waterSettings.distortionStrength}
+            foamIntensity={waterSettings.foamIntensity}
+          />
+          {/* Crashing wave bands around island edges */}
+          <CoastlineWaveBand
+            worldSize={worldSize}
+            bandWidth={waterSettings.bandWidth}
+            tiltDegrees={waterSettings.tiltDegrees}
+            amplitude={waterSettings.amplitude}
+            speed={waterSettings.speed}
+            shorelineBlend={waterSettings.bandShorelineBlend}
+            foamIntensity={waterSettings.bandFoamIntensity}
+            waveHeight={waterSettings.bandWaveHeight}
+            distortionStrength={waterSettings.bandDistortionStrength}
+          />
+          {/* Land / environment */}
+          <Environment groundTiles={groundTiles} defaultTerrainTiles={defaultTerrainTiles} worldSize={worldSize} />
+        </group>
         
         {/* Loaded world mesh (merged, optimized) */}
-        {loadedWorldMesh && <LoadedWorldMesh mesh={loadedWorldMesh} />}
+        {loadedWorldMesh && (
+          <group rotation={[0, Math.PI / 4, 0]}>
+            <LoadedWorldMesh mesh={loadedWorldMesh} />
+          </group>
+        )}
         
         <CharacterModel input={input} cameraSettings={cameraSettings} placedAssets={placedAssets} groundTiles={allTerrainTiles} worldSize={worldSize} />
         {npcs.map(npc => (
           <WalkingNPC key={npc.id} npcData={npc} />
         ))}
         {/* Placed assets from drag and drop (render only when not using merged mesh) */}
+        <group rotation={[0, Math.PI / 4, 0]}>
         {!loadedWorldMesh && placedAssets.map(asset => {
           // Handle different asset types with appropriate components
           if (asset.type === 'grass') {
@@ -2644,6 +3045,7 @@ export function MinimalDemo() {
             );
           }
         })}
+        </group>
         {/* Cursor indicators */}
         {eraseMode && <EraseCursor size={eraseBrushSize} />}
         {elevationMode && <ElevationCursor size={brushSize} />}

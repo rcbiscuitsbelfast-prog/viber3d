@@ -17,7 +17,7 @@ type SavedTileMeta = {
   key: string;
 };
 
-const INITIAL_GRID_WIDTH = 5;  // Start with 5 x 5 grid
+const INITIAL_GRID_WIDTH = 3;  // Start with 3 x 5 grid
 const INITIAL_GRID_HEIGHT = 5;
 
 const BLANK_TILE_ID = '__blank_grass__';
@@ -616,13 +616,25 @@ function TileCellMesh({
         </mesh>
       )}
       {isEastEdge && onExpand && (
-        <mesh position={[size/2 + 0.5, 0.1, 0]} rotation={[0, -Math.PI/2, 0]} onClick={(e) => { e.stopPropagation(); onExpand('east'); }}>
+        <mesh
+          name="cell_expand_arrow"
+          userData={{ skipExport: true }}
+          position={[size/2 + 0.5, 0.1, 0]}
+          rotation={[0, -Math.PI/2, 0]}
+          onClick={(e) => { e.stopPropagation(); onExpand('east'); }}
+        >
           <coneGeometry args={[0.3, 0.8, 8]} />
           <meshBasicMaterial color="#4a9eff" />
         </mesh>
       )}
       {isWestEdge && onExpand && (
-        <mesh position={[-size/2 - 0.5, 0.1, 0]} rotation={[0, Math.PI/2, 0]} onClick={(e) => { e.stopPropagation(); onExpand('west'); }}>
+        <mesh
+          name="cell_expand_arrow"
+          userData={{ skipExport: true }}
+          position={[-size/2 - 0.5, 0.1, 0]}
+          rotation={[0, Math.PI/2, 0]}
+          onClick={(e) => { e.stopPropagation(); onExpand('west'); }}
+        >
           <coneGeometry args={[0.3, 0.8, 8]} />
           <meshBasicMaterial color="#4a9eff" />
         </mesh>

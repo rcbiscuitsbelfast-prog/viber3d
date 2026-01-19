@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { ScrollToTop } from '../components/ScrollToTop';
 
