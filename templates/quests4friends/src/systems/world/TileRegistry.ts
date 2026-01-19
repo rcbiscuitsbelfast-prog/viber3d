@@ -28,9 +28,16 @@ const ROCK_MODELS = {
 
 export class TileRegistry {
   private static definitions: Map<string, TileDefinition> = new Map();
+  private static initialized: boolean = false;
 
   static initialize() {
+    if (this.initialized) {
+      console.log('[TileRegistry] Already initialized');
+      return;
+    }
     this.registerTileDefinitions();
+    this.initialized = true;
+    console.log(`[TileRegistry] Initialized with ${this.definitions.size} tiles:`, Array.from(this.definitions.keys()));
   }
 
   private static registerTileDefinitions() {
@@ -133,7 +140,7 @@ export class TileRegistry {
       // No colliders - completely open
     });
 
-    // 3. Meadow Stones - grass with 3-5 small stone rocks, colliders on rocks
+    // 3. Meadow Stones - grass with 3-5 small stone rocks, NO colliders (small decorative rocks)
     this.definitions.set('meadow_stones', {
       id: 'meadow_stones',
       displayName: 'Meadow with Stones',
@@ -146,16 +153,16 @@ export class TileRegistry {
           minCount: 2,
           maxCount: 3,
           minScale: 0.5,
-          maxScale: 0.8,
-          colliderSize: new Vector3(0.8, 0.6, 0.8)
+          maxScale: 0.8
+          // NO collider - small decorative rocks
         },
         {
-          modelId: 'rock_2',
+          modelId: 'rock_1',
           minCount: 1,
           maxCount: 2,
-          minScale: 0.6,
-          maxScale: 1.0,
-          colliderSize: new Vector3(1.2, 0.8, 1.2)
+          minScale: 0.3,
+          maxScale: 0.6
+          // NO collider - very small rocks
         }
       ]
     });

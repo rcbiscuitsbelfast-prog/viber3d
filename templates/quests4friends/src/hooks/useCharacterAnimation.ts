@@ -25,12 +25,24 @@ export function useCharacterAnimation({
   const animationsRef = useRef<Record<string, THREE.AnimationClip> | null>(null);
   const hasAutoPlayedRef = useRef(false);
 
+  // Track previous model to detect actual changes
+  const previousModelRef = useRef<THREE.Object3D | null>(null);
+
   // Load animations when model is ready
   useEffect(() => {
     if (!model) {
       console.log(`[useCharacterAnimation] No model yet for ${characterId}`);
       return;
     }
+    
+    // If model hasn't actually changed (same object reference), don't re-register
+    if (previousModelRef.current === model) {
+      console.log(`[useCharacterAnimation] Model unchanged for ${characterId}, skipping re-registration`);
+      return;
+    }
+    
+    // Model has changed - update ref and proceed
+    previousModelRef.current = model;
     
     // Reset auto-play flag when model changes
     hasAutoPlayedRef.current = false;
@@ -104,10 +116,19 @@ export function useCharacterAnimation({
 
     return () => {
       mounted = false;
-      // Cleanup on unmount
-      animationManager.unregisterCharacter(characterId);
+      // Don't unregister here - only unregister on component unmount (handled by cleanup effect below)
+      // This prevents unregistering when model changes but component stays mounted
     };
   }, [characterId, assetId, model, defaultAnimation]);
+  
+  // Separate cleanup effect for component unmounting only
+  useEffect(() => {
+    return () => {
+      // This cleanup only runs when the component unmounts (characterId changes or component removed)
+      // Unregister the character to clean up the animation mixer
+      animationManager.unregisterCharacter(characterId);
+    };
+  }, [characterId]); // Only depend on characterId - this will run when component unmounts or characterId changes
 
   /**
    * Play an animation

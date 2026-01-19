@@ -63,12 +63,27 @@ export class TileGenerator {
             (gridY * definition.size) + slot.z + jitterZ
           );
           
+          // Trees always have colliders (large objects)
+          const treeColliderSize = new Vector3(1.5 * scale, 4 * scale, 1.5 * scale);
           objects.push({
             modelId: config.modelId,
             position: worldPos,
             rotation: rotation,
-            scale: scale
-            // Trees typically don't have colliders (can walk around them)
+            scale: scale,
+            collider: {
+              type: 'box',
+              size: treeColliderSize,
+              offset: new Vector3(0, treeColliderSize.y * 0.5, 0),
+              isTrigger: false
+            }
+          });
+          
+          // Add collider to tile's collider list
+          colliders.push({
+            type: 'box',
+            size: treeColliderSize,
+            offset: worldPos.clone().add(new Vector3(0, treeColliderSize.y * 0.5, 0)),
+            isTrigger: false
           });
         }
       }
@@ -104,21 +119,27 @@ export class TileGenerator {
             (gridY * definition.size) + slot.z + jitterZ
           );
           
+          // Only add colliders for large rocks (scale >= 1.0)
+          // Small rocks (scale < 1.0) have NO collision, even if colliderSize is defined
+          // rock_3 is always considered large, rock_1/rock_2 are large only if scale >= 1.0
+          const isLargeRock = scale >= 1.0 || config.modelId === 'rock_3';
+          const rockCollider = isLargeRock && config.colliderSize ? {
+            type: 'box' as const,
+            size: config.colliderSize.clone().multiplyScalar(scale),
+            offset: new Vector3(0, config.colliderSize.y * scale * 0.5, 0),
+            isTrigger: false
+          } : undefined;
+          
           objects.push({
             modelId: config.modelId,
             position: worldPos,
             rotation: rotation,
             scale: scale,
-            collider: config.colliderSize ? {
-              type: 'box',
-              size: config.colliderSize.clone().multiplyScalar(scale),
-              offset: new Vector3(0, config.colliderSize.y * scale * 0.5, 0),
-              isTrigger: false
-            } : undefined
+            collider: rockCollider
           });
           
-          // Add collider to tile's collider list if defined
-          if (config.colliderSize) {
+          // Add collider to tile's collider list only if it's a large rock
+          if (isLargeRock && config.colliderSize) {
             colliders.push({
               type: 'box',
               size: config.colliderSize.clone().multiplyScalar(scale),

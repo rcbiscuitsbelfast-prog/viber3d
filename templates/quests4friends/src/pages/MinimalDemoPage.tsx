@@ -883,10 +883,17 @@ function WalkingNPC({ npcData }: { npcData: NPCData }) {
   const [model, setModel] = useState<THREE.Object3D | null>(null);
   const currentWaypointIndex = useRef(0);
   const isMovingRef = useRef(false);
+  const modelLoadedRef = useRef(false); // Track if model has been loaded
+  const npcDataIdRef = useRef(npcData.id); // Track NPC ID to detect changes
 
-  // Load NPC model
+  // Load NPC model - only once, even if npcData object reference changes
   useEffect(() => {
-    if (!groupRef.current) return;
+    if (!groupRef.current || modelLoadedRef.current) return;
+    // Only reload if NPC ID actually changed
+    if (npcDataIdRef.current !== npcData.id) {
+      modelLoadedRef.current = false;
+      npcDataIdRef.current = npcData.id;
+    }
 
     const loadNPC = async () => {
       try {
@@ -916,6 +923,7 @@ function WalkingNPC({ npcData }: { npcData: NPCData }) {
         });
 
         setModel(npcScene);
+        modelLoadedRef.current = true;
 
         // Load weapon if specified
         if (npcData.weaponPath) {
@@ -946,7 +954,7 @@ function WalkingNPC({ npcData }: { npcData: NPCData }) {
     };
 
     loadNPC();
-  }, [npcData]);
+  }, [npcData.id, npcData.assetId, npcData.weaponPath]); // Only depend on actual values, not object reference
 
   // Use animation hook - simpler version that works
   const { crossfadeTo, isLoaded } = useCharacterAnimation({
@@ -956,15 +964,25 @@ function WalkingNPC({ npcData }: { npcData: NPCData }) {
     defaultAnimation: 'walk', // Start with walk for NPCs
   });
 
-  // Track if animation has been initialized (only run once)
+  // Track if animation has been initialized (only run once per NPC)
   const animationInitializedRef = useRef(false);
   const lastCrossfadeTimeRef = useRef(0);
+  const initializedCharacterIdRef = useRef<string | null>(null);
 
   // Initialize walk animation once when ready (don't re-trigger) - use stable refs
   const crossfadeToRef = useRef(crossfadeTo);
   crossfadeToRef.current = crossfadeTo; // Keep ref current but don't trigger effect
 
+  // Only initialize animation once per character ID, and only if it's actually a new character
   useEffect(() => {
+    const currentCharId = `npc-${npcData.id}`;
+    
+    // Reset if character ID changed
+    if (initializedCharacterIdRef.current !== currentCharId) {
+      animationInitializedRef.current = false;
+      initializedCharacterIdRef.current = currentCharId;
+    }
+    
     if (isLoaded && model && npcData.waypoints.length > 0 && !animationInitializedRef.current) {
       // Start walking immediately if NPC has waypoints - only once
       const now = Date.now();
@@ -975,7 +993,7 @@ function WalkingNPC({ npcData }: { npcData: NPCData }) {
         animationInitializedRef.current = true;
       }
     }
-  }, [isLoaded, model, npcData.waypoints.length]); // Only depend on loading state, not crossfadeTo function
+  }, [isLoaded, model, npcData.id, npcData.waypoints.length]); // Include npcData.id to detect character changes
 
   // Waypoint following behavior
   useFrame((_state, dt) => {
@@ -1074,7 +1092,7 @@ function EraseCursor({ size }: { size: number }) {
         <meshBasicMaterial transparent opacity={0} />
       </mesh>
       <mesh ref={cursorRef} visible={false}>
-        <ringGeometry args={[size * 0.8, size, 32]} />
+        <sphereGeometry args={[size / 2, 16, 16]} />
         <meshBasicMaterial color="#ff4444" transparent opacity={0.6} side={THREE.DoubleSide} />
       </mesh>
     </>
@@ -1130,7 +1148,7 @@ function ElevationCursor({ size }: { size: number }) {
         <meshBasicMaterial transparent opacity={0} />
       </mesh>
       <mesh ref={cursorRef} visible={false}>
-        <ringGeometry args={[size * 0.8, size, 32]} />
+        <sphereGeometry args={[size / 2, 16, 16]} />
         <meshBasicMaterial color="#4a9eff" transparent opacity={0.6} side={THREE.DoubleSide} />
       </mesh>
     </>
@@ -1537,8 +1555,8 @@ export function MinimalDemo() {
     return merged;
   }, [defaultTerrainTiles, groundTiles]);
 
-  // NPCs data with waypoint paths
-  const npcs: NPCData[] = [
+  // NPCs data with waypoint paths - memoized to prevent re-creation on every render
+  const npcs: NPCData[] = useMemo(() => [
     {
       id: 'knight1',
       assetId: 'char_knight',
@@ -1590,7 +1608,7 @@ export function MinimalDemo() {
         [-20, 0, -20],
       ],
     },
-  ];
+  ], []); // Empty deps - never recreate
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2107,6 +2125,7 @@ export function MinimalDemo() {
         {/* AnimationUpdater - MUST be inside Canvas to update mixers */}
         <AnimationUpdater />
 
+        {/* Always use default Environment for now - TiledWorldRenderer can be added later */}
         <Environment groundTiles={groundTiles} defaultTerrainTiles={defaultTerrainTiles} />
         <CharacterModel input={input} cameraSettings={cameraSettings} placedAssets={placedAssets} groundTiles={allTerrainTiles} />
         {npcs.map(npc => (
