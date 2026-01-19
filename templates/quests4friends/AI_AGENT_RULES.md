@@ -39,6 +39,35 @@ const animations = await animationSetLoader.loadCharacterAnimations('char_rogue'
 
 **If you're creating animation code, you're probably doing it wrong. Use existing systems!**
 
+### 2a. ALWAYS Check for Existing Declarations Before Adding New Code
+
+**❌ WRONG - This will cause "already declared" errors:**
+```typescript
+// Line 100
+const handleClick = () => { ... };
+
+// Line 200 (duplicate!)
+const handleClick = () => { ... }; // ❌ ERROR: Already declared
+```
+
+**✅ CORRECT - Check first, then update or remove old:**
+```typescript
+// Before adding new code, search for existing:
+// grep -n "handleClick" file.tsx
+// If found, either:
+// 1. Update the existing one
+// 2. Remove the old one if replacing
+// 3. Rename if truly different functionality
+```
+
+**Before making ANY code changes:**
+1. ✅ Use `grep` to search for function/variable names you're adding
+2. ✅ Read the entire function/component to see what already exists
+3. ✅ If duplicate found, REMOVE the old one or MERGE functionality
+4. ✅ Test that the file compiles before moving on
+
+**This prevents breaking the entire website with duplicate declarations.**
+
 ### 3. Use Existing Hooks and Systems
 
 **✅ Use the existing hook:**

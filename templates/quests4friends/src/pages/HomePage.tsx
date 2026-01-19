@@ -1,9 +1,31 @@
 import { Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { ScrollToTop } from '../components/ScrollToTop';
 
 export function HomePage() {
   const { theme, toggleTheme } = useTheme();
+
+  // One-time hard reset: delete all existing saved tiles/worlds so you can rebuild clean.
+  useEffect(() => {
+    const flagKey = 'q4f_hard_reset_v1_done';
+    if (localStorage.getItem(flagKey) === 'true') return;
+
+    const keys = Object.keys(localStorage);
+    for (const k of keys) {
+      if (
+        k.startsWith('tile_') ||
+        k.startsWith('tile_glb_') ||
+        k.startsWith('world_') ||
+        k.startsWith('world_glb_')
+      ) {
+        localStorage.removeItem(k);
+      }
+    }
+    localStorage.setItem(flagKey, 'true');
+    // eslint-disable-next-line no-console
+    console.log('[HardReset] Cleared saved tiles/worlds from localStorage');
+  }, []);
 
   return (
     <div className={`min-h-screen transition-colors ${
@@ -58,10 +80,10 @@ export function HomePage() {
             </Link>
             
             <Link
-              to="/world-canvas-builder"
+              to="/world-from-tiles"
               className="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-purple-700 hover:to-pink-700 transition-all transform hover:scale-105 shadow-xl"
             >
-              🗺️ World Canvas Builder
+              🌎 World From Tiles
             </Link>
             
             <Link

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // ==================== Placed Asset Component ====================
 
@@ -415,6 +416,19 @@ function GroundClickHandler({
     };
 
     const handleMouseUp = (event: MouseEvent) => {
+      // Ignore clicks on buttons or UI elements (asset panel, dialogs, etc.)
+      const target = event.target as HTMLElement;
+      if (
+        target.tagName === 'BUTTON' || 
+        target.closest('button') || 
+        target.closest('input') ||
+        target.closest('[role="dialog"]') ||
+        // Check if click is in the left sidebar area (asset panel)
+        (event.clientX < 250 && event.clientY > 80)
+      ) {
+        return;
+      }
+
       if (isDragging) {
         setIsDragging(false);
         setDragStart(null);
@@ -525,14 +539,14 @@ export function TileCreation() {
     scale: number;
   };
 
+  // Shared base grass generation function (same as MinimalDemo and WorldFromTiles)
   const generateBaseGrass = useCallback((): GrassInstance[] => {
     const result: GrassInstance[] = [];
-    const count = 1400; // denser
+    const count = 1400; // Same density across all pages
     for (let i = 0; i < count; i++) {
-      const x = (Math.random() - 0.5) * 10;
+      const x = (Math.random() - 0.5) * 10; // -5 to +5 range (10x10 tile)
       const z = (Math.random() - 0.5) * 10;
-      // tiny, varied, and slightly lifted so stones show above
-      const scale = 0.12 + Math.random() * 0.10; // smaller
+      const scale = 0.12 + Math.random() * 0.10; // Same scale range
       result.push({
         position: [x, 0.01, z],
         rotationY: Math.random() * Math.PI * 2,
@@ -568,14 +582,111 @@ export function TileCreation() {
     setShowSaveDialog(true);
   };
 
-  const handleSaveConfirm = () => {
+  const exportAndStoreTileGLB = useCallback(async (name: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (!exportRootRef.current) {
+        reject(new Error('No export root'));
+        return;
+      }
+
+      // Collect meshes under export root
+      const allMeshes: THREE.Mesh[] = [];
+      exportRootRef.current.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          allMeshes.push(child);
+        }
+      });
+      if (allMeshes.length === 0) {
+        reject(new Error('No meshes to export'));
+        return;
+      }
+
+      const geometries: THREE.BufferGeometry[] = [];
+      const materials: THREE.Material[] = [];
+      allMeshes.forEach((mesh) => {
+        const source = mesh.geometry as THREE.BufferGeometry | undefined;
+        if (!source) return;
+
+        // Normalize attributes so all geometries are compatible:
+        // keep only position/normal/uv, drop color / skin / morph attributes.
+        const geom = new THREE.BufferGeometry();
+        const pos = source.getAttribute('position');
+        if (!pos) return;
+        geom.setAttribute('position', pos.clone());
+
+        const normal = source.getAttribute('normal');
+        if (normal) geom.setAttribute('normal', normal.clone());
+
+        const uv = source.getAttribute('uv');
+        if (uv) geom.setAttribute('uv', uv.clone());
+
+        if (source.index) {
+          geom.setIndex(source.index.clone());
+        }
+
+        // Ensure no morph attributes so Mesh.updateMorphTargets won't choke
+        geom.morphAttributes = {};
+        // Apply world transform
+        geom.applyMatrix4(mesh.matrixWorld);
+
+        geometries.push(geom);
+
+        if (mesh.material) {
+          materials.push(Array.isArray(mesh.material) ? mesh.material[0] : mesh.material);
+        }
+      });
+      if (geometries.length === 0) {
+        reject(new Error('No geometries to merge'));
+        return;
+      }
+
+      // Merge into ONE mesh but keep multiple materials via geometry groups
+      // This preserves textures across different assets inside the tile.
+      const mergedGeometry = BufferGeometryUtils.mergeGeometries(geometries, true);
+      const mergedMesh = new THREE.Mesh(
+        mergedGeometry,
+        materials.length > 0 ? materials : new THREE.MeshStandardMaterial({ color: 0xffffff })
+      );
+
+      const scene = new THREE.Scene();
+      scene.add(mergedMesh);
+
+      const exporter = new GLTFExporter();
+      exporter.parse(
+        scene,
+        (result) => {
+          const output = result as ArrayBuffer;
+          const blob = new Blob([output], { type: 'model/gltf-binary' });
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = reader.result as string;
+            localStorage.setItem(`tile_glb_${name}`, base64);
+            resolve();
+          };
+          reader.onerror = () => reject(new Error('Failed to encode GLB'));
+          reader.readAsDataURL(blob);
+        },
+        (error) => reject(error),
+        { 
+          binary: true,
+          includeCustomExtensions: true,
+          // Ensure textures are embedded
+          embedImages: true
+        }
+      );
+    });
+  }, []);
+
+  const handleSaveConfirm = async () => {
     if (!tileName.trim()) {
       alert('Please enter a tile name');
       return;
     }
     // Add collision metadata to trees and rocks
     const assetsWithCollision = placedAssets.map(asset => {
-      const hasCollision = asset.type === 'tree' || asset.type === 'rock';
+      // Only LARGE trees/rocks collide (grass/flowers/small stones have no collision)
+      const isLarge = (asset.scale ?? 1) >= 1.0;
+      const hasCollision = (asset.type === 'tree' || asset.type === 'rock') && isLarge;
       return {
         ...asset,
         hasCollision, // Mark trees and rocks as having collision
@@ -586,16 +697,24 @@ export function TileCreation() {
     const tileData = {
       assets: assetsWithCollision,
       createdAt: new Date().toISOString(),
-      format: 'multiple_meshes', // Clarify: saved as JSON with multiple individual meshes, not a single merged mesh
+      format: 'single_glb', // From this point on: always a single merged mesh GLB
       version: '1.0',
     };
-    localStorage.setItem(`tile_${tileName}`, JSON.stringify(tileData));
-    setShowSaveDialog(false);
-    setTileName('');
-    // Update saved tiles list
-    const tiles = Object.keys(localStorage).filter(key => key.startsWith('tile_'));
-    setSavedTiles(tiles.map(key => key.replace('tile_', '')));
-    alert(`Tile "${tileName}" saved successfully!\n\nFormat: Multiple meshes (JSON)\nTrees & Rocks: Collision enabled`);
+    const name = tileName.trim();
+    try {
+      localStorage.setItem(`tile_${name}`, JSON.stringify(tileData));
+      // Merge + store GLB (single mesh)
+      await exportAndStoreTileGLB(name);
+      setShowSaveDialog(false);
+      setTileName('');
+      // Update saved tiles list
+      const tiles = Object.keys(localStorage).filter(key => key.startsWith('tile_'));
+      setSavedTiles(tiles.map(key => key.replace('tile_', '')));
+      alert(`Tile "${name}" saved successfully!\n\nFormat: Single merged GLB\nCollisions: Large trees/rocks only`);
+    } catch (e) {
+      console.error('Error saving tile/glb:', e);
+      alert('Error saving tile. Check console for details.');
+    }
   };
 
   const handleLoad = () => {
@@ -629,28 +748,7 @@ export function TileCreation() {
     }
   };
 
-  const handleExportGLB = useCallback(() => {
-    if (!exportRootRef.current) return;
-    const exporter = new GLTFExporter();
-    exporter.parse(
-      exportRootRef.current,
-      (result) => {
-        const output = result as ArrayBuffer;
-        const blob = new Blob([output], { type: 'model/gltf-binary' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${(tileName && tileName.trim()) || 'tile'}.glb`;
-        a.click();
-        URL.revokeObjectURL(url);
-      },
-      (error) => {
-        console.error('GLB export error:', error);
-        alert('Export failed. Check console for details.');
-      },
-      { binary: true }
-    );
-  }, [tileName]);
+  // No manual export button anymore; Save always stores a merged single-mesh GLB.
 
   function BaseGrassInstanced({ instances }: { instances: GrassInstance[] }) {
     const [meshData, setMeshData] = useState<{ geometry: THREE.BufferGeometry; material: THREE.Material | THREE.Material[] } | null>(null);
@@ -769,22 +867,6 @@ export function TileCreation() {
           }}
         >
           New
-        </button>
-        <button
-          onClick={handleExportGLB}
-          style={{
-            padding: '10px 20px',
-            background: '#8a4bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: 'bold',
-          }}
-          title="Export the entire tile as a single .glb file"
-        >
-          Export GLB
         </button>
         <button
           onClick={handleLoad}
@@ -1239,25 +1321,7 @@ export function TileCreation() {
                     💐
                   </button>
                 </div>
-                <button
-                  onClick={() => { setSelectedAsset('grass'); setEraseMode(false); }}
-                  title="Place Grass"
-                  style={{
-                    width: '100%',
-                    height: '40px',
-                    background: selectedAsset === 'grass' ? '#4a9eff' : '#3d6b2d',
-                    border: selectedAsset === 'grass' ? '2px solid #fff' : '1px solid #555',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    padding: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '24px',
-                  }}
-                >
-                  🌱
-                </button>
+                {/* Pebble button - no small/large variants */}
                 <button
                   onClick={() => { setSelectedAsset('pebble'); setEraseMode(false); }}
                   title="Place Pebble"
@@ -1276,25 +1340,6 @@ export function TileCreation() {
                   }}
                 >
                   🪨
-                </button>
-                <button
-                  onClick={() => { setSelectedAsset('flower'); setEraseMode(false); }}
-                  title="Place Flower"
-                  style={{
-                    width: '100%',
-                    height: '40px',
-                    background: selectedAsset === 'flower' ? '#4a9eff' : '#ff69b4',
-                    border: selectedAsset === 'flower' ? '2px solid #fff' : '1px solid #555',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    padding: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '24px',
-                  }}
-                >
-                  🌸
                 </button>
               </div>
             </CategorySection>
