@@ -64,58 +64,107 @@ export function HomePage() {
             Not a text. Not a game. A playable message.
           </p>
           
-          <div className="flex gap-4 justify-center flex-wrap">
-            <Link
-              to="/builder"
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 shadow-xl"
-            >
-              Create a Quest
-            </Link>
-            
-            <Link
-              to="/tile-creation"
-              className="bg-gradient-to-r from-emerald-600 to-cyan-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-emerald-700 hover:to-cyan-700 transition-all transform hover:scale-105 shadow-xl"
-            >
-              🧱 Tile Creation
-            </Link>
-            
-            <Link
-              to="/world-from-tiles"
-              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-purple-700 hover:to-pink-700 transition-all transform hover:scale-105 shadow-xl"
-            >
-              🌎 World From Tiles
-            </Link>
-            
-            <Link
-              to="/play/demo-quest"
-              className={`${theme === 'dark' ? 'bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 border-white/30' : 'bg-black/10 backdrop-blur-sm text-gray-900 hover:bg-black/20 border-gray-900/30'} font-bold py-4 px-10 rounded-lg text-xl transition-all border-2`}
-            >
-              Try Demo
-            </Link>
+          {/* Two Column Layout with Scrolling */}
+          <div className="max-h-[60vh] overflow-y-auto px-4 py-4">
+            <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+              {/* Left Column - Original Features */}
+              <div className="flex flex-col gap-4">
+                <h3 className={`text-2xl font-bold ${theme === 'dark' ? 'text-blue-300' : 'text-blue-600'} mb-2`}>
+                  📦 Original Features
+                </h3>
+                
+                <Link
+                  to="/builder"
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 shadow-xl"
+                >
+                  Create a Quest
+                </Link>
+                
+                <Link
+                  to="/tile-creation"
+                  className="bg-gradient-to-r from-emerald-600 to-cyan-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-emerald-700 hover:to-cyan-700 transition-all transform hover:scale-105 shadow-xl"
+                >
+                  🧱 Tile Creation
+                </Link>
+                
+                <Link
+                  to="/world-from-tiles"
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-purple-700 hover:to-pink-700 transition-all transform hover:scale-105 shadow-xl"
+                >
+                  🌎 World From Tiles
+                </Link>
+                
+                <Link
+                  to="/play/demo-quest"
+                  className={`${theme === 'dark' ? 'bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 border-white/30' : 'bg-black/10 backdrop-blur-sm text-gray-900 hover:bg-black/20 border-gray-900/30'} font-bold py-4 px-10 rounded-lg text-xl transition-all border-2`}
+                >
+                  Try Demo
+                </Link>
 
-            <Link
-              to="/minimal-demo"
-              className="bg-gradient-to-r from-green-600 to-teal-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-green-700 hover:to-teal-700 transition-all transform hover:scale-105 shadow-xl"
-            >
-              Animation Demo
-            </Link>
+                <Link
+                  to="/minimal-demo"
+                  className="bg-gradient-to-r from-green-600 to-teal-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-green-700 hover:to-teal-700 transition-all transform hover:scale-105 shadow-xl"
+                >
+                  Animation Demo
+                </Link>
 
-            <a
-              href="/toonshooter/"
-              className="bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-red-700 hover:to-orange-700 transition-all transform hover:scale-105 shadow-xl"
-              target="_self"
-            >
-              🎮 Toon Shooter
-            </a>
+                <a
+                  href="/toonshooter/"
+                  className="bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-red-700 hover:to-orange-700 transition-all transform hover:scale-105 shadow-xl"
+                  target="_self"
+                >
+                  🎮 Toon Shooter
+                </a>
 
-            <a
-              href="http://localhost:3000"
-              className="bg-gradient-to-r from-amber-600 to-yellow-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-amber-700 hover:to-yellow-700 transition-all transform hover:scale-105 shadow-xl"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              🏰 Clear the Dungeon
-            </a>
+                <a
+                  href="http://localhost:3000"
+                  className="bg-gradient-to-r from-amber-600 to-yellow-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-amber-700 hover:to-yellow-700 transition-all transform hover:scale-105 shadow-xl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  🏰 Clear the Dungeon
+                </a>
+              </div>
+
+              {/* Right Column - Kenny Block Builder */}
+              <div className="flex flex-col gap-4">
+                <h3 className={`text-2xl font-bold ${theme === 'dark' ? 'text-orange-300' : 'text-orange-600'} mb-2`}>
+                  🎨 Kenny Block Builder
+                </h3>
+                
+                <Link
+                  to="/kenny-blocks"
+                  className="bg-gradient-to-r from-orange-600 to-red-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-orange-700 hover:to-red-700 transition-all transform hover:scale-105 shadow-xl"
+                >
+                  🧩 Kenny Blocks
+                </Link>
+                
+                <Link
+                  to="/kenny-demo"
+                  className="bg-gradient-to-r from-red-600 to-pink-600 text-white font-bold py-4 px-10 rounded-lg text-xl hover:from-red-700 hover:to-pink-700 transition-all transform hover:scale-105 shadow-xl"
+                >
+                  🎮 Kenny Demo
+                </Link>
+                
+                <div className={`${theme === 'dark' ? 'bg-white/5' : 'bg-black/5'} p-6 rounded-lg text-left`}>
+                  <h4 className={`text-lg font-bold mb-3 ${theme === 'dark' ? 'text-orange-300' : 'text-orange-600'}`}>
+                    🛠️ Features:
+                  </h4>
+                  <ul className={`space-y-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <li>✓ Unlimited building area</li>
+                    <li>✓ Camera rotation controls</li>
+                    <li>✓ Exact mesh collision shapes</li>
+                    <li>✓ Adjustable grid size</li>
+                    <li>✓ Elevation controls (+/-)</li>
+                    <li>✓ Erase mode in tools</li>
+                    <li>✓ Compressed saves (bigger worlds)</li>
+                    <li>✓ Save/load block groups</li>
+                    <li>✓ Play saved worlds in demo</li>
+                    <li>✓ Multiple block categories</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

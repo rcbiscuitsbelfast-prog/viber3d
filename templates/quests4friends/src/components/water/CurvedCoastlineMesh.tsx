@@ -1,4 +1,4 @@
-import React, { Suspense, useMemo } from 'react';
+import { Suspense, useMemo } from 'react';
 import * as THREE from 'three';
 import { WaterCoastlineShader, WaterCoastlineProps } from './WaterCoastlineShader';
 

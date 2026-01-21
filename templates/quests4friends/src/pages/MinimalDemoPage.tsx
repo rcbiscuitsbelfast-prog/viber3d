@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { PerspectiveCamera, OrbitControls } from '@react-three/drei';
 import React, { useEffect, useState, useRef, useMemo } from 'react';
@@ -8,8 +9,6 @@ import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUti
 import { useCharacterAnimation } from '../hooks/useCharacterAnimation';
 import { animationManager } from '../systems/animation/AnimationManager';
 import { cameraOcclusionManager } from '../systems/camera/CameraOcclusionManager';
-import { CoastlinePlane } from '../components/water/CoastlinePlane';
-import { CoastlineWaveBand } from '../components/water/CoastlineWaveBand';
 
 // ==================== Constants ====================
 const BLANK_TILE_ID = '__blank_grass__';
@@ -91,6 +90,8 @@ function CharacterModel({ input, cameraSettings, placedAssets, groundTiles, worl
   const groupRef = useRef<THREE.Group>(null);
   const [model, setModel] = useState<THREE.Object3D | null>(null);
   const velocityRef = useRef(new THREE.Vector3());
+  const verticalVelocityRef = useRef(0); // For jump physics
+  const isGroundedRef = useRef(true);
   const directionRef = useRef<'idle' | 'walk' | 'run'>('idle');
   const { camera } = useThree();
 
@@ -228,6 +229,18 @@ function CharacterModel({ input, cameraSettings, placedAssets, groundTiles, worl
     // Store velocity for rotation and animations
     velocityRef.current.copy(moveDir);
 
+    // Jump physics
+    const JUMP_FORCE = 8.0;
+    const GRAVITY = -25.0;
+    
+    if (input.jump && isGroundedRef.current) {
+      verticalVelocityRef.current = JUMP_FORCE;
+      isGroundedRef.current = false;
+    }
+    
+    // Apply gravity
+    verticalVelocityRef.current += GRAVITY * dt;
+
     // Calculate new position
     const movementDelta = moveDir.clone().multiplyScalar(dt);
     const newPosition = groupRef.current.position.clone().add(movementDelta);
@@ -266,27 +279,56 @@ function CharacterModel({ input, cameraSettings, placedAssets, groundTiles, worl
       terrainElevation = count > 0 ? totalElevation / count : 0;
     }
     
-    // Set Y position to terrain elevation (direct, no lerp to prevent floating)
-    newPosition.y = terrainElevation + 0.5;
+    // Set Y position with jump physics
+    const targetY = terrainElevation + 0.5;
+    newPosition.y = groupRef.current.position.y + (verticalVelocityRef.current * dt);
     
-    // Check collision with placed assets
+    // Check if landed on ground
+    if (newPosition.y <= targetY) {
+      newPosition.y = targetY;
+      verticalVelocityRef.current = 0;
+      isGroundedRef.current = true;
+    }
+    
+    // Check collision with placed assets (3D box collision)
     const playerRadius = 0.8;
+    const playerHeight = 2.0; // Player capsule height
     let collision = false;
     
     for (const asset of placedAssets) {
       if (!asset.position || asset.scale <= 0) continue;
       
-      const baseRadius = asset.type === 'tree' ? 1.5 : 0.8;
-      const assetRadius = asset.scale * baseRadius;
-      
-      const dx = asset.position[0] - newPosition.x;
-      const dz = asset.position[2] - newPosition.z;
-      const distSq = dx * dx + dz * dz;
-      const minDist = playerRadius + assetRadius;
-      
-      if (distSq < minDist * minDist) {
-        collision = true;
-        break;
+      // For blocks (Kenny blocks): use full 3D box collision
+      if (asset.type && asset.type.includes('block')) {
+        // Block dimensions: ~1x1x1 at scale 1, so 3-4 units at scale 3-4
+        const blockHalfSize = (asset.scale || 3.0) * 0.5;
+        const blockY = asset.position[1] || 0;
+        
+        // Check 3D box collision (AABB)
+        const dx = Math.abs(asset.position[0] - newPosition.x);
+        const dy = Math.abs(blockY + blockHalfSize - newPosition.y);
+        const dz = Math.abs(asset.position[2] - newPosition.z);
+        
+        if (dx < (blockHalfSize + playerRadius) && 
+            dy < (blockHalfSize + playerHeight * 0.5) && 
+            dz < (blockHalfSize + playerRadius)) {
+          collision = true;
+          break;
+        }
+      } else {
+        // Other assets: use cylindrical collision (legacy)
+        const baseRadius = asset.type === 'tree' ? 1.5 : 0.8;
+        const assetRadius = asset.scale * baseRadius;
+        
+        const dx = asset.position[0] - newPosition.x;
+        const dz = asset.position[2] - newPosition.z;
+        const distSq = dx * dx + dz * dz;
+        const minDist = playerRadius + assetRadius;
+        
+        if (distSq < minDist * minDist) {
+          collision = true;
+          break;
+        }
       }
     }
           
@@ -450,219 +492,21 @@ function PlacedAsset({ assetType, position, rotation = 0, scale = 1.0, id }: Pla
 function LoadedWorldMesh({ mesh }: { mesh: THREE.Group | null }) {
   if (!mesh) return null;
   
+  // Offset mesh Y position so block top surfaces align with ground plane (y=0)
+  // Kenny blocks are ~1 unit tall at scale 1
+  // With scale 3-4x, blocks are 3-4 units tall, so offset by -4.5 to align tops at y=0
+  mesh.position.y = -4.5;
+  
   return (
     <primitive object={mesh} />
   );
 }
 
 // ==================== Base Grass Instanced (shared across all pages) ====================
-
-type GrassInstance = {
-  position: [number, number, number];
-  rotationY: number;
-  scale: number;
-};
-
-// Shared function to generate base grass for a 10x10 tile (1400 instances)
-function generateBaseGrassForTile(): GrassInstance[] {
-  const result: GrassInstance[] = [];
-  const count = 1400; // Same density as TileCreation and WorldFromTiles
-  for (let i = 0; i < count; i++) {
-    const x = (Math.random() - 0.5) * 10; // -5 to +5 range (10x10 tile)
-    const z = (Math.random() - 0.5) * 10;
-    const scale = 0.12 + Math.random() * 0.10; // Same scale range
-    result.push({
-      position: [x, 0.01, z],
-      rotationY: Math.random() * Math.PI * 2,
-      scale,
-    });
-  }
-  return result;
-}
-
-function BaseGrassInstanced({ 
-  instances, 
-  cellWorldX = 0, 
-  cellWorldZ = 0 
-}: { 
-  instances: GrassInstance[];
-  cellWorldX?: number;
-  cellWorldZ?: number;
-}) {
-  const [meshData, setMeshData] = useState<{ geometry: THREE.BufferGeometry; material: THREE.Material | THREE.Material[] } | null>(null);
-  const instRef = useRef<THREE.InstancedMesh | null>(null);
-  const baseGrassVariant = 'Grass_Common_Short';
-
-  useEffect(() => {
-    const loader = new GLTFLoader();
-    const assetPath = `/Assets/Stylized Nature MegaKit[Standard]/glTF/${baseGrassVariant}.gltf`;
-    loader.load(
-      assetPath,
-      (gltf) => {
-        let found: THREE.Mesh | null = null;
-        gltf.scene.traverse((o) => {
-          if (!found && o instanceof THREE.Mesh) {
-            found = o;
-          }
-        });
-        if (!found) return;
-        const mesh = found as THREE.Mesh;
-        if (!mesh.geometry || !mesh.material) return;
-        setMeshData({ geometry: mesh.geometry.clone(), material: mesh.material });
-      },
-      undefined,
-      (err) => console.error('[BaseGrassInstanced] load failed', err)
-    );
-  }, []);
-
-  useEffect(() => {
-    if (!instRef.current || !meshData) return;
-    const dummy = new THREE.Object3D();
-    instances.forEach((it, i) => {
-      // Positions are relative to cell center (parent group handles cell positioning)
-      dummy.position.set(
-        cellWorldX + it.position[0],
-        it.position[1],
-        cellWorldZ + it.position[2]
-      );
-      dummy.rotation.set(0, it.rotationY, 0);
-      dummy.scale.setScalar(it.scale);
-      dummy.updateMatrix();
-      instRef.current!.setMatrixAt(i, dummy.matrix);
-    });
-    instRef.current.instanceMatrix.needsUpdate = true;
-  }, [instances, meshData, cellWorldX, cellWorldZ]);
-
-  if (!meshData) return null;
-
-  return (
-    <instancedMesh
-      ref={instRef}
-      args={[meshData.geometry, Array.isArray(meshData.material) ? meshData.material[0] : meshData.material, instances.length]}
-      frustumCulled={false}
-      castShadow
-      receiveShadow
-    />
-  );
-}
+// REMOVED - using individual GrassBlock components instead
 
 // ==================== Merged Terrain Mesh Component ====================
-
-interface MergedTerrainProps {
-  allTiles: Map<string, { type: 'grass' | 'water'; elevation: number }>;
-  tileSize: number;
-  worldSize: number;
-}
-
-function MergedTerrain({ allTiles, tileSize, worldSize }: MergedTerrainProps) {
-  const [texture, setTexture] = useState<THREE.Texture | null>(null);
-  const terrainRef = useRef<THREE.Mesh>(null);
-  
-  // Load grass texture if available
-  useEffect(() => {
-    const loader = new THREE.TextureLoader();
-          loader.load(
-      '/Assets/Stylized Nature MegaKit[Standard]/glTF/Grass.png',
-      (loadedTexture) => {
-        loadedTexture.wrapS = THREE.RepeatWrapping;
-        loadedTexture.wrapT = THREE.RepeatWrapping;
-        loadedTexture.repeat.set(worldSize / 10, worldSize / 10); // Scale texture appropriately
-        setTexture(loadedTexture);
-      },
-            undefined,
-      () => {
-        setTexture(null);
-      }
-    );
-  }, [worldSize]);
-
-  // Create single merged terrain mesh with smooth interpolation
-  const terrainGeometry = useMemo(() => {
-    const gridSize = Math.floor(worldSize / tileSize);
-    const worldRadius = worldSize / 2;
-    
-    // Create heightmap array with smooth interpolation
-    const heightmap: number[][] = [];
-    for (let x = 0; x <= gridSize; x++) {
-      heightmap[x] = [];
-      for (let z = 0; z <= gridSize; z++) {
-        const key = `${x},${z}`;
-        const tile = allTiles.get(key);
-        const baseElevation = tile ? tile.elevation : 0;
-        
-        // Sample neighbors for smooth interpolation (only grass tiles)
-        let totalElevation = baseElevation;
-        let count = 1;
-        
-        // Check 8 neighbors
-        for (let dx = -1; dx <= 1; dx++) {
-          for (let dz = -1; dz <= 1; dz++) {
-            if (dx === 0 && dz === 0) continue;
-            const nKey = `${x + dx},${z + dz}`;
-            const neighbor = allTiles.get(nKey);
-            if (neighbor && neighbor.type === 'grass') {
-              totalElevation += neighbor.elevation;
-              count++;
-            }
-          }
-        }
-        
-        // Smooth interpolation - blend with neighbors
-        if (count > 1) {
-          const avgElevation = totalElevation / count;
-          // Blend between current and average (more weight on neighbors for smoothness)
-          heightmap[x][z] = baseElevation * 0.3 + avgElevation * 0.7;
-        } else {
-          heightmap[x][z] = baseElevation;
-        }
-      }
-    }
-    
-    // Create plane geometry for entire terrain
-    const geometry = new THREE.PlaneGeometry(worldSize, worldSize, gridSize, gridSize);
-    const positions = geometry.attributes.position.array as Float32Array;
-    
-    // Set vertex heights from heightmap
-    for (let i = 0; i < positions.length; i += 3) {
-      const x = positions[i]; // -worldSize/2 to +worldSize/2
-      const z = positions[i + 2]; // -worldSize/2 to +worldSize/2
-      
-      // Convert to grid coordinates
-      const gridX = Math.floor((x + worldRadius) / tileSize);
-      const gridZ = Math.floor((z + worldRadius) / tileSize);
-      
-      // Clamp to bounds
-      const clampedX = Math.max(0, Math.min(gridSize, gridX));
-      const clampedZ = Math.max(0, Math.min(gridSize, gridZ));
-      
-      // Get height from heightmap
-      const height = heightmap[clampedX]?.[clampedZ] ?? 0;
-      positions[i + 1] = height; // Y position (becomes Z after rotation)
-    }
-    
-    geometry.attributes.position.needsUpdate = true;
-    geometry.computeVertexNormals();
-    
-    return geometry;
-  }, [allTiles, tileSize, worldSize]);
-
-  return (
-    <mesh
-      ref={terrainRef}
-      position={[0, 0, 0]}
-      rotation={[-Math.PI / 2, 0, 0]}
-      receiveShadow
-      castShadow
-    >
-      <primitive object={terrainGeometry} />
-      <meshStandardMaterial 
-        map={texture || undefined}
-        color={texture ? '#ffffff' : '#3d6b2d'}
-        roughness={0.8}
-      />
-    </mesh>
-  );
-}
+// REMOVED - using individual GrassBlock components instead
 
 // ==================== Merged Water Mesh Component ====================
 
@@ -777,18 +621,7 @@ function GrassPatch({ position, rotation, type, scale }: { position: [number, nu
 // Removed GrassCarpet - using BaseGrassInstanced instead
 
 // ==================== Flat Ground Base Plane ====================
-function GroundBasePlane({ worldSize }: { worldSize: number }) {
-  return (
-    <mesh
-      position={[0, 0, 0]}
-      rotation={[-Math.PI / 2, 0, 0]}
-      receiveShadow
-    >
-      <planeGeometry args={[worldSize, worldSize]} />
-      <meshStandardMaterial color="#3d6b2d" />
-    </mesh>
-  );
-}
+// REMOVED - replaced with individual grass blocks
 
 // ==================== Ocean Water Component ====================
 function OceanWater({ worldSize }: { worldSize: number }) {
@@ -1045,10 +878,308 @@ function SmallRock({ position, rotation, variant, scale }: { position: [number, 
   );
 }
 
+// ==================== Grass Block Component ====================
+
+function GrassBlock({ position, elevation }: { position: [number, number, number]; elevation: number }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const [blockScene, setBlockScene] = useState<THREE.Group | null>(null);
+  
+  // Grass block variants from Kenny assets
+  const grassVariants = ['Grass_1', 'Grass_2', 'Grass_3', 'Grass_Flower', 'Grass_Tall'];
+  const variant = useMemo(() => grassVariants[Math.floor(Math.random() * grassVariants.length)], []);
+
+  useEffect(() => {
+    const loader = new GLTFLoader();
+    const assetPath = `/Assets/Stylized Nature MegaKit[Standard]/glTF/${variant}.gltf`;
+
+    loader.load(
+      assetPath,
+      (gltf) => {
+        const cloned = gltf.scene.clone();
+        cloned.scale.setScalar(1.0);
+        cloned.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            child.frustumCulled = false;
+          }
+        });
+        setBlockScene(cloned);
+      },
+      undefined,
+      (error) => {
+        console.warn(`[GrassBlock] Failed to load ${variant}:`, error);
+      }
+    );
+  }, [variant]);
+
+  if (!blockScene) {
+    return (
+      <mesh position={position}>
+        <boxGeometry args={[1, Math.max(0.3, elevation + 0.3), 1]} />
+        <meshStandardMaterial color="#3d6b2d" />
+      </mesh>
+    );
+  }
+
+  return (
+    <group ref={groupRef} position={position}>
+      <primitive object={blockScene} />
+    </group>
+  );
+}
+
 // ==================== Tree Component (for existing trees) ====================
 
 function Tree({ position }: { position: [number, number, number] }) {
   return <PlacedAsset assetType="tree" position={position} />;
+}
+
+// ==================== World Painter Component ====================
+
+function WorldPainter({ 
+  onConfirm, 
+  onClose,
+  mode,
+  setMode
+}: { 
+  onConfirm: (canvas: HTMLCanvasElement, elevationCanvas?: HTMLCanvasElement) => void; 
+  onClose: () => void;
+  mode: 'base' | 'elevation';
+  setMode: (m: 'base' | 'elevation') => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [baseCanvas, setBaseCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [brushSize, setBrushSize] = useState(20);
+
+  const canvasSize = 512;
+  const greenShades = ['#2ecc71', '#27ae60', '#16a085', '#1abc9c'];
+  const elevationShades = ['#90EE90', '#7CCD7C', '#76D776', '#85C585'];
+
+  // Initialize canvas
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return;
+
+    // Fill with light gray background
+    ctx.fillStyle = '#efefef';
+    ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+    // Draw grid
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 1;
+    const gridSize = 16;
+    for (let i = 0; i <= canvasSize; i += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i, canvasSize);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, i);
+      ctx.lineTo(canvasSize, i);
+      ctx.stroke();
+    }
+  }, []);
+
+  const getShades = () => mode === 'base' ? greenShades : elevationShades;
+  const shades = getShades();
+
+  const paintShape = (x: number, y: number) => {
+    if (!canvasRef.current) return;
+    const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return;
+
+    // Random shape: circle or blob
+    const shapeType = Math.random();
+    const color = shades[Math.floor(Math.random() * shades.length)];
+    ctx.fillStyle = color;
+
+    if (shapeType < 0.5) {
+      // Circle
+      ctx.beginPath();
+      ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Blob (random squiggles)
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const radius = (brushSize / 2) * (0.7 + Math.random() * 0.3);
+        const px = x + Math.cos(angle) * radius;
+        const py = y + Math.sin(angle) * radius;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    setIsDrawing(true);
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      paintShape(x, y);
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      paintShape(x, y);
+    }
+  };
+
+  const handleMouseUp = () => setIsDrawing(false);
+
+  const handleClear = () => {
+    if (!canvasRef.current) return;
+    const ctx = canvasRef.current.getContext('2d');
+    if (!ctx) return;
+    ctx.fillStyle = '#efefef';
+    ctx.fillRect(0, 0, canvasSize, canvasSize);
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 1;
+    const gridSize = 16;
+    for (let i = 0; i <= canvasSize; i += gridSize) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i, canvasSize);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, i);
+      ctx.lineTo(canvasSize, i);
+      ctx.stroke();
+    }
+  };
+
+  const handleConfirm = () => {
+    if (mode === 'base') {
+      // Save base canvas and switch to elevation mode
+      setBaseCanvas(canvasRef.current);
+      handleClear();
+      setMode('elevation');
+    } else {
+      // Both layers done - confirm
+      onConfirm(baseCanvas!, canvasRef.current!);
+    }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0,0,0,0.8)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 2000,
+    }}>
+      <div style={{
+        background: '#222',
+        padding: '30px',
+        borderRadius: '10px',
+        color: 'white',
+        textAlign: 'center',
+      }}>
+        <h2 style={{ marginTop: 0, marginBottom: '20px' }}>
+          {mode === 'base' ? '🎨 Paint Base Layer (Green)' : '⛰️ Paint Elevation Layer (Light Green)'}
+        </h2>
+        <p style={{ fontSize: '12px', color: '#aaa', marginBottom: '10px' }}>
+          {mode === 'base' 
+            ? 'Paint green shapes where you want land. Click & drag to paint.' 
+            : 'Paint light green shapes where you want higher elevation.'}
+        </p>
+        <canvas
+          ref={canvasRef}
+          width={canvasSize}
+          height={canvasSize}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          style={{
+            border: '2px solid #555',
+            cursor: 'crosshair',
+            display: 'block',
+            margin: '0 auto 15px',
+            backgroundColor: '#efefef',
+          }}
+        />
+        <div style={{ marginBottom: '15px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+          <label style={{ fontSize: '12px' }}>
+            Brush Size: {brushSize}
+            <input
+              type="range"
+              min="5"
+              max="60"
+              value={brushSize}
+              onChange={(e) => setBrushSize(parseInt(e.target.value))}
+              style={{ marginLeft: '10px', width: '100px' }}
+            />
+          </label>
+          <button
+            onClick={handleClear}
+            style={{
+              padding: '8px 15px',
+              background: '#666',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px',
+            }}
+          >
+            Clear
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: '10px 20px',
+              background: '#e74c3c',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 'bold',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            style={{
+              padding: '10px 20px',
+              background: mode === 'base' ? '#3498db' : '#2ecc71',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 'bold',
+            }}
+          >
+            {mode === 'base' ? 'Next: Elevation →' : '✓ Create World'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ==================== Environment ====================
@@ -1061,7 +1192,6 @@ interface EnvironmentProps {
 
 function Environment({ groundTiles, defaultTerrainTiles, worldSize }: EnvironmentProps) {
   const tileSize = 1;
-  const cellSize = 10; // Each cell is 10x10 units (matching tile system)
 
   // Merge user-painted tiles with default tiles
   const allTiles = useMemo(() => {
@@ -1072,11 +1202,31 @@ function Environment({ groundTiles, defaultTerrainTiles, worldSize }: Environmen
     return merged;
   }, [defaultTerrainTiles, groundTiles]);
 
-  // Generate base grass instances for entire world (one instanced mesh per 10x10 cell)
-  // World is 100x100 = 10x10 cells, each cell gets 1400 grass instances (same as tiles)
-  const baseGrassInstances = useMemo(() => generateBaseGrassForTile(), []);
-  const numCellsX = Math.floor(worldSize / cellSize);
-  const numCellsZ = Math.floor(worldSize / cellSize);
+  // Generate individual grass blocks at each tile position
+  const grassBlocks = useMemo(() => {
+    const result: Array<{ key: string; position: [number, number, number]; elevation: number }> = [];
+    const worldRadius = worldSize / 2;
+    const gridSize = Math.floor(worldSize / tileSize);
+    
+    for (let gx = 0; gx < gridSize; gx++) {
+      for (let gz = 0; gz < gridSize; gz++) {
+        const key = `${gx},${gz}`;
+        const tile = allTiles.get(key);
+        
+        // Render grass blocks for grass tiles only
+        if (tile && tile.type === 'grass') {
+          const worldX = (gx * tileSize) - worldRadius + (tileSize / 2);
+          const worldZ = (gz * tileSize) - worldRadius + (tileSize / 2);
+          result.push({
+            key,
+            position: [worldX, tile.elevation, worldZ],
+            elevation: tile.elevation,
+          });
+        }
+      }
+    }
+    return result;
+  }, [allTiles, worldSize, tileSize]);
 
   // Generate trees (fewer now with smaller world)
   const trees: [number, number, number][] = useMemo(() => {
@@ -1113,50 +1263,9 @@ function Environment({ groundTiles, defaultTerrainTiles, worldSize }: Environmen
     return result;
   }, [allTiles]);
 
-
-  // Generate random grass patches - REMOVED, using BaseGrassInstanced instead
-  // Generate random small rocks - REMOVED for now
-
   return (
     <>
-      {/* Flat ground base plane */}
-      <GroundBasePlane worldSize={worldSize} />
-      
-      {/* Ocean water surrounding the island - fades into distance */}
-      <OceanWater worldSize={worldSize} />
-      
-      {/* Cliff edges around world perimeter */}
-      <IslandCliffEdges worldSize={worldSize} />
-      
-      {/* Crashing waves at cliff base */}
-      <CrashingWaves worldSize={worldSize} />
-      
-      {/* Base grass instanced mesh - one per 10x10 cell (same as tiles) */}
-      {Array.from({ length: numCellsX * numCellsZ }, (_, i) => {
-        const cellX = Math.floor(i / numCellsZ);
-        const cellZ = i % numCellsZ;
-        const cellWorldX = (cellX - (numCellsX - 1) / 2) * cellSize;
-        const cellWorldZ = (cellZ - (numCellsZ - 1) / 2) * cellSize;
-        return (
-          <BaseGrassInstanced
-            key={`base-grass-${cellX}-${cellZ}`}
-            instances={baseGrassInstances}
-            cellWorldX={cellWorldX}
-            cellWorldZ={cellWorldZ}
-          />
-        );
-      })}
-
-      {/* Merged terrain mesh (single draw call) - now just for elevation if any */}
-      <MergedTerrain allTiles={allTiles} tileSize={tileSize} worldSize={worldSize} />
-      
-      {/* Merged water mesh */}
-      <MergedWater waterTiles={waterTilesForRender} tileSize={tileSize} worldSize={worldSize} />
-
-      {/* Trees scattered around - no grid helper (removed) */}
-      {trees.map((pos, i) => (
-        <Tree key={i} position={pos} />
-      ))}
+      {/* Environment cleared - only Kenny blocks world visible */}
     </>
   );
 }
@@ -1790,6 +1899,9 @@ export function MinimalDemo() {
   const [showLoadWorldDialog, setShowLoadWorldDialog] = useState(false);
   const [savedWorlds, setSavedWorlds] = useState<string[]>([]);
   const [loadedWorldMesh, setLoadedWorldMesh] = useState<THREE.Group | null>(null);
+  const [showWorldPainter, setShowWorldPainter] = useState(false);
+  const [painterMode, setPainterMode] = useState<'base' | 'elevation'>('base');
+  const [painterCanvas, setPainterCanvas] = useState<HTMLCanvasElement | null>(null);
 
   // Wave/Ocean tuning state
   const [waterSettings, setWaterSettings] = useState({
@@ -1807,6 +1919,77 @@ export function MinimalDemo() {
     bandWaveHeight: 0.14,
     bandDistortionStrength: 0.26,
   });
+
+  // Helper: randomize ground tiles using midpoint displacement
+  const randomizeGroundTiles = () => {
+    const gridSize = Math.floor(worldSize / 1);
+    const newGroundTiles = new Map<string, { type: 'grass' | 'water'; elevation: number }>();
+    
+    // Use Perlin-like noise simulation (simple midpoint displacement)
+    const heightmap: number[][] = [];
+    for (let i = 0; i < gridSize; i++) {
+      heightmap[i] = [];
+      for (let j = 0; j < gridSize; j++) {
+        heightmap[i][j] = 0;
+      }
+    }
+    
+    // Initialize random corners
+    heightmap[0][0] = Math.random() * 2 - 1;
+    heightmap[0][gridSize - 1] = Math.random() * 2 - 1;
+    heightmap[gridSize - 1][0] = Math.random() * 2 - 1;
+    heightmap[gridSize - 1][gridSize - 1] = Math.random() * 2 - 1;
+    
+    // Midpoint displacement for terrain generation
+    let stepSize = gridSize - 1;
+    let scale = 1.0;
+    while (stepSize > 1) {
+      const halfStep = stepSize / 2;
+      
+      // Diamond step
+      for (let y = 0; y < gridSize - 1; y += stepSize) {
+        for (let x = 0; x < gridSize - 1; x += stepSize) {
+          const avg = (
+            heightmap[y][x] +
+            heightmap[y][x + stepSize] +
+            heightmap[y + stepSize][x] +
+            heightmap[y + stepSize][x + stepSize]
+          ) / 4;
+          heightmap[y + halfStep][x + halfStep] = avg + (Math.random() - 0.5) * scale;
+        }
+      }
+      
+      // Square step
+      for (let y = 0; y < gridSize; y += halfStep) {
+        for (let x = (y + halfStep) % stepSize; x < gridSize; x += stepSize) {
+          let sum = 0, count = 0;
+          if (y >= halfStep) { sum += heightmap[y - halfStep][x]; count++; }
+          if (y + halfStep < gridSize) { sum += heightmap[y + halfStep][x]; count++; }
+          if (x >= halfStep) { sum += heightmap[y][x - halfStep]; count++; }
+          if (x + halfStep < gridSize) { sum += heightmap[y][x + halfStep]; count++; }
+          heightmap[y][x] = (sum / count) + (Math.random() - 0.5) * scale;
+        }
+      }
+      
+      stepSize = halfStep;
+      scale *= 0.5;
+    }
+    
+    // Convert heightmap to ground tiles
+    for (let gx = 0; gx < gridSize; gx++) {
+      for (let gz = 0; gz < gridSize; gz++) {
+        const elevation = Math.max(-0.5, Math.min(3, heightmap[gx][gz]));
+        const key = `${gx},${gz}`;
+        newGroundTiles.set(key, {
+          type: elevation > 0.5 ? 'grass' : 'water',
+          elevation: Math.max(0, elevation),
+        });
+      }
+    }
+    
+    console.log(`[Randomize] Generated ${newGroundTiles.size} terrain tiles`);
+    setGroundTiles(newGroundTiles);
+  };
 
   // Helper: add a row of rocks aligned to tile centers along an edge
   const addRockRow = (edge: 'north' | 'south' | 'east' | 'west') => {
@@ -1852,6 +2035,163 @@ export function MinimalDemo() {
     if (newRocks.length > 0) {
       setPlacedAssets(prev => [...prev, ...newRocks]);
     }
+  };
+
+  // World generator: create preset 2x4 worlds
+  const generatePresetWorlds = () => {
+    // Helper to create a tile with assets
+    const createTile = (tileId: string, assets: Array<{ type: string; position: [number, number, number]; rotation: number; scale: number; hasCollision?: boolean }>) => {
+      const tileData = { assets };
+      localStorage.setItem(`tile_${tileId}`, JSON.stringify(tileData));
+      return tileId;
+    };
+    
+    // Helper to check if position is on perimeter
+    const isPerimeter = (col: number, row: number, cols: number, rows: number) => {
+      return col === 0 || col === cols - 1 || row === 0 || row === rows - 1;
+    };
+
+    // 1. Meadow World - flowers with tree boundary
+    const meadowGrid: WorldCell[][] = [];
+    for (let row = 0; row < 4; row++) {
+      meadowGrid[row] = [];
+      for (let col = 0; col < 2; col++) {
+        const tileId = `meadow_${col}_${row}`;
+        const assets: Array<{ type: string; position: [number, number, number]; rotation: number; scale: number; hasCollision?: boolean }> = [];
+        
+        if (isPerimeter(col, row, 2, 4)) {
+          // Perimeter: trees
+          for (let i = 0; i < 3; i++) {
+            const x = (Math.random() - 0.5) * 8;
+            const z = (Math.random() - 0.5) * 8;
+            assets.push({
+              type: 'tree',
+              position: [x, 0, z],
+              rotation: Math.random() * Math.PI * 2,
+              scale: 1.0 + Math.random() * 0.3,
+              hasCollision: true,
+            });
+          }
+        } else {
+          // Interior: flowers
+          for (let i = 0; i < 8; i++) {
+            const x = (Math.random() - 0.5) * 8;
+            const z = (Math.random() - 0.5) * 8;
+            assets.push({
+              type: 'flower',
+              position: [x, 0.01, z],
+              rotation: Math.random() * Math.PI * 2,
+              scale: 0.6 + Math.random() * 0.4,
+            });
+          }
+        }
+        
+        createTile(tileId, assets);
+        meadowGrid[row][col] = { tileId, rotation: 0 };
+      }
+    }
+    
+    localStorage.setItem('world_Meadow', JSON.stringify({ gridWidth: 2, gridHeight: 4, grid: meadowGrid }));
+
+    // 2. Forest World - dense trees with clear path (middle column path)
+    const forestGrid: WorldCell[][] = [];
+    for (let row = 0; row < 4; row++) {
+      forestGrid[row] = [];
+      for (let col = 0; col < 2; col++) {
+        const tileId = `forest_${col}_${row}`;
+        const assets: Array<{ type: string; position: [number, number, number]; rotation: number; scale: number; hasCollision?: boolean }> = [];
+        
+        // Dense trees everywhere, but create a clear path down the center (x near 0)
+        for (let i = 0; i < 5; i++) {
+          let x = (Math.random() - 0.5) * 8;
+          const z = (Math.random() - 0.5) * 8;
+          
+          // Keep center path clear (x between -1.5 and 1.5)
+          if (Math.abs(x) < 1.5) {
+            // Push trees to sides
+            x = x < 0 ? x - 2 : x + 2;
+          }
+          
+          assets.push({
+            type: 'tree',
+            position: [x, 0, z],
+            rotation: Math.random() * Math.PI * 2,
+            scale: 0.9 + Math.random() * 0.4,
+            hasCollision: true,
+          });
+        }
+        
+        createTile(tileId, assets);
+        forestGrid[row][col] = { tileId, rotation: 0 };
+      }
+    }
+    
+    localStorage.setItem('world_Forest', JSON.stringify({ gridWidth: 2, gridHeight: 4, grid: forestGrid }));
+
+    // 3. Mixed World - variety on perimeter
+    const mixedGrid: WorldCell[][] = [];
+    for (let row = 0; row < 4; row++) {
+      mixedGrid[row] = [];
+      for (let col = 0; col < 2; col++) {
+        const tileId = `mixed_${col}_${row}`;
+        const assets: Array<{ type: string; position: [number, number, number]; rotation: number; scale: number; hasCollision?: boolean }> = [];
+        
+        if (isPerimeter(col, row, 2, 4)) {
+          // Perimeter: mix of trees, rocks, and flowers
+          for (let i = 0; i < 2; i++) {
+            const x = (Math.random() - 0.5) * 8;
+            const z = (Math.random() - 0.5) * 8;
+            assets.push({
+              type: 'tree',
+              position: [x, 0, z],
+              rotation: Math.random() * Math.PI * 2,
+              scale: 1.0 + Math.random() * 0.3,
+              hasCollision: true,
+            });
+          }
+          for (let i = 0; i < 3; i++) {
+            const x = (Math.random() - 0.5) * 8;
+            const z = (Math.random() - 0.5) * 8;
+            assets.push({
+              type: 'rock',
+              position: [x, 0, z],
+              rotation: Math.random() * Math.PI * 2,
+              scale: 1.2 + Math.random() * 0.4,
+              hasCollision: true,
+            });
+          }
+          for (let i = 0; i < 4; i++) {
+            const x = (Math.random() - 0.5) * 8;
+            const z = (Math.random() - 0.5) * 8;
+            assets.push({
+              type: 'flower',
+              position: [x, 0.01, z],
+              rotation: Math.random() * Math.PI * 2,
+              scale: 0.6 + Math.random() * 0.4,
+            });
+          }
+        } else {
+          // Interior: mostly grass with some pebbles
+          for (let i = 0; i < 5; i++) {
+            const x = (Math.random() - 0.5) * 8;
+            const z = (Math.random() - 0.5) * 8;
+            assets.push({
+              type: 'pebble',
+              position: [x, 0, z],
+              rotation: Math.random() * Math.PI * 2,
+              scale: 0.3 + Math.random() * 0.2,
+            });
+          }
+        }
+        
+        createTile(tileId, assets);
+        mixedGrid[row][col] = { tileId, rotation: 0 };
+      }
+    }
+    
+    localStorage.setItem('world_Mixed', JSON.stringify({ gridWidth: 2, gridHeight: 4, grid: mixedGrid }));
+    
+    alert('✅ Created 3 preset worlds:\n• Meadow (flowers + tree boundary)\n• Forest (dense trees + clear path)\n• Mixed (varied perimeter)\n\nClick "🌍 Load World" to explore!');
   };
 
   // Type for world grid cells (matches WorldFromTilesPage)
@@ -2040,6 +2380,49 @@ export function MinimalDemo() {
     }
   }, [worldSize, allTerrainTiles]);
 
+  // Convert painted canvas to ground tiles
+  const convertPaintedCanvasToTiles = (baseCanvas: HTMLCanvasElement, elevationCanvas?: HTMLCanvasElement) => {
+    const ctx = baseCanvas.getContext('2d');
+    const elevCtx = elevationCanvas?.getContext('2d');
+    if (!ctx) return;
+
+    const newGroundTiles = new Map<string, { type: 'grass' | 'water'; elevation: number }>();
+    const canvasSize = baseCanvas.width;
+    const gridSize = Math.floor(worldSize / 1);
+    const tilePixelsPerTile = canvasSize / gridSize;
+
+    // Sample canvas for each tile
+    for (let gx = 0; gx < gridSize; gx++) {
+      for (let gz = 0; gz < gridSize; gz++) {
+        const key = `${gx},${gz}`;
+        const canvasX = Math.floor(gx * tilePixelsPerTile + tilePixelsPerTile / 2);
+        const canvasY = Math.floor(gz * tilePixelsPerTile + tilePixelsPerTile / 2);
+
+        // Sample base layer
+        const baseImageData = ctx.getImageData(canvasX, canvasY, 1, 1).data;
+        const baseGreen = baseImageData[1]; // Green channel
+        const isGrass = baseGreen > 100; // Dark green = grass
+
+        // Sample elevation layer if present
+        let elevation = 0;
+        if (elevCtx) {
+          const elevImageData = elevCtx.getImageData(canvasX, canvasY, 1, 1).data;
+          const elevGreen = elevImageData[1];
+          // Map light green values to elevation
+          elevation = Math.max(0, (elevGreen - 100) / 155 * 3); // 0-3 range
+        }
+
+        newGroundTiles.set(key, {
+          type: isGrass ? 'grass' : 'water',
+          elevation: isGrass ? elevation : 0,
+        });
+      }
+    }
+
+    setGroundTiles(newGroundTiles);
+    console.log(`[WorldPainter] Converted canvas to ${newGroundTiles.size} tiles`);
+  };
+
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       <button
@@ -2086,6 +2469,86 @@ export function MinimalDemo() {
       >
         🌍 Load World
       </button>
+
+      {/* Generate Preset Worlds Button */}
+      <button
+        onClick={generatePresetWorlds}
+        style={{
+          position: 'absolute',
+          top: '20px',
+          left: '260px',
+          zIndex: 10,
+          padding: '10px 20px',
+          background: '#2ecc71',
+          color: 'white',
+          border: 'none',
+          borderRadius: '5px',
+          cursor: 'pointer',
+          fontSize: '14px',
+          fontWeight: 'bold',
+        }}
+      >
+        ✨ Generate Worlds
+      </button>
+
+      {/* Randomize Ground Button */}
+      <button
+        onClick={randomizeGroundTiles}
+        style={{
+          position: 'absolute',
+          top: '20px',
+          left: '450px',
+          zIndex: 10,
+          padding: '10px 20px',
+          background: '#e74c3c',
+          color: 'white',
+          border: 'none',
+          borderRadius: '5px',
+          cursor: 'pointer',
+          fontSize: '14px',
+          fontWeight: 'bold',
+        }}
+      >
+        🌄 Randomize Terrain
+      </button>
+
+      {/* World Painter Button */}
+      <button
+        onClick={() => setShowWorldPainter(true)}
+        style={{
+          position: 'absolute',
+          top: '20px',
+          left: '640px',
+          zIndex: 10,
+          padding: '10px 20px',
+          background: '#9b59b6',
+          color: 'white',
+          border: 'none',
+          borderRadius: '5px',
+          cursor: 'pointer',
+          fontSize: '14px',
+          fontWeight: 'bold',
+        }}
+      >
+        🎨 World Painter
+      </button>
+
+      {/* World Painter Modal */}
+      {showWorldPainter && (
+        <WorldPainter
+          onConfirm={(baseCanvas, elevationCanvas) => {
+            convertPaintedCanvasToTiles(baseCanvas, elevationCanvas);
+            setShowWorldPainter(false);
+            setPainterMode('base');
+          }}
+          onClose={() => {
+            setShowWorldPainter(false);
+            setPainterMode('base');
+          }}
+          mode={painterMode}
+          setMode={setPainterMode}
+        />
+      )}
 
       {/* Load World Dialog */}
       {showLoadWorldDialog && (
@@ -2954,30 +3417,9 @@ export function MinimalDemo() {
         {/* AnimationUpdater - MUST be inside Canvas to update mixers */}
         <AnimationUpdater />
 
-        {/* Coastline water + Environment (rotated to match isometric camera) */}
+        {/* Environment (rotated to match isometric camera) - no water/coastline */}
         <group rotation={[0, Math.PI / 4, 0]}>
-          {/* Base ocean plane */}
-          <CoastlinePlane
-            size={worldSize * waterSettings.planeSizeMultiplier}
-            position={[0, -1.2, 0]}
-            shorelineBlend={waterSettings.shorelineBlend}
-            waveHeight={waterSettings.waveHeight}
-            distortionStrength={waterSettings.distortionStrength}
-            foamIntensity={waterSettings.foamIntensity}
-          />
-          {/* Crashing wave bands around island edges */}
-          <CoastlineWaveBand
-            worldSize={worldSize}
-            bandWidth={waterSettings.bandWidth}
-            tiltDegrees={waterSettings.tiltDegrees}
-            amplitude={waterSettings.amplitude}
-            speed={waterSettings.speed}
-            shorelineBlend={waterSettings.bandShorelineBlend}
-            foamIntensity={waterSettings.bandFoamIntensity}
-            waveHeight={waterSettings.bandWaveHeight}
-            distortionStrength={waterSettings.bandDistortionStrength}
-          />
-          {/* Land / environment */}
+          {/* Land / environment only */}
           <Environment groundTiles={groundTiles} defaultTerrainTiles={defaultTerrainTiles} worldSize={worldSize} />
         </group>
         

@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import { Suspense } from 'react';
 import { Plane } from '@react-three/drei';
 import { WaterCoastlineShader, WaterCoastlineProps } from './WaterCoastlineShader';
 

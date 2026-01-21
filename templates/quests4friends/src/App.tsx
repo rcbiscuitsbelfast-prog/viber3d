@@ -13,6 +13,9 @@ import { TileCreation } from './pages/TileCreationPage';
 import TileEditorPage from './pages/TileEditorPage';
 import WorldBuilderPage from './pages/WorldBuilderPage';
 import WorldFromTilesPage from './pages/WorldFromTilesPage';
+import { KennyBlocks } from './pages/KennyBlocksPage';
+import { KennyWorld } from './pages/KennyWorldPage';
+import { KennyDemo } from './pages/KennyDemoPage';
 
 export default function App() {
   return (
@@ -30,6 +33,9 @@ export default function App() {
           <Route path="/world-canvas-builder" element={<WorldCanvasBuilderPage />} />
           <Route path="/tile-creation" element={<TileCreation />} />
           <Route path="/world-from-tiles" element={<WorldFromTilesPage />} />
+          <Route path="/kenny-blocks" element={<KennyBlocks />} />
+          <Route path="/kenny-world" element={<KennyWorld />} />
+          <Route path="/kenny-demo" element={<KennyDemo />} />
           <Route path="/tile-editor" element={<TileEditorPage />} />
           <Route path="/world-builder" element={<WorldBuilderPage />} />
         </Routes>

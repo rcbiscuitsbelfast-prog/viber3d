@@ -765,7 +765,8 @@ export function TileCreation() {
             if (!found && o instanceof THREE.Mesh) found = o;
           });
           if (!found) return;
-          setMeshData({ geometry: found.geometry.clone(), material: found.material });
+          const mesh = found as THREE.Mesh;
+          setMeshData({ geometry: mesh.geometry.clone(), material: mesh.material });
         },
         undefined,
         (err) => console.error('[BaseGrassInstanced] load failed', err)
