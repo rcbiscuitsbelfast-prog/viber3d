@@ -93,6 +93,18 @@ Spatial hashing, object pooling, instancing, LOD - all covered.
 - Physics edge cases documented
 - TypeScript inference issues solved
 
+### 9. **Quick Reference Card**
+Instant access to common tasks with time estimates
+
+### 10. **Alternative Framework Guidance**
+Decision framework for when to use different approaches (vanilla, simple R3F, React-Three-Next, different engines)
+
+### 11. **Reading Modes**
+Multiple entry points with time investment estimates for different goals
+
+### 12. **Strategic Cross-References**
+Bidirectional references between documents to reduce duplication
+
 ---
 
 ## 🎯 Quick Start

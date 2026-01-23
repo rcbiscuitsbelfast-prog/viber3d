@@ -9,6 +9,28 @@
 
 ---
 
+## 🚀 Quick Reference Card
+
+**Need something fast? Jump here:**
+
+| I need to... | Go to | Time |
+|---------------|--------|------|
+| Create player character | [Pattern 1](#pattern-1-complete-player-character) | 15 min |
+| Add enemy AI | [Pattern 2](#pattern-2-enemy-ai) | 10 min |
+| Implement weapons | [Pattern 3](#pattern-3-weapon-system) | 15 min |
+| Add collectibles | [Pattern 4](#pattern-4-collectible-items) | 5 min |
+| Fix physics | [System 8](#8-physics-integration-system) | 5 min |
+| Animate models | [System 9](#9-animation-system) | 10 min |
+| Optimize performance | [Performance](#performance--optimization) | 20 min |
+| Debug issue | [Troubleshooting](#troubleshooting) | 5 min |
+| Deploy game | [Production Checklist](#production-checklist) | 30 min |
+
+**⚡ 5-minute fixes** - Performance drop, animation not playing, memory leaks, black screen  
+**🔧 15-minute features** - New enemy type, weapon upgrade, collectible, UI element  
+**🎮 1-hour systems** - Complete AI behavior, weapon system, level progression
+
+---
+
 ## 📖 How to Use This Guide
 
 **Choose your entry point based on your goal:**
@@ -57,6 +79,7 @@
 8. [Performance & Optimization](#performance--optimization)
 9. [Production Checklist](#production-checklist)
 10. [Troubleshooting](#troubleshooting)
+11. [Advanced Topics](#advanced-topics)
 
 ---
 
@@ -121,6 +144,8 @@ By following this guide, you'll be able to build:
 }
 ```
 
+> 💡 **Pattern Type:** ⭐ **Canonical Standard** (proven production game architecture)
+
 ### Why This Stack?
 
 | Technology | Purpose | Benefit |
@@ -132,6 +157,45 @@ By following this guide, you'll be able to build:
 | **Zustand** | UI/App state | Simple, no boilerplate, TypeScript-first |
 | **TypeScript** | Type safety | Catch bugs early, better IDE support |
 | **Vite** | Build tool | Fast HMR, optimized production builds |
+
+### ⚠️ When to Use Alternative Approaches
+
+This stack (ECS + R3F + TypeScript) is **optimized for production games**, but consider alternatives if:
+
+#### Use Vanilla Three.js Instead When:
+- Building a **quick prototype** (<2 days, experimental)
+- Learning **Three.js fundamentals** (no React/ECS overhead)
+- Maximum **performance** needed (direct WebGL control)
+- **No TypeScript** required
+- Building a **minimal demo** (<100 lines of code)
+
+#### Use Simple React + R3F Instead When:
+- **Quick interactive scene** (portfolio, landing page)
+- **No game logic** needed (just 3D visualization)
+- **Small project** (1-2 pages, simple interactions)
+- **Learning R3F basics** (before adding ECS complexity)
+
+#### Use React-Three-Next Instead When:
+- **Multi-page website** with 3D on multiple pages
+- **SEO-critical** content (product pages, marketing sites)
+- **Next.js features** needed (SSR, API routes, image optimization)
+- **Server-side rendering** required
+
+#### Use Different Game Engine When:
+- **Desktop/mobile native** game (Unity, Unreal, Godot)
+- **Existing team expertise** (if team already knows another engine)
+- **Platform-specific features** (native APIs, platform integrations)
+- **Massive multiplayer** (>100 players, requires different architecture)
+
+**Decision Framework:**
+```markdown
+1. Is this a production game? → Use this stack
+2. Is this a website with 3D? → Consider react-three-next
+3. Is this a prototype/learning project? → Vanilla Three.js or simple R3F
+4. What are team skills? → Match to existing expertise
+```
+
+For framework comparisons, see: **[MASTER_THREEJS_BEST_PRACTICES.md](./MASTER_THREEJS_BEST_PRACTICES.md)** > "Repository Profiles"
 
 ---
 
@@ -214,6 +278,8 @@ function EnemyView({ entity }: { entity: Entity }) {
 - ✅ Reusable traits across entities
 - ✅ Performance through data-oriented design
 - ✅ Easy to add/remove features
+
+> 💡 **Pattern Type:** ⭐ **Canonical Standard** (use ECS for all game logic)
 
 ---
 
