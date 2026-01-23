@@ -8,6 +8,53 @@ import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import * as LZString from 'lz-string';
 
+// ==================== BLOCK DIMENSIONS ====================
+// These constants define the exact block heights used in the Kenny Platformer Kit
+// They must match the actual asset dimensions and are used for:
+// - Elevation button increments (raise blocks by exactly one block height)
+// - Asset placement surface detection (expanding placement area around blocks)
+// - Height planes (visual guides for asset placement at different elevations)
+const BLOCK_HEIGHT_REGULAR = 3.0;  // Standard blocks (corner, curve, hexagon, narrow, long, edge)
+const BLOCK_HEIGHT_LARGE = 4.0;    // Large blocks (for tile-sized structures)
+
+// ==================== PLACEMENT PLANE SYSTEM ====================
+// ALL block placements are locked to specific Y planes defined by BLOCK_HEIGHT_LARGE
+// Each plane is at Y = n * BLOCK_HEIGHT_LARGE, where n = 0, 1, 2, 3...
+// Ground plane is at Y = 0 (block bottom at 0, center at BLOCK_HEIGHT_LARGE/2)
+// Next plane is at Y = BLOCK_HEIGHT_LARGE, etc.
+// 
+// CRITICAL: Block position Y represents the CENTER of the block
+// So for a block with scale S sitting on plane at height P:
+//   - Block bottom = P
+//   - Block center (position.y) = P + (S/2)
+//   - Block top = P + S
+//
+// This ensures all blocks sitting on the same plane have aligned bottoms.
+// 
+// To place a block on plane P with scale S:
+//   newPosition.y = P + (S / 2)
+//
+// To find the next plane for a block on top of an existing block:
+//   existingBlockPlane = block.position.y - (block.scale / 2)  // Get plane it's sitting on
+//   nextPlane = existingBlockPlane + block.scale  // Top of that block
+//   snapToPlane(nextPlane)
+
+function snapToPlane(y: number): number {
+  // Snap Y position to nearest placement plane (multiple of BLOCK_HEIGHT_LARGE)
+  return Math.round(y / BLOCK_HEIGHT_LARGE) * BLOCK_HEIGHT_LARGE;
+}
+
+function getBlockCenterFromPlane(planeY: number, blockScale: number): number {
+  // Given a plane height and block scale, return the center Y position
+  return planeY + (blockScale / 2);
+}
+
+// Helper function for debugging: given a block's center Y and scale, return the plane it's sitting on
+// Useful for log output and diagnostics
+// function getPlaneFromBlockCenter(centerY: number, blockScale: number): number {
+//   return centerY - (blockScale / 2);
+// }
+
 // ==================== ASSET CATALOGUE ====================
 
 interface AssetInfo {
@@ -880,6 +927,8 @@ function BlockClickHandler({
     };
 
     // Helper to find the surface height under a 3D point by checking placed blocks
+    // Expands detection area around blocks to allow asset placement across the full block surface
+    // (not just a tiny 1/10th area in the center)
     const getSurfaceHeightAtPoint = (x: number, z: number): number | null => {
       let maxHeight: number | null = null;
       const currentBlocks = placedBlocksRef.current;
@@ -898,16 +947,17 @@ function BlockClickHandler({
         const by = block.position[1];
         const scale = block.scale || 1;
         
-        // Block extends from center by scale/2 in each direction
-        const halfScale = scale / 2;
-        const minX = bx - halfScale;
-        const maxX = bx + halfScale;
-        const minZ = bz - halfScale;
-        const maxZ = bz + halfScale;
+        // Expand detection area: use full scale (not just halfScale) to allow placing assets
+        // across the entire block top surface, not just the center 1/10th
+        const detectionRange = scale * 0.55; // Slightly larger than halfScale (0.5) for better coverage
+        const minX = bx - detectionRange;
+        const maxX = bx + detectionRange;
+        const minZ = bz - detectionRange;
+        const maxZ = bz + detectionRange;
         
-        // Check if point is within this block's horizontal bounds
+        // Check if point is within this block's expanded horizontal bounds
         if (x >= minX && x <= maxX && z >= minZ && z <= maxZ) {
-          const topHeight = by + halfScale;
+          const topHeight = by + (scale / 2);
           if (maxHeight === null || topHeight > maxHeight) {
             maxHeight = topHeight;
             console.log(`[getSurfaceHeightAtPoint] Hit block at (${bx.toFixed(1)}, ${bz.toFixed(1)}), point at (${x.toFixed(2)}, ${z.toFixed(2)}), height: ${topHeight.toFixed(2)}`);
@@ -954,17 +1004,32 @@ function BlockClickHandler({
           setPreviewPosition(null);
           return;
         }
-        // Place at exact mouse position on surface
-        setPreviewPosition([worldPos.x, surface + assetYOffset, worldPos.z]);
+        // Snap surface to nearest plane boundary
+        const snappedPlane = snapToPlane(surface);
+        // Place at exact mouse position on snapped plane
+        setPreviewPosition([worldPos.x, snappedPlane + assetYOffset, worldPos.z]);
         return;
       }
 
       // Blocks: snap to grid as before
-      const [sx, sz] = snap(worldPos.x, worldPos.z, 1);
-      const surface = getSurfaceHeight(sx, sz);
-      // Blocks: use current elevation but ensure we do not go below surface
-      const elevation = Math.max(currentElevation, surface ?? currentElevation);
-      setPreviewPosition([sx, elevation, sz]);
+      if (selectedBlock) {
+        const [sx, sz] = snap(worldPos.x, worldPos.z, 1);
+        const surface = getSurfaceHeight(sx, sz);
+        
+        // Determine block scale for preview
+        const previewScale = selectedBlock.includes('large') || selectedBlock.includes('Large') ? BLOCK_HEIGHT_LARGE : BLOCK_HEIGHT_REGULAR;
+        
+        // currentElevation is the PLANE height
+        const surfacePlane = surface ?? 0;
+        const basePlane = Math.max(currentElevation, surfacePlane);
+        
+        // Snap the plane to the nearest plane boundary
+        const snappedPlane = snapToPlane(basePlane);
+        
+        // Block center Y for preview
+        const blockCenterY = getBlockCenterFromPlane(snappedPlane, previewScale);
+        setPreviewPosition([sx, blockCenterY, sz]);
+      }
     };
 
     const handleMouseUp = (event: MouseEvent) => {
@@ -1086,21 +1151,40 @@ function BlockClickHandler({
       } else if (selectedBlock) {
         const [sx, sz] = snap(worldPos.x, worldPos.z, 1);
         const surface = getSurfaceHeight(sx, sz);
-        const newElevation = Math.max(currentElevation, surface ?? currentElevation);
-        const newPosition: [number, number, number] = [sx, newElevation, sz];
+        
+        // Determine block scale
+        const scale = selectedBlock.includes('large') || selectedBlock.includes('Large') ? BLOCK_HEIGHT_LARGE : BLOCK_HEIGHT_REGULAR;
+        
+        // currentElevation is the PLANE height where block bottom sits
+        // Get the highest surface at this location, ensure we don't go below it
+        const surfacePlane = surface ?? 0;
+        const basePlane = Math.max(currentElevation, surfacePlane);
+        
+        // Snap the plane to the nearest plane boundary (multiple of BLOCK_HEIGHT_LARGE)
+        const snappedPlane = snapToPlane(basePlane);
+        
+        // Block center Y = plane height + (scale / 2)
+        const blockCenterY = getBlockCenterFromPlane(snappedPlane, scale);
+        
+        const newPosition: [number, number, number] = [sx, blockCenterY, sz];
         const rotation = 0; // All blocks same orientation
-        // Scale blocks: large blocks 4x (tile-sized), regular blocks 3x (bigger than player)
-        const scale = selectedBlock.includes('large') || selectedBlock.includes('Large') ? 4.0 : 3.0;
         onPlaceBlock({ position: newPosition, rotation, scale });
       } else if (selectedAsset) {
-        // Raycast against actual placed blocks to find surface height
+        // Raycast against actual placed blocks to find surface height (plane where asset sits)
         const surface = getSurfaceHeightAtPoint(worldPos.x, worldPos.z);
         // Assets only on collisions; if none, abort placement
         if (surface === null) {
           return;
         }
-        // Place at exact mouse position on the surface
-        const newPosition: [number, number, number] = [worldPos.x, surface + assetYOffset, worldPos.z];
+        
+        // surface is the plane height where asset bottom sits
+        // Snap to nearest plane boundary (multiple of BLOCK_HEIGHT_LARGE)
+        const snappedPlane = snapToPlane(surface);
+        
+        // Assets sit on the plane - place them at plane height + offset
+        // The asset offset should position the asset on top of the plane
+        const assetY = snappedPlane + assetYOffset;
+        const newPosition: [number, number, number] = [worldPos.x, assetY, worldPos.z];
         
         // Apply randomization
         const randomized = randomizeAsset(selectedAsset);
@@ -1213,7 +1297,7 @@ export function KennyBlocks() {
   const [assetRandomizeScale, setAssetRandomizeScale] = useState(true);
   const [expandedAssetCategories, setExpandedAssetCategories] = useState<Set<string>>(new Set(['trees']));
   const [previewAssetRandom, setPreviewAssetRandom] = useState<{ scale: number; rotation: number }>({ scale: 1, rotation: 0 });
-  const [assetYOffset, setAssetYOffset] = useState(2); // default lift to sit on block tops
+  const [assetYOffset, setAssetYOffset] = useState(-0.5); // Negative offset to position asset bottom on block surface (Y offset in units)
   const [erasePreview, setErasePreview] = useState<[number, number, number] | null>(null);
 
   // ==================== Undo/Redo System ====================
@@ -1268,10 +1352,11 @@ export function KennyBlocks() {
       const bz = block.position[2];
       const by = block.position[1];
       const scale = block.scale || 1;
-      const half = scale / 2;
+      // Expand detection area to full block surface (not just center)
+      const detectionRange = scale * 0.55; // Slightly larger than halfScale for better coverage
 
-      if (x >= bx - half && x <= bx + half && z >= bz - half && z <= bz + half) {
-        const top = by + half;
+      if (x >= bx - detectionRange && x <= bx + detectionRange && z >= bz - detectionRange && z <= bz + detectionRange) {
+        const top = by + (scale / 2);
         if (maxHeight === null || top > maxHeight) {
           maxHeight = top;
         }
@@ -1359,15 +1444,18 @@ export function KennyBlocks() {
 
   const handleNext = async () => {
     console.log('[handleNext] Starting export...', { blockCount: placedBlocks.length, assetCount: placedAssets.length });
-    // Export collision mesh from blocks + assets - all merged into ONE solid mesh
-    const allGeometries: THREE.BufferGeometry[] = [];
     
-    // Add block collision boxes
+    // PHASE 1: Export BLOCKS ONLY for collision mesh (NOT assets)
+    const blockGeometries: THREE.BufferGeometry[] = [];
+    let blockGeoCount = 0;
+    
     placedBlocks.forEach((block) => {
       const bx = block.position[0];
       const by = block.position[1];
       const bz = block.position[2];
       const scale = block.scale;
+      
+      console.log(`[handleNext] Block export: position=[${bx}, ${by}, ${bz}], scale=${scale}`);
       
       const geometry = new THREE.BoxGeometry(scale, scale, scale);
       const mesh = new THREE.Mesh(geometry);
@@ -1378,11 +1466,16 @@ export function KennyBlocks() {
       // Extract geometry with world transform
       const geom = geometry.clone();
       geom.applyMatrix4(mesh.matrixWorld);
-      allGeometries.push(geom);
+      blockGeometries.push(geom);
+      blockGeoCount++;
     });
+    console.log(`[handleNext] Extracted ${blockGeoCount} block geometries (collision only)`);
     
-    // Add asset geometry - actual visual geometry, not just collision boxes
+    // PHASE 2: Export ASSETS INDIVIDUALLY (not merged with blocks)
+    console.log('[handleNext] Starting individual asset export...');
+    const assetExports: { id: string; glbData: string }[] = [];
     const assetPromises: Promise<void>[] = [];
+    
     placedAssets.forEach((asset) => {
       assetPromises.push(
         new Promise((resolve) => {
@@ -1391,6 +1484,8 @@ export function KennyBlocks() {
             asset.asset.path,
             (gltf) => {
               try {
+                console.log(`[handleNext] Exporting asset ${asset.asset.name} as individual GLB...`);
+                
                 // Create parent group with asset's world transform
                 const assetGroup = new THREE.Group();
                 assetGroup.position.set(...asset.position);
@@ -1407,22 +1502,51 @@ export function KennyBlocks() {
                 assetGroup.add(cloned);
                 assetGroup.updateMatrixWorld(true);
                 
-                // Extract ALL visual geometry with full world transform
-                assetGroup.traverse((child) => {
-                  if (child instanceof THREE.Mesh && child.geometry) {
-                    const geo = child.geometry as THREE.BufferGeometry;
-                    const clonedGeo = geo.clone();
-                    clonedGeo.applyMatrix4(child.matrixWorld);
-                    allGeometries.push(clonedGeo);
+                // Create individual scene for this asset only
+                const assetScene = new THREE.Scene();
+                assetScene.add(assetGroup);
+                
+                // Export individual asset to GLB
+                const exporter = new GLTFExporter();
+                exporter.parse(
+                  assetScene,
+                  (result) => {
+                    const output = result as ArrayBuffer;
+                    const blob = new Blob([output], { type: 'model/gltf-binary' });
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      const base64 = reader.result as string;
+                      const compressed = LZString.compressToBase64(base64);
+                      assetExports.push({ id: asset.id, glbData: compressed });
+                      console.log(`[handleNext] Exported asset ${asset.id} (${asset.asset.name})`);
+                      resolve();
+                    };
+                    reader.onerror = () => {
+                      console.warn(`[handleNext] Failed to encode asset ${asset.id}`);
+                      resolve();
+                    };
+                    reader.readAsDataURL(blob);
+                  },
+                  (error) => {
+                    console.warn(`[handleNext] Failed to export asset ${asset.asset.name}:`, error);
+                    resolve();
+                  },
+                  {
+                    binary: true,
+                    includeCustomExtensions: true,
+                    embedImages: true
                   }
-                });
+                );
               } catch (e) {
                 console.warn(`[handleNext] Failed to process asset ${asset.asset.name}:`, e);
+                resolve();
               }
-              resolve();
             },
             undefined,
-            () => resolve()
+            (err) => {
+              console.error(`[handleNext] Failed to load asset ${asset.asset.name}:`, err);
+              resolve();
+            }
           );
         })
       );
@@ -1430,20 +1554,46 @@ export function KennyBlocks() {
 
     try {
       await Promise.all(assetPromises);
-      console.log('[handleNext] Assets loaded, total geometries:', allGeometries.length);
+      console.log('[handleNext] Individual asset export complete:', assetExports.length, 'assets exported');
     } catch (e) {
-      console.warn('[handleNext] Asset loading error:', e);
+      console.warn('[handleNext] Asset export error:', e);
     }
 
-    if (allGeometries.length === 0) {
-      console.error('[handleNext] No geometries to export!');
+    if (blockGeometries.length === 0 && placedAssets.length === 0) {
+      console.error('[handleNext] No blocks or assets to export!');
       alert('No blocks or assets to export');
       return;
     }
 
     try {
-      // Merge ALL geometries (blocks + assets) into ONE single solid mesh
-      const mergedGeometry = BufferGeometryUtils.mergeGeometries(allGeometries, true);
+      // PHASE 3: Merge BLOCKS ONLY into collision mesh (assets are separate)
+      let mergedGeometry: THREE.BufferGeometry | null = null;
+      
+      if (blockGeometries.length > 0) {
+        const normalizedGeometries = blockGeometries.map((geo) => {
+          let normalized = geo.clone();
+          if (normalized.index) {
+            normalized = normalized.toNonIndexed();
+          }
+          // Keep only position for collision
+          Object.keys(normalized.attributes).forEach((attr) => {
+            if (attr !== 'position') {
+              normalized.deleteAttribute(attr);
+            }
+          });
+          return normalized;
+        });
+        
+        mergedGeometry = BufferGeometryUtils.mergeGeometries(normalizedGeometries, false);
+      }
+      
+      if (!mergedGeometry) {
+        console.warn('[handleNext] No block geometry to merge, creating empty collision mesh');
+        mergedGeometry = new THREE.BoxGeometry(1, 1, 1);
+      }
+      
+      console.log('[handleNext] Block collision mesh created:', { vertices: mergedGeometry.attributes.position.count });
+      
       const mergedMesh = new THREE.Mesh(
         mergedGeometry,
         new THREE.MeshStandardMaterial({ color: 0x808080 })
@@ -1463,19 +1613,30 @@ export function KennyBlocks() {
             const base64 = reader.result as string;
             const compressed = LZString.compressToBase64(base64);
             
-            // Save merged collision mesh to localStorage
-            const collisionKey = 'quest_collisions_merged';
+            // Save BLOCKS ONLY collision mesh
+            const collisionKey = 'quest_collisions_blocks';
             localStorage.setItem(collisionKey, compressed);
+            console.log('[handleNext] Block collision mesh saved to:', collisionKey);
             
-            // Also save metadata about the level
+            // Save metadata about the level
             const levelData = {
               blockCount: placedBlocks.length,
               assetCount: placedAssets.length,
+              assetExportCount: assetExports.length,
               createdAt: new Date().toISOString(),
+              version: '2.0',
+              note: 'Blocks and assets stored separately for proper rendering'
             };
             localStorage.setItem('level_metadata', JSON.stringify(levelData));
             
-            // CRITICAL: Save asset data so they load in the game world
+            // Save INDIVIDUAL ASSETS (NOT merged)
+            assetExports.forEach((asset) => {
+              const assetKey = `asset_glb_${asset.id}`;
+              localStorage.setItem(assetKey, asset.glbData);
+              console.log(`[handleNext] Asset ${asset.id} saved to ${assetKey}`);
+            });
+            
+            // Save asset metadata for runtime instantiation
             localStorage.setItem('placed_assets_data', JSON.stringify(placedAssets.map(asset => ({
               id: asset.id,
               assetName: asset.asset.name,
@@ -1484,12 +1645,24 @@ export function KennyBlocks() {
               rotation: asset.rotation,
               scale: asset.scale,
               defaultScale: asset.asset.defaultScale,
+              renderOrder: 10, // Assets render above blocks
             }))));
             
-            // Persist spawn info for next scene and navigate
+            // Save block data for visual representation
+            localStorage.setItem('placed_blocks_data', JSON.stringify(placedBlocks.map(block => ({
+              id: block.id,
+              blockType: block.blockType,
+              position: block.position,
+              rotation: block.rotation,
+              scale: block.scale,
+              renderOrder: 0, // Blocks render below assets
+            }))));
+            
+            // Persist spawn info
             localStorage.setItem('player_spawn', JSON.stringify({ x: 0, y: 0, z: 0 }));
-            alert('World exported successfully! All blocks and assets merged into one solid mesh. Loading...');
-            console.log('[Next] Collision mesh saved:', { collisionKey, levelData, geometryCount: allGeometries.length });
+            
+            alert(`World exported successfully!\n\n✓ Blocks: Merged collision mesh\n✓ Assets: Individual objects (${assetExports.length} assets)\n✓ Rendering: Assets above blocks\n\nLoading...`);
+            console.log('[handleNext] Export complete:', { blockCollisionKey: collisionKey, assetCount: assetExports.length, levelData });
             try {
               navigate('/kenny-demo');
             } catch (e) {
@@ -1500,7 +1673,7 @@ export function KennyBlocks() {
           reader.readAsDataURL(blob);
         },
         (error) => {
-          console.error('[Next] Export error:', error);
+          console.error('[handleNext] Export error:', error);
           alert('Failed to export collision mesh');
         },
         {
@@ -1510,8 +1683,8 @@ export function KennyBlocks() {
         }
       );
     } catch (error) {
-      console.error('[Next] Merge error:', error);
-      alert('Failed to merge collision geometries: ' + (error as Error).message);
+      console.error('[handleNext] Export error:', error);
+      alert('Failed to export world: ' + (error as Error).message);
     }
   };
 
@@ -2393,7 +2566,7 @@ export function KennyBlocks() {
               setCameraRotation(45);
               setCameraPitch(35);
               setCurrentElevation(0);
-              setAssetYOffset(2);
+              setAssetYOffset(0);
               setCameraPreset('isometric');
               setShowGrid(true);
               setShowCollisionBoxes(false);
@@ -2458,8 +2631,8 @@ export function KennyBlocks() {
             <div style={{ display: 'flex', gap: '5px', marginBottom: '10px' }}>
               <button
                 onClick={() => {
-                  const step = selectedBlock && (selectedBlock.includes('large') || selectedBlock.includes('Large')) ? 4.0 : 3.0;
-                  setCurrentElevation(e => Math.max(-50, e - step));
+                  // Always increment by BLOCK_HEIGHT_LARGE to maintain consistent planes
+                  setCurrentElevation(e => Math.max(-50, e - BLOCK_HEIGHT_LARGE));
                   setShowElevationOverlay(false);
                 }}
                 style={{
@@ -2478,8 +2651,8 @@ export function KennyBlocks() {
               </button>
               <button
                 onClick={() => {
-                  const step = selectedBlock && (selectedBlock.includes('large') || selectedBlock.includes('Large')) ? 4.0 : 3.0;
-                  setCurrentElevation(e => Math.min(100, e + step));
+                  // Always increment by BLOCK_HEIGHT_LARGE to maintain consistent planes
+                  setCurrentElevation(e => Math.min(100, e + BLOCK_HEIGHT_LARGE));
                   setShowElevationOverlay(true);
                 }}
                 style={{
@@ -2503,7 +2676,12 @@ export function KennyBlocks() {
               max="100"
               step="5"
               value={currentElevation}
-              onChange={(e) => setCurrentElevation(Number(e.target.value))}
+              onChange={(e) => {
+                // Snap to nearest plane (multiple of BLOCK_HEIGHT_LARGE)
+                const rawValue = Number(e.target.value);
+                const snappedValue = snapToPlane(rawValue);
+                setCurrentElevation(snappedValue);
+              }}
               style={{ width: '100%' }}
             />
           </div>

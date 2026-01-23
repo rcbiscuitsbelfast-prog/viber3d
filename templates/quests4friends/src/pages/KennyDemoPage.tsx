@@ -116,7 +116,7 @@ function AnimationUpdater() {
 }
 
 // Character controller
-function CharacterModel({ input, worldMesh }: { input: CharacterInput; worldMesh: THREE.Group | null }) {
+function CharacterModel({ input, worldMesh, playerHeightOffset }: { input: CharacterInput; worldMesh: THREE.Group | null; playerHeightOffset: number }) {
   const groupRef = useRef<THREE.Group>(null);
   const [model, setModel] = useState<THREE.Object3D | null>(null);
   const velocityRef = useRef(new THREE.Vector3());
@@ -124,7 +124,6 @@ function CharacterModel({ input, worldMesh }: { input: CharacterInput; worldMesh
   const isGroundedRef = useRef(true);
   const directionRef = useRef<'idle' | 'walk' | 'run'>('idle');
   const raycaster = useRef(new THREE.Raycaster());
-  const { camera } = useThree();
 
   useEffect(() => {
     if (!groupRef.current) return;
@@ -146,8 +145,10 @@ function CharacterModel({ input, worldMesh }: { input: CharacterInput; worldMesh
         
         groupRef.current!.clear();
         groupRef.current!.add(characterScene);
-        characterScene.scale.setScalar(0.15); // Shrink player to 1/10th size
-        characterScene.position.set(0, 0, 0);
+        // Mark the group so the camera controller can lock onto it
+        groupRef.current!.userData.isCharacter = true;
+        characterScene.scale.setScalar(0.20); // Shrink player to 1/10th size
+        characterScene.position.set(0, playerHeightOffset, 0);
         characterScene.visible = true;
         characterScene.traverse((child) => {
           if (child instanceof THREE.Mesh) {
@@ -264,19 +265,6 @@ function CharacterModel({ input, worldMesh }: { input: CharacterInput; worldMesh
     
     groupRef.current.position.copy(newPosition);
 
-    // Camera follow (isometric) - scaled for tiny player (0.1x scale)
-    const angle = Math.PI * 0.25;
-    const distance = 1.5; // Scaled down from 15 to match 0.1x player scale
-    const pitch = Math.PI / 4;
-    const height = Math.sin(pitch) * distance;
-    const horizontalDistance = Math.cos(pitch) * distance;
-    
-    const charPosition = groupRef.current.position;
-    camera.position.x = charPosition.x + Math.sin(angle) * horizontalDistance;
-    camera.position.y = charPosition.y + height;
-    camera.position.z = charPosition.z + Math.cos(angle) * horizontalDistance;
-    camera.lookAt(charPosition.x, charPosition.y + 0.5, charPosition.z);
-
     // Rotate character
     if (velocityRef.current.lengthSq() > 0.01) {
       const targetRotation = Math.atan2(velocityRef.current.x, velocityRef.current.z);
@@ -296,7 +284,31 @@ function CharacterModel({ input, worldMesh }: { input: CharacterInput; worldMesh
 // Loaded world mesh
 function LoadedWorldMesh({ mesh }: { mesh: THREE.Group | null }) {
   if (!mesh) return null;
-  mesh.position.y = -4.5;
+  // Don't offset - let blocks and assets match their saved positions
+  mesh.position.y = 0;
+  
+  // Debug: log mesh structure
+  let meshCount = 0;
+  let vertexCount = 0;
+  mesh.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      meshCount++;
+      vertexCount += child.geometry.attributes.position.count;
+      
+      // Replace with a visible material if needed
+      if (!child.material || (child.material as THREE.Material).opacity === 0) {
+        child.material = new THREE.MeshStandardMaterial({ 
+          color: 0x808080,
+          roughness: 0.8,
+          metalness: 0.2,
+        });
+      }
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+  console.log(`[LoadedWorldMesh] Loaded collision mesh with ${meshCount} meshes, ${vertexCount} vertices`);
+  
   return <primitive object={mesh} />;
 }
 
@@ -311,19 +323,22 @@ function PlacedAssetsRenderer({ assetsData }: { assetsData: any[] }) {
   );
 }
 
-// Individual asset instance
-function PlacedAssetInstance({ assetData }: { assetData: any }) {
+// Individual block instance
+function PlacedBlockInstance({ blockData }: { blockData: any }) {
   const groupRef = useRef<THREE.Group>(null);
   const [scene, setScene] = useState<THREE.Group | null>(null);
 
   useEffect(() => {
     const loader = new GLTFLoader();
+    const blockPath = `/Assets/kenney_platformer-kit/Models/GLB format/${blockData.blockType}.glb`;
+    
+    console.log(`[PlacedBlockInstance] Loading block: type=${blockData.blockType}, position=[${blockData.position}], scale=${blockData.scale}`);
+    
     loader.load(
-      assetData.assetPath,
+      blockPath,
       (gltf) => {
         const cloned = gltf.scene.clone();
-        const finalScale = assetData.scale * (assetData.defaultScale || 1.0);
-        cloned.scale.setScalar(finalScale);
+        cloned.scale.setScalar(blockData.scale);
         cloned.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             child.castShadow = true;
@@ -334,17 +349,342 @@ function PlacedAssetInstance({ assetData }: { assetData: any }) {
       },
       undefined,
       (error) => {
-        console.error(`Failed to load asset ${assetData.assetName}:`, error);
+        console.error(`Failed to load block ${blockData.blockType}:`, error);
       }
     );
-  }, [assetData.assetPath, assetData.defaultScale, assetData.scale]);
+  }, [blockData.blockType, blockData.scale, blockData.position]);
 
   if (!scene) return null;
 
-  // Apply same Y-offset as world mesh (-4.5) so assets align with blocks
+  // Match collision mesh position (no offset)
+  const adjustedPosition: [number, number, number] = [
+    blockData.position[0],
+    blockData.position[1],
+    blockData.position[2],
+  ];
+
+  console.log(`[PlacedBlockInstance] Rendering block at position=[${adjustedPosition}]`);
+
+  return (
+    <group 
+      ref={groupRef} 
+      position={adjustedPosition}
+      rotation={[0, blockData.rotation, 0]}
+    >
+      <primitive object={scene} />
+    </group>
+  );
+}
+
+// Render placed blocks from save data
+function PlacedBlocksRenderer({ blocksData }: { blocksData: any[] }) {
+  return (
+    <>
+      {blocksData && blocksData.map((blockData) => (
+        <PlacedBlockInstance key={blockData.id} blockData={blockData} />
+      ))}
+    </>
+  );
+}
+
+// Camera controller that follows character with adjustable distance/pitch
+function CameraController({ distance, pitch }: { distance: number; pitch: number }) {
+  const { camera, scene } = useThree();
+  const characterPosRef = useRef([0, 0.5, 0]);
+  const isMobile = window.innerWidth < 768;
+  const effectiveDistance = isMobile ? distance * 0.7 : distance; // Closer on mobile
+
+  useFrame(() => {
+    // Look for the tagged character group
+    let charPos = characterPosRef.current;
+    scene.traverse((obj) => {
+      if (obj.userData?.isCharacter) {
+        charPos = [obj.position.x, obj.position.y, obj.position.z];
+        characterPosRef.current = charPos;
+      }
+    });
+
+    const [cx, cy, cz] = characterPosRef.current;
+    const angle = Math.PI / 4; // 45 degrees for isometric view
+
+    // Calculate camera position based on distance and pitch
+    const camX = cx + effectiveDistance * Math.cos(angle);
+    const camY = cy + effectiveDistance * pitch;
+    const camZ = cz + effectiveDistance * Math.sin(angle);
+
+    camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.15);
+    camera.lookAt(cx, cy + 0.5, cz);
+  });
+
+  return null;
+}
+
+// Render the settings panel
+function SettingsPanel({
+  cameraDistance,
+  setCameraDistance,
+  cameraPitch,
+  setCameraPitch,
+  playerHeightOffset,
+  setPlayerHeightOffset,
+  placedAssets,
+}: {
+  cameraDistance: number;
+  setCameraDistance: (val: number) => void;
+  cameraPitch: number;
+  setCameraPitch: (val: number) => void;
+  playerHeightOffset: number;
+  setPlayerHeightOffset: (val: number) => void;
+  placedAssets: any[];
+}) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: window.innerWidth < 768 ? '10px' : '20px',
+        top: window.innerWidth < 768 ? 'auto' : '20px',
+        bottom: window.innerWidth < 768 ? '10px' : 'auto',
+        right: window.innerWidth < 768 ? '10px' : 'auto',
+        zIndex: 100,
+        background: 'rgba(0, 0, 0, 0.85)',
+        padding: window.innerWidth < 768 ? '10px' : '15px',
+        borderRadius: '8px',
+        color: 'white',
+        fontFamily: 'monospace',
+        fontSize: window.innerWidth < 768 ? '12px' : '13px',
+        maxWidth: window.innerWidth < 768 ? 'calc(100vw - 20px)' : '250px',
+        maxHeight: window.innerWidth < 768 ? '40vh' : '90vh',
+        overflowY: 'auto',
+      }}
+    >
+      <div style={{ marginBottom: '15px', fontWeight: 'bold', fontSize: '14px' }}>
+        ⚙️ Settings
+      </div>
+
+      {/* Camera Distance */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ display: 'block', marginBottom: '4px' }}>
+          Camera Distance: {cameraDistance.toFixed(2)}
+        </label>
+        <input
+          type="range"
+          min="0.5"
+          max="5"
+          step="0.1"
+          value={cameraDistance}
+          onChange={(e) => setCameraDistance(parseFloat(e.target.value))}
+          style={{ width: '100%' }}
+        />
+      </div>
+
+      {/* Camera Pitch */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ display: 'block', marginBottom: '4px' }}>
+          Camera Pitch: {cameraPitch.toFixed(2)}
+        </label>
+        <input
+          type="range"
+          min="0.1"
+          max="2"
+          step="0.1"
+          value={cameraPitch}
+          onChange={(e) => setCameraPitch(parseFloat(e.target.value))}
+          style={{ width: '100%' }}
+        />
+      </div>
+
+      {/* Player Height Offset */}
+      <div style={{ marginBottom: '12px' }}>
+        <label style={{ display: 'block', marginBottom: '4px' }}>
+          Player Height: {playerHeightOffset.toFixed(2)}
+        </label>
+        <input
+          type="range"
+          min="-2"
+          max="2"
+          step="0.1"
+          value={playerHeightOffset}
+          onChange={(e) => setPlayerHeightOffset(parseFloat(e.target.value))}
+          style={{ width: '100%' }}
+        />
+      </div>
+
+      {/* Debug Info */}
+      <div style={{ marginTop: '15px', borderTop: '1px solid #666', paddingTop: '12px' }}>
+        <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>📊 Debug Info</div>
+        <div style={{ fontSize: '12px', lineHeight: '1.6' }}>
+          <div>Assets Loaded: {placedAssets.length}</div>
+          {placedAssets.length > 0 && (
+            <div style={{ marginTop: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+              {placedAssets.map((asset, i) => (
+                <div
+                  key={i}
+                  style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    padding: '6px',
+                    marginBottom: '4px',
+                    borderRadius: '3px',
+                  }}
+                >
+                  <div>{asset.assetName}</div>
+                  <div style={{ color: '#aaa', fontSize: '11px' }}>
+                    Pos: [{asset.position[0].toFixed(1)}, {asset.position[1].toFixed(1)}, {asset.position[2].toFixed(1)}]
+                  </div>
+                  <div style={{ color: '#aaa', fontSize: '11px' }}>
+                    Path: {asset.assetPath ? '✓' : '✗'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+function PlacedAssetInstance({ assetData }: { assetData: any }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const [scene, setScene] = useState<THREE.Group | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    
+    console.log(`[PlacedAssetInstance] Loading asset from individual GLB:`, assetData.id, assetData.assetName);
+    
+    // NEW: Try to load from individual asset GLB (stored in localStorage during export)
+    const glbKey = `asset_glb_${assetData.id}`;
+    const glbData = localStorage.getItem(glbKey);
+    
+    if (!glbData) {
+      // Fallback: Load from original asset path
+      console.warn(`[PlacedAssetInstance] No individual GLB found for ${assetData.id}, falling back to original path:`, assetData.assetPath);
+      
+      const loader = new GLTFLoader();
+      loader.load(
+        assetData.assetPath,
+        (gltf) => {
+          processLoadedAsset(gltf.scene, assetData);
+        },
+        undefined,
+        (error) => {
+          const msg = `Failed to load asset ${assetData.assetName}: ${error instanceof Error ? error.message : String(error)}`;
+          console.error(msg, error);
+          setError(msg);
+          setLoading(false);
+        }
+      );
+    } else {
+      // Load from individual GLB in localStorage
+      try {
+        const decompressed = LZString.decompressFromBase64(glbData) || glbData;
+        const base64 = decompressed.includes(',') ? decompressed.split(',')[1] : decompressed;
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+
+        const loader = new GLTFLoader();
+        loader.parse(
+          bytes.buffer,
+          '',
+          (gltf) => {
+            processLoadedAsset(gltf.scene, assetData);
+          },
+          (error) => {
+            const msg = `Failed to parse asset GLB ${assetData.assetName}: ${error instanceof Error ? error.message : String(error)}`;
+            console.error(msg, error);
+            setError(msg);
+            setLoading(false);
+          }
+        );
+      } catch (e) {
+        console.warn(`[PlacedAssetInstance] Failed to load individual GLB for ${assetData.id}, falling back to original path`, e);
+        
+        const loader = new GLTFLoader();
+        loader.load(
+          assetData.assetPath,
+          (gltf) => {
+            processLoadedAsset(gltf.scene, assetData);
+          },
+          undefined,
+          (error) => {
+            const msg = `Failed to load asset ${assetData.assetName}: ${error instanceof Error ? error.message : String(error)}`;
+            console.error(msg, error);
+            setError(msg);
+            setLoading(false);
+          }
+        );
+      }
+    }
+
+    function processLoadedAsset(loadedScene: THREE.Object3D, data: any) {
+      const cloned = loadedScene.clone();
+      const finalScale = data.scale * (data.defaultScale || 1.0);
+      cloned.scale.setScalar(finalScale);
+      
+      // Configure mesh properties - let Three.js handle render order naturally via depth sorting
+      cloned.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          
+          // Ensure proper depth testing for correct rendering
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach((mat) => {
+                mat.depthTest = false;
+                mat.depthWrite = false;
+              });
+            } else {
+              child.material.depthTest = false;
+              child.material.depthWrite = false;
+            }
+          }
+        }
+      });
+      
+      setScene(cloned as THREE.Group);
+      setLoading(false);
+      console.log(`[PlacedAssetInstance] Loaded ${data.assetName} successfully`);
+    }
+  }, [assetData.id, assetData.assetPath, assetData.defaultScale, assetData.scale, assetData.assetName]);
+
+  // Set renderOrder to ensure assets appear on top of blocks
+  useEffect(() => {
+    if (scene && groupRef.current) {
+      // groupRef.current.renderOrder = 10;
+    }
+  }, [scene]);
+
+  if (loading) {
+    return (
+      <group position={assetData.position}>
+        <mesh>
+          <boxGeometry args={[0.5, 0.5, 0.5]} />
+          <meshStandardMaterial color={0xffff00} />
+        </mesh>
+      </group>
+    );
+  }
+
+  if (error || !scene) {
+    console.warn(`[PlacedAssetInstance] Error state for ${assetData.assetName}`);
+    return (
+      <group position={assetData.position}>
+        <mesh>
+          <boxGeometry args={[0.5, 0.5, 0.5]} />
+          <meshStandardMaterial color={0xff0000} />
+        </mesh>
+      </group>
+    );
+  }
+
+  // Match collision mesh position (no offset)
   const adjustedPosition: [number, number, number] = [
     assetData.position[0],
-    assetData.position[1] - 4.5,
+    assetData.position[1],
     assetData.position[2],
   ];
 
@@ -374,6 +714,12 @@ export function KennyDemo() {
   const [showWorldSelection, setShowWorldSelection] = useState(true);
   const [characterSpawned, setCharacterSpawned] = useState(false);
   const [placedAssets, setPlacedAssets] = useState<any[]>([]);
+  const [placedBlocks, setPlacedBlocks] = useState<any[]>([]);
+  
+  // Settings panel state
+  const [cameraDistance, setCameraDistance] = useState(1.5);
+  const [cameraPitch, setCameraPitch] = useState(0.3);
+  const [playerHeightOffset, setPlayerHeightOffset] = useState(0);
 
   const seedSampleWorld = useCallback(() => {
     const name = 'sample-world';
@@ -445,6 +791,84 @@ export function KennyDemo() {
       .map(key => key.replace('kenny_blocks_', ''));
     console.log('Found saved block groups:', worlds);
     setSavedWorlds(worlds);
+  }, []);
+
+  // Auto-load the latest exported collision mesh from the builder
+  // NEW: Supports quest_collisions_blocks (blocks only, assets separate)
+  // LEGACY: Supports quest_collisions_merged (backward compatibility)
+  useEffect(() => {
+    // Try NEW key first (blocks only)
+    let collisionData = localStorage.getItem('quest_collisions_blocks');
+    let collisionSource = 'quest_collisions_blocks (NEW: blocks only)';
+    
+    // Fall back to OLD key for backward compatibility
+    if (!collisionData) {
+      collisionData = localStorage.getItem('quest_collisions_merged');
+      collisionSource = 'quest_collisions_merged (LEGACY: merged)';
+    }
+    
+    if (!collisionData) {
+      console.log('[KennyDemo] No collision mesh found in localStorage');
+      return;
+    }
+
+    try {
+      console.log(`[KennyDemo] Loading collision mesh from: ${collisionSource}`);
+      
+      const decompressed = LZString.decompressFromBase64(collisionData) || collisionData;
+      const base64 = decompressed.includes(',') ? decompressed.split(',')[1] : decompressed;
+      const binaryString = atob(base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+
+      const loader = new GLTFLoader();
+      loader.parse(
+        bytes.buffer,
+        '',
+        (gltf) => {
+          console.log('[KennyDemo] Auto-loaded collision mesh:', collisionSource);
+          setLoadedWorldMesh(gltf.scene);
+          setSelectedWorld('latest-export');
+          setShowWorldSelection(false);
+          setCharacterSpawned(true);
+
+          // Load placed assets (stored separately)
+          const assetData = localStorage.getItem('placed_assets_data');
+          if (assetData) {
+            try {
+              const assets = JSON.parse(assetData);
+              setPlacedAssets(assets);
+              console.log('[KennyDemo] Loaded placed assets (latest export):', assets);
+            } catch (e) {
+              console.warn('[KennyDemo] Failed to parse asset data:', e);
+            }
+          } else {
+            console.log('[KennyDemo] No asset data found');
+            setPlacedAssets([]);
+          }
+          
+          // Load placed blocks (stored separately)
+          const blockData = localStorage.getItem('placed_blocks_data');
+          if (blockData) {
+            try {
+              const blocks = JSON.parse(blockData);
+              setPlacedBlocks(blocks);
+              console.log('[KennyDemo] Loaded placed blocks (latest export):', blocks);
+            } catch (e) {
+              console.warn('[KennyDemo] Failed to parse block data:', e);
+            }
+          } else {
+            console.log('[KennyDemo] No block data found');
+            setPlacedBlocks([]);
+          }
+        },
+        (error) => {
+          console.error('[KennyDemo] Failed to parse latest collision mesh:', error);
+        }
+      );
+    } catch (e) {
+      console.error('[KennyDemo] Error loading latest collision mesh:', e);
+    }
   }, []);
 
   useEffect(() => {
@@ -548,6 +972,21 @@ export function KennyDemo() {
             console.log('[KennyDemo] No asset data found');
             setPlacedAssets([]);
           }
+          
+          // Load placed blocks from save data
+          const blockData = localStorage.getItem('placed_blocks_data');
+          if (blockData) {
+            try {
+              const blocks = JSON.parse(blockData);
+              setPlacedBlocks(blocks);
+              console.log('[KennyDemo] Loaded placed blocks:', blocks);
+            } catch (e) {
+              console.warn('[KennyDemo] Failed to parse block data:', e);
+            }
+          } else {
+            console.log('[KennyDemo] No block data found');
+            setPlacedBlocks([]);
+          }
         },
         (error) => {
           console.error('Error loading block group:', error);
@@ -566,15 +1005,16 @@ export function KennyDemo() {
         onClick={() => navigate('/')}
         style={{
           position: 'absolute',
-          top: '20px',
-          left: '20px',
+          top: window.innerWidth < 768 ? '10px' : '20px',
+          left: window.innerWidth < 768 ? '10px' : '20px',
           zIndex: 10,
-          padding: '10px 20px',
+          padding: window.innerWidth < 768 ? '8px 16px' : '10px 20px',
           background: '#333',
           color: 'white',
           border: 'none',
           borderRadius: '5px',
           cursor: 'pointer',
+          fontSize: window.innerWidth < 768 ? '14px' : '16px',
         }}
       >
         ← Back
@@ -690,48 +1130,71 @@ export function KennyDemo() {
       {!showWorldSelection && selectedWorld && (
         <div style={{
           position: 'absolute',
-          top: '20px',
-          right: '20px',
+          top: window.innerWidth < 768 ? '50px' : '20px',
+          right: window.innerWidth < 768 ? '10px' : '20px',
           zIndex: 10,
           background: 'rgba(0,0,0,0.75)',
-          padding: '15px',
+          padding: window.innerWidth < 768 ? '8px' : '15px',
           borderRadius: '8px',
         }}>
-          <div style={{ color: 'white', fontSize: '14px' }}>
+          <div style={{ color: 'white', fontSize: window.innerWidth < 768 ? '12px' : '14px' }}>
             <strong>Current World:</strong> {selectedWorld}
           </div>
         </div>
       )}
 
+      {/* Settings Panel - Left side */}
+      {!showWorldSelection && (
+        <SettingsPanel
+          cameraDistance={cameraDistance}
+          setCameraDistance={setCameraDistance}
+          cameraPitch={cameraPitch}
+          setCameraPitch={setCameraPitch}
+          playerHeightOffset={playerHeightOffset}
+          setPlayerHeightOffset={setPlayerHeightOffset}
+          placedAssets={placedAssets}
+        />
+      )}
+
       {/* Controls Info */}
       <div style={{
         position: 'absolute',
-        bottom: '20px',
-        left: '20px',
+        bottom: window.innerWidth < 768 ? '60px' : '20px',
+        left: window.innerWidth < 768 ? '10px' : '20px',
         zIndex: 10,
         background: 'rgba(0,0,0,0.75)',
-        padding: '15px',
+        padding: window.innerWidth < 768 ? '8px' : '15px',
         borderRadius: '8px',
         color: 'white',
-        fontSize: '14px',
+        fontSize: window.innerWidth < 768 ? '12px' : '14px',
       }}>
         <div><strong>Controls:</strong></div>
         <div>WASD / Arrows - Move</div>
         <div>Space - Jump</div>
       </div>
 
-      <Canvas shadows>
+      <Canvas 
+        shadows
+        gl={{
+          antialias: true,
+          outputColorSpace: 'srgb',
+          toneMapping: THREE.NoToneMapping,
+        }}
+      >
         <PerspectiveCamera makeDefault position={[1, 1, 1]} /> {/* Scaled for 0.1x player size */}
         
         <ambientLight intensity={0.6} />
         <directionalLight position={[10, 20, 10]} intensity={1.2} castShadow />
         
+        <CameraController distance={cameraDistance} pitch={cameraPitch} />
+        
         <group rotation={[0, Math.PI / 4, 0]}>
           {loadedWorldMesh && <LoadedWorldMesh mesh={loadedWorldMesh} />}
+          {placedBlocks && placedBlocks.length > 0 && <PlacedBlocksRenderer blocksData={placedBlocks} />}
           {placedAssets && placedAssets.length > 0 && <PlacedAssetsRenderer assetsData={placedAssets} />}
         </group>
         
-        {characterSpawned && <CharacterModel input={input} worldMesh={loadedWorldMesh} />}
+        {characterSpawned && <CharacterModel input={input} worldMesh={loadedWorldMesh} playerHeightOffset={playerHeightOffset} />}
         <AnimationUpdater />
       </Canvas>
     </div>
