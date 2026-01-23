@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows } from '@react-three/drei';
@@ -9,6 +9,18 @@ import AnimatedCharacter from '@/r3f/AnimatedCharacter';
 
 // Character Preview Box Component following MASTER_THREEJS_BEST_PRACTICES
 function CharacterPreview() {
+  const [availableAnimations, setAvailableAnimations] = useState<string[]>([]);
+  const [currentAnimation, setCurrentAnimation] = useState<string>('');
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  const handleAnimationsLoaded = (animations: string[]) => {
+    setAvailableAnimations(animations);
+    if (animations.length > 0 && !currentAnimation) {
+      setCurrentAnimation(animations[0]);
+    }
+    setIsLoaded(true);
+  };
+
   return (
     <div className="w-full h-full relative">
       <Canvas
@@ -27,13 +39,14 @@ function CharacterPreview() {
           />
           <pointLight position={[-5, 5, -5]} intensity={0.5} />
 
-          {/* Character - Sage from KayKit */}
-          {/* TODO: Update path to actual Sage model from Assets/KayKit_Adventurers */}
+          {/* Character with all animations */}
           <AnimatedCharacter
-            modelPath="/models/sage.glb"
+            modelPath="/models/character_animated.glb"
+            animationName={currentAnimation}
             position={[0, 0, 0]}
-            scale={1.5}
+            scale={1}
             rotation={[0, 0, 0]}
+            onAnimationsLoaded={handleAnimationsLoaded}
           />
 
           {/* Environment and Shadows */}
@@ -58,10 +71,30 @@ function CharacterPreview() {
         </Suspense>
       </Canvas>
 
-      {/* Loading Fallback */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="text-primary/20 font-bold text-lg">Loading Character...</div>
-      </div>
+      {/* Animation Selector */}
+      {isLoaded && availableAnimations.length > 0 && (
+        <div className="absolute bottom-4 left-4 right-4 bg-slate-900/90 backdrop-blur-sm rounded-lg p-3 border border-slate-700">
+          <p className="text-xs text-slate-400 mb-2 font-bold">ANIMATION</p>
+          <select
+            value={currentAnimation}
+            onChange={(e) => setCurrentAnimation(e.target.value)}
+            className="w-full bg-slate-800 text-white px-3 py-2 rounded border border-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {availableAnimations.map((anim) => (
+              <option key={anim} value={anim}>
+                {anim}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {!isLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm pointer-events-none">
+          <div className="text-white font-bold text-lg animate-pulse">Loading Character...</div>
+        </div>
+      )}
     </div>
   );
 }

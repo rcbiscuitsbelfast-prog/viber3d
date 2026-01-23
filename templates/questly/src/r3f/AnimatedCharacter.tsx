@@ -14,6 +14,7 @@ interface AnimatedCharacterProps {
   position?: [number, number, number];
   scale?: number;
   rotation?: [number, number, number];
+  onAnimationsLoaded?: (names: string[]) => void;
 }
 
 export default function AnimatedCharacter({
@@ -22,6 +23,7 @@ export default function AnimatedCharacter({
   position = [0, 0, 0],
   scale = 1,
   rotation = [0, 0, 0],
+  onAnimationsLoaded,
 }: AnimatedCharacterProps) {
   const group = useRef<THREE.Group>(null);
   
@@ -29,23 +31,28 @@ export default function AnimatedCharacter({
   const { scene, animations } = useGLTF(modelPath);
   const { actions, mixer } = useAnimations(animations, group);
 
-  // Play animation on mount
+  // Report available animations
   useEffect(() => {
+    if (animations.length > 0 && onAnimationsLoaded) {
+      const names = animations.map(anim => anim.name);
+      onAnimationsLoaded(names);
+    }
+  }, [animations, onAnimationsLoaded]);
+
+  // Play animation when changed
+  useEffect(() => {
+    if (!actions) return;
+
+    // Stop all current animations
+    Object.values(actions).forEach(action => action?.stop());
+
+    // Play selected animation or first one
     if (animationName && actions[animationName]) {
       const action = actions[animationName];
-      action?.reset().fadeIn(0.5).play();
-
-      return () => {
-        action?.fadeOut(0.5);
-      };
-    } else if (animations.length > 0 && actions) {
-      // Play first animation if no specific name provided
-      const firstAnimation = Object.values(actions)[0];
-      firstAnimation?.reset().fadeIn(0.5).play();
-
-      return () => {
-        firstAnimation?.fadeOut(0.5);
-      };
+      action?.reset().fadeIn(0.3).play();
+    } else if (animations.length > 0) {
+      const firstAction = Object.values(actions)[0];
+      firstAction?.reset().fadeIn(0.3).play();
     }
   }, [animationName, actions, animations]);
 
@@ -84,4 +91,4 @@ export default function AnimatedCharacter({
 }
 
 // Preload the model for better performance
-// useGLTF.preload('/path/to/model.glb');
+useGLTF.preload('/models/character_animated.glb');
