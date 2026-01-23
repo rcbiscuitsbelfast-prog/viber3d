@@ -299,14 +299,15 @@ Clarified the purpose and audience for each document.
 
 | Document | Lines Added | Sections Enhanced | Cross-References Added |
 |----------|-------------|-------------------|------------------------|
-| THREEJS_GAME_DEVELOPMENT_GUIDE.md | ~200 | 12 | 3 |
-| MASTER_THREEJS_BEST_PRACTICES.md | ~100 | 5 | 2 |
-| Total | ~300 | 17 | 5 |
+| THREEJS_GAME_DEVELOPMENT_GUIDE.md | ~250 | 15 | 5 |
+| MASTER_THREEJS_BEST_PRACTICES.md | ~120 | 6 | 2 |
+| DOCS_README.md | ~10 | 1 | 0 |
+| Total | ~380 | 22 | 7 |
 
 ### Pattern Labels Added
 
-- **Canonical Standard (⭐):** 8 patterns
-- **Recommended Pattern (🔧):** 3 patterns
+- **Canonical Standard (⭐):** 12 patterns
+- **Recommended Pattern (🔧):** 4 patterns
 - **Optional/Advanced (🧪):** 2 patterns
 - **Observed Pattern (📊):** 1 pattern
 
@@ -317,6 +318,14 @@ Clarified the purpose and audience for each document.
 - Asset loading caveats: 6 points
 - AI tool caveats: 5 points
 - **Total:** 20+ production-tested warnings
+
+### New Features Added
+
+- **Quick Reference Card** (Game Dev Guide): Instant access to common tasks
+- **When to Use Alternatives** (Game Dev Guide): Decision framework for approach selection
+- **AI Callout Badge** (Both docs): Top-level prominence
+- **Version Appendix Location** (Master Best Practices): Easier maintenance
+- **Enhanced TOC** (Game Dev Guide): Added missing Advanced Topics section
 
 ---
 
