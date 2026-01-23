@@ -4,6 +4,34 @@
 **Last Updated:** January 2025  
 **Repositories Covered:** threejs-skills, react-three-next, viber3d
 
+> ⚠️ **Version Notice:** This guide reflects the ecosystem state as of January 2025. Version numbers are specific for compatibility, but architectural patterns remain stable across updates. Always check individual package changelogs when upgrading.
+
+> 🤖 **AI-Optimized:** These patterns are designed to work seamlessly with AI-assisted development tools (Cursor, Copilot, Windsurf, Cline). See [AI Code Generation Rules](#ai-code-generation-rules) for setup.
+
+---
+
+## 📖 How to Use This Guide
+
+**Choose your entry point:**
+
+### 🎯 Evaluating Which Framework to Use?
+→ Start with: [Executive Summary](#executive-summary) → [Repository Profiles](#repository-profiles) → [Migration Path](#migration-path)
+
+### 🔍 Looking for Specific Patterns?
+→ Jump to: [Common Patterns Library](#common-patterns-library) (20 copy-paste patterns)
+
+### 🐛 Debugging an Issue?
+→ Check: [Gotchas & Solutions](#gotchas--solutions) (15 common problems)
+
+### 🚀 Migrating Between Frameworks?
+→ Follow: [Migration Path](#migration-path) (vanilla → R3F → viber3d)
+
+### 🤖 Setting Up AI Tools?
+→ See: [AI Code Generation Rules](#ai-code-generation-rules)
+
+### 📚 Learning the Ecosystem?
+→ Read sequentially: All sections in order
+
 ---
 
 ## Table of Contents
@@ -23,15 +51,18 @@
 
 ## Executive Summary
 
+> **Document Purpose:** This is a comprehensive reference guide for understanding the Three.js ecosystem, comparing frameworks, and accessing battle-tested patterns. For a focused game development guide, see **[THREEJS_GAME_DEVELOPMENT_GUIDE.md](./THREEJS_GAME_DEVELOPMENT_GUIDE.md)**.
+
 This document consolidates best practices from three complementary Three.js repositories:
 
-### 🎓 **threejs-skills** (Skills Reference)
+### 🎓 **threejs-skills** (📊 Observed Patterns)
 - **Purpose:** Markdown-based skill library covering 10 core Three.js topics
 - **Best For:** Learning fundamentals, API reference, quick examples
 - **Coverage:** Fundamentals, geometry, materials, lighting, textures, animation, loaders, shaders, postprocessing, interaction
 - **Format:** Structured skill files with Quick Start, Core Concepts, Common Patterns, Performance Tips
+- **Status:** Pattern source for learning (not prescriptive standard)
 
-### 🚀 **react-three-next** (Full-Stack Framework)
+### 🚀 **react-three-next** (🔧 Recommended for Web Apps)
 - **Purpose:** Next.js 14 + React Three Fiber starter with SSR support
 - **Best For:** Production web apps, SEO-friendly 3D sites, server-side rendering
 - **Key Features:** 
@@ -39,8 +70,9 @@ This document consolidates best practices from three complementary Three.js repo
   - Seamless page navigation without canvas reload
   - DOM/3D synchronization
   - Vite integration with Next.js 14
+- **Status:** Recommended approach for multi-page 3D web applications
 
-### 🎮 **viber3d** (Game Starter)
+### 🎮 **viber3d** (⭐ Canonical Standard for Games)
 - **Purpose:** Modern game development framework with ECS architecture
 - **Best For:** Games, interactive experiences, physics-based apps
 - **Key Features:**
@@ -49,6 +81,7 @@ This document consolidates best practices from three complementary Three.js repo
   - Physics via React Three Rapier
   - State management via Zustand
   - Complete game architecture reference
+- **Status:** Production-tested canonical standard for game development
 
 ### Use Case Decision Tree
 

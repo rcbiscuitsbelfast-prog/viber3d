@@ -3,6 +3,46 @@
 **Single Source of Truth for Building 3D Games with Three.js**  
 **Consolidated Knowledge from: threejs-skills, react-three-next, viber3d**
 
+> 🤖 **AI-Optimized Architecture:** This repository is designed for AI-assisted development. Following these patterns improves code generation quality with Cursor, Copilot, and other AI tools.
+
+> ⚠️ **Version Notice:** This guide reflects the state of the ecosystem as of January 2025. Version numbers are specific to ensure compatibility, but architectural patterns remain stable across updates. Check individual package changelogs when upgrading.
+
+---
+
+## 📖 How to Use This Guide
+
+**Choose your entry point based on your goal:**
+
+### 🧠 New to Three.js or Game Development?
+→ Read in order: [Introduction](#introduction) → [Technology Stack](#technology-stack) → [Architecture Blueprint](#architecture-blueprint) → [Getting Started](#getting-started)
+
+**Time investment:** 2-3 hours to understand foundations
+
+### 🎮 Building a Game Right Now?
+→ Jump to: [Getting Started](#getting-started) → [Complete Code Examples](#complete-code-examples) → Reference [Core Systems](#core-systems) as needed
+
+**Time to first playable:** 2-4 hours
+
+### 🌐 Coming from Web Development?
+→ Focus on: [Architecture Blueprint](#architecture-blueprint) (ECS concepts) → [Game Development Patterns](#game-development-patterns) → [Core Systems](#core-systems)
+
+**Learning curve:** ECS is different from React patterns, budget 4-6 hours
+
+### 🔧 Debugging or Optimizing?
+→ Use: [Troubleshooting](#troubleshooting) → [Performance & Optimization](#performance--optimization)
+
+**Reference as needed**
+
+### 🤖 Configuring AI Tools?
+→ See: [Advanced Topics](#advanced-topics) > AI Integration (scroll to end)
+
+**Setup time:** 15-30 minutes
+
+### 🚀 Ready for Production?
+→ Follow: [Production Checklist](#production-checklist)
+
+**Polish phase:** 1-2 weeks typical
+
 ---
 
 ## Table of Contents
@@ -26,16 +66,22 @@
 
 This is the **only guide you need** to build production-ready 3D games with Three.js. It combines:
 
-- **Technical fundamentals** from threejs-skills
-- **Framework integration** from react-three-next  
-- **Game architecture** from viber3d
+- **Technical fundamentals** from threejs-skills (observed patterns for learning)
+- **Framework integration** from react-three-next (recommended for web apps)
+- **Game architecture** from viber3d (**canonical standard** for games)
 
 ### Who This Is For
 
-- Game developers new to Three.js
-- Web developers wanting to build 3D games
-- Teams building production 3D games
-- Anyone looking for a complete, battle-tested approach
+**Perfect for:**
+- Senior frontend/graphics engineers building 3D products
+- Small teams shipping production games
+- Developers using AI-assisted workflows
+- Long-lived projects requiring maintainability
+
+**Not ideal for:**
+- Absolute beginners (consider Three.js fundamentals first)
+- "Quick prototype" projects (vanilla Three.js may be faster)
+- Projects with no TypeScript (this guide assumes TS)
 
 ### What You'll Build
 
@@ -613,6 +659,8 @@ export function applyForceSystem(world: World) {
 
 ### 9. Animation System
 
+**Pattern Type:** ⭐ **Canonical Standard** (use this approach)
+
 ```typescript
 // src/traits/animation.ts
 export const AnimationState = trait(() => ({
@@ -653,6 +701,13 @@ export function playAnimation(entity: Entity, name: string, fadeTime = 0.2) {
 }
 ```
 
+> ⚠️ **Real-World Caveats:**
+> - Animation names may differ between exports (check `animations[0].name` in console)
+> - Multiple GLB files may have conflicting animation names (prefix them)
+> - Some models have animations targeting different skeletons (verify in Blender)
+> - Always test with mismatched/broken assets to handle gracefully
+> - Consider fallback to T-pose if animation not found
+
 ### 10. Cleanup System
 
 ```typescript
@@ -679,7 +734,15 @@ export function cleanupSystem(world: World) {
 
 ## Game Development Patterns
 
+> **Pattern Labels:**
+> - ⭐ **Canonical Standard** = Recommended production approach
+> - 🔧 **Recommended Pattern** = Good default choice
+> - 🧪 **Optional / Advanced** = For specific use cases
+> - 📊 **Observed Pattern** = Common in the wild, not prescriptive
+
 ### Pattern 1: Complete Player Character
+
+**Pattern Type:** ⭐ **Canonical Standard**
 
 ```typescript
 // src/components/Player.tsx
@@ -743,7 +806,16 @@ export function Player() {
 }
 ```
 
+> ⚠️ **Real-World Caveats:**
+> - Model may not have `idle` animation (check names: `animations.map(a => a.name)`)
+> - Capsule collider assumes upright character (use `ball` for rolling characters)
+> - `lockRotations` prevents tipping over but may need tuning for slopes
+> - `useGLTF` caches by default—clear cache if model updated during dev
+> - Test with missing model file to ensure fallback mesh renders
+
 ### Pattern 2: Enemy AI
+
+**Pattern Type:** 🔧 **Recommended Pattern**
 
 ```typescript
 // src/traits/ai.ts
@@ -1549,7 +1621,11 @@ export function vehicleSystem(world: World) {
 
 ## Performance & Optimization
 
+> **Note:** This section covers game-specific optimizations. For comprehensive performance guidance including texture compression, LOD systems, and profiling tools, see: **[MASTER_THREEJS_BEST_PRACTICES.md](./MASTER_THREEJS_BEST_PRACTICES.md)** > "Performance Optimization"
+
 ### 1. Spatial Hashing for Collision Detection
+
+**Pattern Type:** ⭐ **Canonical Standard** (critical for 100+ entities)
 
 **Problem:** Checking every entity against every other entity is O(n²).
 
@@ -1640,6 +1716,8 @@ export function combatSystem(world: World) {
 
 ### 2. Object Pooling
 
+**Pattern Type:** 🔧 **Recommended Pattern** (for frequently spawned entities like bullets, particles)
+
 ```typescript
 // src/utils/object-pool.ts
 export class ObjectPool<T> {
@@ -1686,6 +1764,8 @@ bullet.set(Velocity, { x: dir.x * 20, y: dir.y * 20, z: dir.z * 20 })
 ```
 
 ### 3. Instanced Rendering
+
+**Pattern Type:** ⭐ **Canonical Standard** (for 50+ identical objects)
 
 ```typescript
 // src/components/Bullets.tsx
@@ -1909,6 +1989,8 @@ npx gh-pages -d dist
 ---
 
 ## Troubleshooting
+
+> **Note:** This section covers the 10 most common game-specific issues. For additional troubleshooting including SSR errors, canvas portaling issues, and framework-specific problems, see: **[MASTER_THREEJS_BEST_PRACTICES.md](./MASTER_THREEJS_BEST_PRACTICES.md)** > "Gotchas & Solutions"
 
 ### Common Issues & Solutions
 
@@ -2192,6 +2274,125 @@ const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
   shadows={!isMobile}
 >
 ```
+
+### AI-Assisted Development Integration
+
+**Pattern Type:** ⭐ **Canonical Standard** (highly recommended for team velocity)
+
+This architecture is designed for AI-assisted development. Following these patterns dramatically improves code generation quality.
+
+#### Quick Setup for AI Tools
+
+**Cursor AI (Pre-configured in viber3d):**
+```bash
+# .cursor/rules/ directory included in starter
+# Rules automatically loaded by Cursor
+# Covers: traits, systems, components, viber3d architecture
+```
+
+**GitHub Copilot:**
+Create `.github/copilot-instructions.md`:
+```markdown
+# Project: Three.js Game (ECS Architecture)
+
+- Use Koota ECS: traits (data), systems (logic), components (rendering)
+- React Three Fiber for 3D rendering
+- TypeScript required
+- Import GLTFLoader from 'three/addons/loaders/GLTFLoader.js'
+- Always dispose geometries/materials in cleanup
+- Use delta time in animations (not frame-dependent)
+- Physics: React Three Rapier with RigidBody components
+- State: Zustand for UI, ECS for game entities
+```
+
+**Windsurf:**
+Create `.windsurfrules`:
+```markdown
+# Three.js + ECS Game Architecture
+
+Stack: Three.js r173, R3F 8.17, Koota ECS, TypeScript
+
+## Patterns
+- Define traits first (data only)
+- Systems process entities (logic)
+- Components render (read ECS data)
+- Actions spawn/modify entities
+- Use delta time for animations
+- Dispose resources in useEffect cleanup
+
+## Avoid
+- Game logic in React state
+- Direct trait mutation in components
+- Frame-dependent animations
+```
+
+**Cline:**
+Custom Instructions:
+```
+When working with this codebase:
+1. Follow ECS: traits → systems → actions → components
+2. Use TypeScript with proper types
+3. Import GLTFLoader from three/addons (not examples/jsm)
+4. Include disposal in cleanup functions
+5. Use delta time for movement/animations
+6. Check trait existence before access
+7. Store RigidBody refs in ECS for physics
+8. Reference existing patterns before creating new ones
+```
+
+#### AI Prompt Templates
+
+**Create New Entity Type:**
+```
+Create a [EntityName] entity with:
+- Traits: [list data fields]
+- Systems: [list behaviors]
+- Spawn action in actions.ts
+- Rendering component
+- Follow existing patterns in src/traits and src/systems
+```
+
+**Add System:**
+```
+Add a [systemName] system that:
+- Queries entities with [trait list]
+- Updates [what changes]
+- Runs [when in game loop]
+- Follows pattern from src/systems/movement.ts
+```
+
+**Debug Issue:**
+```
+Debug this issue: [describe problem]
+Current code: [paste code]
+Expected: [what should happen]
+Actual: [what's happening]
+
+Check:
+- Trait existence
+- System order in frameloop
+- Delta time usage
+- Disposal in cleanup
+```
+
+#### Best Practices for AI Pair Programming
+
+1. **Be Specific:** "Add damage system following viber3d ECS patterns" not "Add damage"
+2. **Reference Examples:** "Like the movement system but for combat"
+3. **Include Context:** Mention if it's a new feature or refactoring existing code
+4. **Request Tests:** "Include console logs to verify this works"
+5. **Ask Why:** "Explain why you chose this pattern over alternatives"
+6. **Iterate:** Start simple, add complexity incrementally
+
+> ⚠️ **Real-World Caveat:**
+> AI tools work best when you:
+> - Have consistent patterns (this architecture provides them)
+> - Use TypeScript (types guide generation)
+> - Follow conventions (naming, structure)
+> - Review generated code (AI can miss edge cases)
+> - Test thoroughly (especially physics and animations)
+
+For complete AI setup including prompts, tool configuration, and team workflows, see: **[MASTER_THREEJS_BEST_PRACTICES.md](./MASTER_THREEJS_BEST_PRACTICES.md)** > "AI Code Generation Rules"
 
 ---
 

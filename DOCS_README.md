@@ -60,7 +60,7 @@ Your guide to:
 No more searching multiple repos. Everything you need in one place.
 
 ### 2. **Production-Ready Code**
-All examples are tested, optimized, and ready to ship.
+All examples are tested, optimized, and ready to ship. Real-world caveats included.
 
 ### 3. **Modern Stack**
 - Three.js r173
@@ -74,6 +74,24 @@ Not just snippets. Full games you can actually build and ship.
 
 ### 5. **Performance-First**
 Spatial hashing, object pooling, instancing, LOD - all covered.
+
+### 6. **AI-Optimized Architecture** 🤖
+- Designed for AI-assisted development
+- Pre-configured rules for Cursor, Copilot, Windsurf, Cline
+- Prompt templates included
+- Improves code generation quality dramatically
+
+### 7. **Clear Pattern Labels**
+- ⭐ Canonical Standard = Production approach
+- 🔧 Recommended Pattern = Good default
+- 🧪 Optional/Advanced = Specific use cases
+- 📊 Observed Pattern = Reference only
+
+### 8. **Real-World Caveats**
+- 20+ production-tested warnings
+- Asset pipeline gotchas covered
+- Physics edge cases documented
+- TypeScript inference issues solved
 
 ---
 
