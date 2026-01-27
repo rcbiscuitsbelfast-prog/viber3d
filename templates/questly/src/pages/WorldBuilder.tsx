@@ -15,6 +15,7 @@ export default function WorldBuilder() {
   const location = useLocation();
   const navigate = useNavigate();
   const [questData, setQuestData] = useState<QuestData | null>(null);
+  const worldStateRef = useRef<WorldState | null>(null);
 
   // Get quest data from navigation state
   useEffect(() => {
@@ -28,10 +29,12 @@ export default function WorldBuilder() {
 
   const handleWorldComplete = () => {
     // Navigate to quest settings with world data
+    // World state will be retrieved from TestWorld via localStorage or context
     navigate('/quest-settings', {
       state: {
         ...questData,
         worldComplete: true,
+        // World state will be loaded from auto-save or manual save
       },
     });
   };

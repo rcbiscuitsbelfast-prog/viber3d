@@ -5,12 +5,16 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import ParallaxBackground from '@/components/ParallaxBackground';
 import CustomButton from '@/components/CustomButton';
+import { QuestManager } from '../systems/quest/QuestManager';
+import { saveWorldToLocalStorage } from '../systems/world';
+import type { WorldState } from '../systems/world/WorldExporter';
 
 interface QuestData {
   questType?: 'combat' | 'non-combat';
   templateId?: string;
   templateName?: string;
   worldComplete?: boolean;
+  worldState?: WorldState; // World state from WorldBuilder
 }
 
 export default function QuestSettings() {
@@ -40,7 +44,16 @@ export default function QuestSettings() {
   }, [location.state, navigate]);
 
   const handleSave = () => {
-    const questConfig = {
+    // Save world state if provided
+    let worldConfigId: string | undefined;
+    if (questData?.worldState) {
+      // Save world and get ID
+      saveWorldToLocalStorage(questData.worldState, false);
+      // For now, use a simple ID - in production, this would come from saveWorldToLocalStorage return
+      worldConfigId = `world_${Date.now()}`;
+    }
+
+    const questConfig = QuestManager.createQuest({
       ...questData,
       title: questTitle,
       description: questDescription,
@@ -48,13 +61,12 @@ export default function QuestSettings() {
       victoryCondition,
       rewards,
       tags,
-      createdAt: new Date().toISOString(),
-    };
+      worldConfigId,
+      worldState: questData?.worldState, // Embed world state
+    });
 
-    // Save to localStorage for now (will be Firebase later)
-    const savedQuests = JSON.parse(localStorage.getItem('savedQuests') || '[]');
-    savedQuests.push(questConfig);
-    localStorage.setItem('savedQuests', JSON.stringify(savedQuests));
+    // Save quest
+    QuestManager.saveQuest(questConfig);
 
     // Navigate to completion/preview
     navigate('/quest-complete', { state: questConfig });
