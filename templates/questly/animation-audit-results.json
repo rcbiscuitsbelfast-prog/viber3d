@@ -1,0 +1,85 @@
+{
+  "Rig_Medium_MovementBasic.glb": [
+    "Scene",
+    "head",
+    "chest",
+    "spine",
+    "hips",
+    "root",
+    "T-Pose"
+  ],
+  "Rig_Medium_MovementAdvanced.glb": [
+    "Scene",
+    "head",
+    "chest",
+    "spine",
+    "hips",
+    "root",
+    "Crawling",
+    "Crouching",
+    "Sneaking",
+    "T-Pose"
+  ],
+  "Rig_Medium_General.glb": [
+    "Scene",
+    "head",
+    "chest",
+    "spine",
+    "hips",
+    "root",
+    "Interact",
+    "PickUp",
+    "T-Pose",
+    "Throw"
+  ],
+  "Rig_Medium_CombatMelee.glb": [
+    "Scene",
+    "head",
+    "chest",
+    "spine",
+    "hips",
+    "root"
+  ],
+  "Rig_Medium_CombatRanged.glb": [
+    "Scene",
+    "head",
+    "chest",
+    "spine",
+    "hips",
+    "root"
+  ],
+  "Rig_Medium_Simulation.glb": [
+    "Scene",
+    "head",
+    "chest",
+    "spine",
+    "hips",
+    "root",
+    "Cheering",
+    "T-Pose",
+    "Waving"
+  ],
+  "Rig_Medium_Special.glb": [
+    "Scene",
+    "head",
+    "chest",
+    "spine",
+    "hips",
+    "root",
+    "T-Pose"
+  ],
+  "Rig_Medium_Tools.glb": [
+    "Scene",
+    "head",
+    "chest",
+    "spine",
+    "hips",
+    "root",
+    "Chop",
+    "Chopping",
+    "Dig",
+    "Digging",
+    "Hammer",
+    "Hammering"
+  ]
+}

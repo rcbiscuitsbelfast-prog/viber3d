@@ -1,0 +1,444 @@
+{
+  "_comment": "Quaternius Animation Database - Animation mapping for all Quaternius RPG characters",
+  "basePaths": {
+    "quaternius": "/models/quaternius"
+  },
+  "characterMappings": {
+    "quat_cleric": "quaternius_cleric",
+    "quat_monk": "quaternius_monk", 
+    "quat_ranger": "quaternius_ranger",
+    "quat_rogue": "quaternius_rogue",
+    "quat_warrior": "quaternius_warrior",
+    "quat_wizard": "quaternius_wizard"
+  },
+  "animationSets": {
+    "quaternius_cleric": {
+      "name": "Cleric Animations",
+      "description": "Cleric character with staff-based combat and spell animations",
+      "basePath": "quaternius",
+      "modelFile": "Cleric.gltf",
+      "animations": {
+        "idle": {
+          "clipName": "Idle",
+          "loop": true,
+          "description": "Default standing idle"
+        },
+        "idleWeapon": {
+          "clipName": "Idle_Weapon",
+          "loop": true,
+          "description": "Idle stance with weapon ready"
+        },
+        "walk": {
+          "clipName": "Walk",
+          "loop": true,
+          "description": "Normal walking pace"
+        },
+        "run": {
+          "clipName": "Run",
+          "loop": true,
+          "description": "Running speed"
+        },
+        "death": {
+          "clipName": "Death",
+          "loop": false,
+          "description": "Death animation"
+        },
+        "pickup": {
+          "clipName": "PickUp",
+          "loop": false,
+          "description": "Pick up item from ground"
+        },
+        "punch": {
+          "clipName": "Punch",
+          "loop": false,
+          "description": "Unarmed melee attack"
+        },
+        "receiveHit": {
+          "clipName": "RecieveHit",
+          "loop": false,
+          "description": "Taking damage reaction"
+        },
+        "receiveHitAttacking": {
+          "clipName": "RecieveHit_Attacking",
+          "loop": false,
+          "description": "Taking damage while in combat stance"
+        },
+        "spell1": {
+          "clipName": "Spell1",
+          "loop": false,
+          "description": "Casting spell animation"
+        },
+        "staffAttack": {
+          "clipName": "Staff_Attack",
+          "loop": false,
+          "description": "Staff melee attack"
+        }
+      }
+    },
+    "quaternius_monk": {
+      "name": "Monk Animations",
+      "description": "Monk character with hand-to-hand combat animations",
+      "basePath": "quaternius",
+      "modelFile": "Monk.gltf",
+      "animations": {
+        "idle": {
+          "clipName": "Idle",
+          "loop": true,
+          "description": "Default standing idle"
+        },
+        "idleAttacking": {
+          "clipName": "Idle_Attacking",
+          "loop": true,
+          "description": "Combat-ready stance"
+        },
+        "walk": {
+          "clipName": "Walk",
+          "loop": true,
+          "description": "Normal walking pace"
+        },
+        "run": {
+          "clipName": "Run",
+          "loop": true,
+          "description": "Running speed"
+        },
+        "death": {
+          "clipName": "Death",
+          "loop": false,
+          "description": "Death animation"
+        },
+        "pickup": {
+          "clipName": "PickUp",
+          "loop": false,
+          "description": "Pick up item from ground"
+        },
+        "attack": {
+          "clipName": "Attack",
+          "loop": false,
+          "description": "Primary unarmed attack"
+        },
+        "attack2": {
+          "clipName": "Attack2",
+          "loop": false,
+          "description": "Secondary unarmed attack"
+        },
+        "receiveHit": {
+          "clipName": "RecieveHit",
+          "loop": false,
+          "description": "Taking damage reaction"
+        },
+        "receiveHit2": {
+          "clipName": "RecieveHit_2",
+          "loop": false,
+          "description": "Alternative damage reaction"
+        },
+        "roll": {
+          "clipName": "Roll",
+          "loop": false,
+          "description": "Evasive roll maneuver"
+        }
+      }
+    },
+    "quaternius_ranger": {
+      "name": "Ranger Animations", 
+      "description": "Ranger character with bow and melee combat",
+      "basePath": "quaternius",
+      "modelFile": "Ranger.gltf",
+      "animations": {
+        "idle": {
+          "clipName": "Idle",
+          "loop": true,
+          "description": "Default standing idle"
+        },
+        "idleAttacking": {
+          "clipName": "Idle_Attacking",
+          "loop": true,
+          "description": "Combat-ready stance"
+        },
+        "idleWeapon": {
+          "clipName": "Idle_Weapon",
+          "loop": true,
+          "description": "Idle stance with weapon ready"
+        },
+        "walk": {
+          "clipName": "Walk",
+          "loop": true,
+          "description": "Normal walking pace"
+        },
+        "run": {
+          "clipName": "Run",
+          "loop": true,
+          "description": "Running speed"
+        },
+        "runHolding": {
+          "clipName": "Run_Holding",
+          "loop": true,
+          "description": "Running while holding weapon"
+        },
+        "death": {
+          "clipName": "Death",
+          "loop": false,
+          "description": "Death animation"
+        },
+        "pickup": {
+          "clipName": "PickUp",
+          "loop": false,
+          "description": "Pick up item from ground"
+        },
+        "punch": {
+          "clipName": "Punch",
+          "loop": false,
+          "description": "Unarmed melee attack"
+        },
+        "receiveHit": {
+          "clipName": "RecieveHit",
+          "loop": false,
+          "description": "Taking damage reaction"
+        },
+        "receiveHit2": {
+          "clipName": "RecieveHit_2",
+          "loop": false,
+          "description": "Alternative damage reaction"
+        },
+        "roll": {
+          "clipName": "Roll",
+          "loop": false,
+          "description": "Evasive roll maneuver"
+        },
+        "bowDraw": {
+          "clipName": "Bow_Draw",
+          "loop": false,
+          "description": "Draw bow for ranged attack"
+        },
+        "bowShoot": {
+          "clipName": "Bow_Shoot",
+          "loop": false,
+          "description": "Release arrow from bow"
+        }
+      }
+    },
+    "quaternius_rogue": {
+      "name": "Rogue Animations",
+      "description": "Rogue character with stealth and dagger combat",
+      "basePath": "quaternius",
+      "modelFile": "Rogue.gltf",
+      "animations": {
+        "idle": {
+          "clipName": "Idle",
+          "loop": true,
+          "description": "Default standing idle"
+        },
+        "attackingIdle": {
+          "clipName": "Attacking_Idle",
+          "loop": true,
+          "description": "Stealth combat-ready stance"
+        },
+        "walk": {
+          "clipName": "Walk",
+          "loop": true,
+          "description": "Normal walking pace"
+        },
+        "run": {
+          "clipName": "Run",
+          "loop": true,
+          "description": "Running speed"
+        },
+        "death": {
+          "clipName": "Death",
+          "loop": false,
+          "description": "Death animation"
+        },
+        "pickup": {
+          "clipName": "PickUp",
+          "loop": false,
+          "description": "Pick up item from ground"
+        },
+        "punch": {
+          "clipName": "Punch",
+          "loop": false,
+          "description": "Unarmed melee attack"
+        },
+        "receiveHit": {
+          "clipName": "RecieveHit",
+          "loop": false,
+          "description": "Taking damage reaction"
+        },
+        "receiveHit2": {
+          "clipName": "RecieveHit_2",
+          "loop": false,
+          "description": "Alternative damage reaction"
+        },
+        "roll": {
+          "clipName": "Roll",
+          "loop": false,
+          "description": "Evasive roll maneuver"
+        },
+        "daggerAttack": {
+          "clipName": "Dagger_Attack",
+          "loop": false,
+          "description": "Primary dagger attack"
+        },
+        "daggerAttack2": {
+          "clipName": "Dagger_Attack2",
+          "loop": false,
+          "description": "Secondary dagger attack"
+        }
+      }
+    },
+    "quaternius_warrior": {
+      "name": "Warrior Animations",
+      "description": "Warrior character with sword combat",
+      "basePath": "quaternius",
+      "modelFile": "Warrior.gltf", 
+      "animations": {
+        "idle": {
+          "clipName": "Idle",
+          "loop": true,
+          "description": "Default standing idle"
+        },
+        "idleAttacking": {
+          "clipName": "Idle_Attacking",
+          "loop": true,
+          "description": "Combat-ready stance"
+        },
+        "idleWeapon": {
+          "clipName": "Idle_Weapon",
+          "loop": true,
+          "description": "Idle stance with weapon ready"
+        },
+        "walk": {
+          "clipName": "Walk",
+          "loop": true,
+          "description": "Normal walking pace"
+        },
+        "run": {
+          "clipName": "Run",
+          "loop": true,
+          "description": "Running speed"
+        },
+        "runWeapon": {
+          "clipName": "Run_Weapon",
+          "loop": true,
+          "description": "Running with weapon drawn"
+        },
+        "death": {
+          "clipName": "Death",
+          "loop": false,
+          "description": "Death animation"
+        },
+        "pickup": {
+          "clipName": "PickUp",
+          "loop": false,
+          "description": "Pick up item from ground"
+        },
+        "punch": {
+          "clipName": "Punch",
+          "loop": false,
+          "description": "Unarmed melee attack"
+        },
+        "receiveHit": {
+          "clipName": "RecieveHit",
+          "loop": false,
+          "description": "Taking damage reaction"
+        },
+        "roll": {
+          "clipName": "Roll",
+          "loop": false,
+          "description": "Evasive roll maneuver"
+        },
+        "swordAttack": {
+          "clipName": "Sword_Attack",
+          "loop": false,
+          "description": "Primary sword attack"
+        },
+        "swordAttack2": {
+          "clipName": "Sword_Attack2",
+          "loop": false,
+          "description": "Secondary sword attack"
+        }
+      }
+    },
+    "quaternius_wizard": {
+      "name": "Wizard Animations",
+      "description": "Wizard character with extensive spell animations",
+      "basePath": "quaternius",
+      "modelFile": "Wizard.gltf",
+      "animations": {
+        "idle": {
+          "clipName": "Idle",
+          "loop": true,
+          "description": "Default standing idle"
+        },
+        "idleAttacking": {
+          "clipName": "Idle_Attacking",
+          "loop": true,
+          "description": "Magic combat-ready stance"
+        },
+        "idleWeapon": {
+          "clipName": "Idle_Weapon",
+          "loop": true,
+          "description": "Idle stance with staff ready"
+        },
+        "walk": {
+          "clipName": "Walk",
+          "loop": true,
+          "description": "Normal walking pace"
+        },
+        "run": {
+          "clipName": "Run",
+          "loop": true,
+          "description": "Running speed"
+        },
+        "runWeapon": {
+          "clipName": "Run_Weapon",
+          "loop": true,
+          "description": "Running with staff"
+        },
+        "death": {
+          "clipName": "Death",
+          "loop": false,
+          "description": "Death animation"
+        },
+        "pickup": {
+          "clipName": "PickUp",
+          "loop": false,
+          "description": "Pick up item from ground"
+        },
+        "punch": {
+          "clipName": "Punch",
+          "loop": false,
+          "description": "Unarmed melee attack"
+        },
+        "receiveHit": {
+          "clipName": "RecieveHit",
+          "loop": false,
+          "description": "Taking damage reaction"
+        },
+        "receiveHit2": {
+          "clipName": "RecieveHit_2",
+          "loop": false,
+          "description": "Alternative damage reaction"
+        },
+        "roll": {
+          "clipName": "Roll",
+          "loop": false,
+          "description": "Evasive roll maneuver"
+        },
+        "spell1": {
+          "clipName": "Spell1",
+          "loop": false,
+          "description": "Primary spell casting"
+        },
+        "spell2": {
+          "clipName": "Spell2",
+          "loop": false,
+          "description": "Secondary spell casting"
+        },
+        "staffAttack": {
+          "clipName": "Staff_Attack",
+          "loop": false,
+          "description": "Staff melee attack"
+        }
+      }
+    }
+  }
+}

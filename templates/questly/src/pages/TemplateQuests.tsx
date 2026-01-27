@@ -76,10 +76,12 @@ export default function TemplateQuests() {
 
   const handleContinue = () => {
     if (selectedTemplate) {
-      navigate('/dashboard', { 
+      const template = templates.find(t => t.id === selectedTemplate);
+      navigate('/world-builder', { 
         state: { 
-          questType, 
-          template: templates.find(t => t.id === selectedTemplate) 
+          questType: questType === 'Combat Quest' ? 'combat' : 'non-combat',
+          templateId: selectedTemplate,
+          templateName: template?.name,
         } 
       });
     }

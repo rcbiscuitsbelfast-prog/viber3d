@@ -1,0 +1,18 @@
+{
+  "roughness": 45,
+  "islandSize": 44,
+  "terrainDetail": 64,
+  "heightScale": 80,
+  "waterLevel": -0.7,
+  "cliffIntensity": 0,
+  "treeAmount": 3000,
+  "treeSize": 50,
+  "grassAmount": 6900,
+  "grassSize": 130,
+  "rockAmount": 400,
+  "rockSize": 100,
+  "bushAmount": 600,
+  "bushSize": 100,
+  "seed": 105.70129057311873,
+  "timestamp": "2026-01-25T08:38:17.993Z"
+}

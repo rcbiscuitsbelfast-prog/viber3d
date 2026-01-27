@@ -1,0 +1,41 @@
+{
+  "roughness": 17,
+  "islandSize": 35,
+  "terrainDetail": 128,
+  "heightScale": 65,
+  "waterLevel": -0.5,
+  "cliffIntensity": 50,
+  "treeAmount": 5400,
+  "treeSize": 100,
+  "grassAmount": 2000,
+  "grassSize": 100,
+  "rockAmount": 400,
+  "rockSize": 100,
+  "bushAmount": 600,
+  "bushSize": 100,
+  "treeHeightOffset": 0,
+  "grassHeightOffset": 0,
+  "rockHeightOffset": 0,
+  "bushHeightOffset": 0,
+  "slopeAdjustmentIntensity": 3.5,
+  "buildingAreas": [
+    {
+      "id": 1,
+      "x": 9,
+      "z": 13,
+      "radius": 20,
+      "height": 3.4,
+      "minimized": true
+    },
+    {
+      "id": 2,
+      "x": -18,
+      "z": -20,
+      "radius": 25,
+      "height": 2.5,
+      "minimized": true
+    }
+  ],
+  "seed": 583.9678181409571,
+  "timestamp": "2026-01-25T10:42:29.262Z"
+}

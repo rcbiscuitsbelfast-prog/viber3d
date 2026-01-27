@@ -1,0 +1,297 @@
+{
+  "name": "KayKit Adventurers 2.0 FREE",
+  "version": "2.0",
+  "description": "Free character and equipment assets for game development",
+  "characters": {
+    "fbx": [
+      {
+        "name": "Barbarian",
+        "file": "Characters/fbx/Barbarian.fbx",
+        "texture": "Characters/fbx/barbarian_texture.png"
+      },
+      {
+        "name": "Knight",
+        "file": "Characters/fbx/Knight.fbx",
+        "texture": "Characters/fbx/knight_texture.png"
+      },
+      {
+        "name": "Mage",
+        "file": "Characters/fbx/Mage.fbx",
+        "texture": "Characters/fbx/mage_texture.png"
+      },
+      {
+        "name": "Ranger",
+        "file": "Characters/fbx/Ranger.fbx",
+        "texture": "Characters/fbx/ranger_texture.png"
+      },
+      {
+        "name": "Rogue",
+        "file": "Characters/fbx/Rogue.fbx",
+        "texture": "Characters/fbx/rogue_texture.png"
+      },
+      {
+        "name": "Rogue Hooded",
+        "file": "Characters/fbx/Rogue_Hooded.fbx",
+        "texture": "Characters/fbx/rogue_texture.png"
+      }
+    ],
+    "gltf": [
+      {
+        "name": "Barbarian",
+        "file": "Characters/gltf/Barbarian.glb",
+        "texture": "Characters/gltf/barbarian_texture.png"
+      },
+      {
+        "name": "Knight",
+        "file": "Characters/gltf/Knight.glb",
+        "texture": "Characters/gltf/knight_texture.png"
+      },
+      {
+        "name": "Mage",
+        "file": "Characters/gltf/Mage.glb",
+        "texture": "Characters/gltf/mage_texture.png"
+      },
+      {
+        "name": "Ranger",
+        "file": "Characters/gltf/Ranger.glb",
+        "texture": "Characters/gltf/ranger_texture.png"
+      },
+      {
+        "name": "Rogue",
+        "file": "Characters/gltf/Rogue.glb",
+        "texture": "Characters/gltf/rogue_texture.png"
+      },
+      {
+        "name": "Rogue Hooded",
+        "file": "Characters/gltf/Rogue_Hooded.glb",
+        "texture": "Characters/gltf/rogue_texture.png"
+      }
+    ]
+  },
+  "weapons": {
+    "melee": [
+      {
+        "name": "Dagger",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      },
+      {
+        "name": "Sword 1-Handed",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      },
+      {
+        "name": "Sword 2-Handed",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      },
+      {
+        "name": "Sword 2-Handed Color",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      },
+      {
+        "name": "Axe 1-Handed",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      },
+      {
+        "name": "Axe 2-Handed",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      },
+      {
+        "name": "Staff",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      },
+      {
+        "name": "Wand",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      }
+    ],
+    "ranged": [
+      {
+        "name": "Bow",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      },
+      {
+        "name": "Bow with String",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      },
+      {
+        "name": "Crossbow 1-Handed",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      },
+      {
+        "name": "Crossbow 2-Handed",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      },
+      {
+        "name": "Arrow Bow",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      },
+      {
+        "name": "Arrow Bow Bundle",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      },
+      {
+        "name": "Arrow Crossbow",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      },
+      {
+        "name": "Arrow Crossbow Bundle",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      },
+      {
+        "name": "Quiver",
+        "formats": ["fbx", "gltf", "obj"],
+        "path": "Assets"
+      }
+    ]
+  },
+  "shields": [
+    {
+      "name": "Shield Badge",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    },
+    {
+      "name": "Shield Badge Color",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    },
+    {
+      "name": "Shield Round",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    },
+    {
+      "name": "Shield Round Color",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    },
+    {
+      "name": "Shield Round Barbarian",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    },
+    {
+      "name": "Shield Spikes",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    },
+    {
+      "name": "Shield Spikes Color",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    },
+    {
+      "name": "Shield Square",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    },
+    {
+      "name": "Shield Square Color",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    }
+  ],
+  "items": [
+    {
+      "name": "Mug Empty",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    },
+    {
+      "name": "Mug Full",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    },
+    {
+      "name": "Spellbook Closed",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    },
+    {
+      "name": "Spellbook Open",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    },
+    {
+      "name": "Smokebomb",
+      "formats": ["fbx", "gltf", "obj"],
+      "path": "Assets"
+    }
+  ],
+  "animations": {
+    "rig_medium": {
+      "fbx": "Animations/fbx/Rig_Medium",
+      "gltf": "Animations/gltf/Rig_Medium"
+    }
+  },
+  "textures": [
+    {
+      "name": "Barbarian Texture",
+      "file": "Textures/barbarian_texture.png"
+    },
+    {
+      "name": "Knight Texture",
+      "file": "Textures/knight_texture.png"
+    },
+    {
+      "name": "Mage Texture",
+      "file": "Textures/mage_texture.png"
+    },
+    {
+      "name": "Ranger Texture",
+      "file": "Textures/ranger_texture.png"
+    },
+    {
+      "name": "Rogue Texture",
+      "file": "Textures/rogue_texture.png"
+    }
+  ],
+  "samples": [
+    "Samples/barbarian.png",
+    "Samples/barbarian_Large.png",
+    "Samples/druid.png",
+    "Samples/engineer.png",
+    "Samples/knight.png",
+    "Samples/mage.png",
+    "Samples/ranger.png",
+    "Samples/rogue.png"
+  ],
+  "formats": {
+    "fbx": {
+      "description": "Autodesk FBX format",
+      "path": "Assets/fbx"
+    },
+    "fbx_unity": {
+      "description": "FBX optimized for Unity",
+      "path": "Assets/fbx(unity)"
+    },
+    "gltf": {
+      "description": "glTF format (web-friendly)",
+      "path": "Assets/gltf"
+    },
+    "obj": {
+      "description": "Wavefront OBJ format",
+      "path": "Assets/obj"
+    }
+  },
+  "license": "See License.txt",
+  "links": {
+    "more_assets": "More KayKit Assets.url",
+    "patreon": "Patreon.url"
+  }
+}

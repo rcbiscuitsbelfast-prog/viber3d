@@ -6,6 +6,10 @@ import GameBuilder from './pages/GameBuilder';
 import QuestTypeSelector from './pages/QuestTypeSelector';
 import TemplateQuests from './pages/TemplateQuests';
 import UserDashboard from './pages/UserDashboard';
+import TestWorld from './pages/TestWorld';
+import WorldBuilder from './pages/WorldBuilder';
+import QuestSettings from './pages/QuestSettings';
+import QuestComplete from './pages/QuestComplete';
 import Navigation from './components/Navigation';
 import { useAuthStore } from './lib/auth';
 
@@ -14,7 +18,11 @@ function App() {
 
   useEffect(() => {
     // Initialize auth on app mount
-    initialize();
+    try {
+      initialize();
+    } catch (error) {
+      console.warn('Auth initialization failed:', error);
+    }
   }, [initialize]);
 
   return (
@@ -27,7 +35,11 @@ function App() {
           <Route path="/builder" element={<GameBuilder />} />
           <Route path="/quest-type" element={<QuestTypeSelector />} />
           <Route path="/templates" element={<TemplateQuests />} />
+          <Route path="/world-builder" element={<WorldBuilder />} />
+          <Route path="/quest-settings" element={<QuestSettings />} />
+          <Route path="/quest-complete" element={<QuestComplete />} />
           <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/test-world" element={<TestWorld />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

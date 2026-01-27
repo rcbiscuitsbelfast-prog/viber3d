@@ -1,0 +1,376 @@
+{
+  "_comment": "KayKit Animation Database - CORRECTED Animation mapping for all characters - Based on actual GLB file analysis",
+  "basePaths": {
+    "characterAnim11_medium": "/Assets/KayKit_Character_Animations_1.1/Animations/gltf/Rig_Medium"
+  },
+  "characterMappings": {
+    "char_mage": "humanoid_enhanced",
+    "char_knight": "humanoid_enhanced",
+    "char_ranger": "humanoid_enhanced",
+    "char_rogue": "humanoid_enhanced",
+    "char_barbarian": "humanoid_enhanced"
+  },
+  "animationSets": {
+    "humanoid_enhanced": {
+      "name": "Humanoid Enhanced Animations",
+      "description": "Complete animation set for all humanoid characters - Character Animations 1.1 - CORRECTED MAPPINGS",
+      "basePath": "characterAnim11_medium",
+      "files": {
+        "movementBasic": "Rig_Medium_MovementBasic.glb",
+        "movementAdvanced": "Rig_Medium_MovementAdvanced.glb",
+        "general": "Rig_Medium_General.glb",
+        "combatMelee": "Rig_Medium_CombatMelee.glb",
+        "combatRanged": "Rig_Medium_CombatRanged.glb",
+        "simulation": "Rig_Medium_Simulation.glb",
+        "special": "Rig_Medium_Special.glb",
+        "tools": "Rig_Medium_Tools.glb"
+      },
+      "animations": {
+        "idle": {
+          "file": "general",
+          "clipName": "Idle_A",
+          "loop": true,
+          "description": "Default idle stance"
+        },
+        "idleB": {
+          "file": "general",
+          "clipName": "Idle_B",
+          "loop": true,
+          "description": "Alternative idle stance"
+        },
+        "idleCombat": {
+          "file": "combatMelee",
+          "clipName": "Melee_2H_Idle",
+          "loop": true,
+          "description": "Combat-ready idle stance with weapon"
+        },
+        "walk": {
+          "file": "movementBasic",
+          "clipName": "Walking_A",
+          "loop": true,
+          "description": "Walking forward"
+        },
+        "walkB": {
+          "file": "movementBasic",
+          "clipName": "Walking_B",
+          "loop": true,
+          "description": "Alternative walking animation"
+        },
+        "walkC": {
+          "file": "movementBasic",
+          "clipName": "Walking_C",
+          "loop": true,
+          "description": "Third walking variation"
+        },
+        "walkBack": {
+          "file": "movementAdvanced",
+          "clipName": "Walking_Backwards",
+          "loop": true,
+          "description": "Walking backward"
+        },
+        "run": {
+          "file": "movementBasic",
+          "clipName": "Running_A",
+          "loop": true,
+          "description": "Running forward"
+        },
+        "runB": {
+          "file": "movementBasic",
+          "clipName": "Running_B",
+          "loop": true,
+          "description": "Alternative running animation"
+        },
+        "sprint": {
+          "file": "movementAdvanced",
+          "clipName": "Running_HoldingBow",
+          "loop": true,
+          "description": "Fast running with equipment"
+        },
+        "jump": {
+          "file": "movementBasic",
+          "clipName": "Jump_Start",
+          "loop": false,
+          "description": "Jump start animation"
+        },
+        "jumpFull": {
+          "file": "movementBasic",
+          "clipName": "Jump_Full_Long",
+          "loop": false,
+          "description": "Full jump sequence"
+        },
+        "jumpLand": {
+          "file": "movementBasic",
+          "clipName": "Jump_Land",
+          "loop": false,
+          "description": "Landing from jump"
+        },
+        "strafeLeft": {
+          "file": "movementAdvanced",
+          "clipName": "Running_Strafe_Left",
+          "loop": true,
+          "description": "Strafe left while running"
+        },
+        "strafeRight": {
+          "file": "movementAdvanced",
+          "clipName": "Running_Strafe_Right",
+          "loop": true,
+          "description": "Strafe right while running"
+        },
+        "dodge": {
+          "file": "movementAdvanced",
+          "clipName": "Dodge_Backward",
+          "loop": false,
+          "description": "Backward dodge"
+        },
+        "dodgeLeft": {
+          "file": "movementAdvanced",
+          "clipName": "Dodge_Left",
+          "loop": false,
+          "description": "Left dodge"
+        },
+        "dodgeRight": {
+          "file": "movementAdvanced",
+          "clipName": "Dodge_Right",
+          "loop": false,
+          "description": "Right dodge"
+        },
+        "attackMelee": {
+          "file": "combatMelee",
+          "clipName": "Melee_1H_Attack_Slice_Horizontal",
+          "loop": false,
+          "description": "Basic horizontal sword attack"
+        },
+        "attackHeavy": {
+          "file": "combatMelee",
+          "clipName": "Melee_2H_Attack_Chop",
+          "loop": false,
+          "description": "Heavy two-handed attack"
+        },
+        "attackStab": {
+          "file": "combatMelee",
+          "clipName": "Melee_1H_Attack_Stab",
+          "loop": false,
+          "description": "Thrust/stab attack"
+        },
+        "attackSpin": {
+          "file": "combatMelee",
+          "clipName": "Melee_2H_Attack_Spin",
+          "loop": false,
+          "description": "Spinning attack"
+        },
+        "attackJump": {
+          "file": "combatMelee",
+          "clipName": "Melee_1H_Attack_Jump_Chop",
+          "loop": false,
+          "description": "Jumping attack"
+        },
+        "block": {
+          "file": "combatMelee",
+          "clipName": "Melee_Block",
+          "loop": false,
+          "description": "Block attack"
+        },
+        "blockHold": {
+          "file": "combatMelee",
+          "clipName": "Melee_Blocking",
+          "loop": true,
+          "description": "Hold blocking stance"
+        },
+        "blockHit": {
+          "file": "combatMelee",
+          "clipName": "Melee_Block_Hit",
+          "loop": false,
+          "description": "Block is hit by attack"
+        },
+        "hit": {
+          "file": "general",
+          "clipName": "Hit_A",
+          "loop": false,
+          "description": "Taking light damage reaction"
+        },
+        "hitB": {
+          "file": "general",
+          "clipName": "Hit_B",
+          "loop": false,
+          "description": "Alternative hit reaction"
+        },
+        "death": {
+          "file": "general",
+          "clipName": "Death_A",
+          "loop": false,
+          "clampWhenFinished": true,
+          "description": "Death animation"
+        },
+        "deathB": {
+          "file": "general",
+          "clipName": "Death_B",
+          "loop": false,
+          "clampWhenFinished": true,
+          "description": "Alternative death animation"
+        },
+        "interact": {
+          "file": "general",
+          "clipName": "Interact",
+          "loop": false,
+          "description": "Interaction gesture"
+        },
+        "pickup": {
+          "file": "general",
+          "clipName": "PickUp",
+          "loop": false,
+          "description": "Pick up item from ground"
+        },
+        "useItem": {
+          "file": "general",
+          "clipName": "Use_Item",
+          "loop": false,
+          "description": "Use/consume item"
+        },
+        "throw": {
+          "file": "general",
+          "clipName": "Throw",
+          "loop": false,
+          "description": "Throw item"
+        },
+        "wave": {
+          "file": "simulation",
+          "clipName": "Waving",
+          "loop": false,
+          "description": "Friendly wave gesture"
+        },
+        "cheer": {
+          "file": "simulation",
+          "clipName": "Cheering",
+          "loop": false,
+          "description": "Celebration/cheer"
+        },
+        "sit": {
+          "file": "simulation",
+          "clipName": "Sit_Floor_Down",
+          "loop": false,
+          "description": "Sit down on floor"
+        },
+        "sitIdle": {
+          "file": "simulation",
+          "clipName": "Sit_Floor_Idle",
+          "loop": true,
+          "description": "Sitting idle on floor"
+        },
+        "sitUp": {
+          "file": "simulation",
+          "clipName": "Sit_Floor_StandUp",
+          "loop": false,
+          "description": "Stand up from sitting"
+        },
+        "crouch": {
+          "file": "movementAdvanced",
+          "clipName": "Crouching",
+          "loop": true,
+          "description": "Crouch stance"
+        },
+        "crawl": {
+          "file": "movementAdvanced",
+          "clipName": "Crawling",
+          "loop": true,
+          "description": "Crawling movement"
+        },
+        "sneak": {
+          "file": "movementAdvanced",
+          "clipName": "Sneaking",
+          "loop": true,
+          "description": "Sneaking movement"
+        },
+        "castSpell": {
+          "file": "combatRanged",
+          "clipName": "Ranged_Magic_Spellcasting",
+          "loop": false,
+          "description": "Cast a spell"
+        },
+        "castSpellLong": {
+          "file": "combatRanged",
+          "clipName": "Ranged_Magic_Spellcasting_Long",
+          "loop": false,
+          "description": "Long spell casting"
+        },
+        "drawBow": {
+          "file": "combatRanged",
+          "clipName": "Ranged_Bow_Draw",
+          "loop": false,
+          "description": "Draw bow"
+        },
+        "bowIdle": {
+          "file": "combatRanged",
+          "clipName": "Ranged_Bow_Idle",
+          "loop": true,
+          "description": "Idle with bow drawn"
+        },
+        "shootArrow": {
+          "file": "combatRanged",
+          "clipName": "Ranged_Bow_Release",
+          "loop": false,
+          "description": "Release arrow"
+        },
+        "reload": {
+          "file": "combatRanged",
+          "clipName": "Ranged_1H_Reload",
+          "loop": false,
+          "description": "Reload weapon"
+        },
+        "aimGun": {
+          "file": "combatRanged",
+          "clipName": "Ranged_1H_Aiming",
+          "loop": true,
+          "description": "Aim with gun"
+        },
+        "shootGun": {
+          "file": "combatRanged",
+          "clipName": "Ranged_1H_Shoot",
+          "loop": false,
+          "description": "Shoot gun"
+        },
+        "workA": {
+          "file": "tools",
+          "clipName": "Work_A",
+          "loop": false,
+          "description": "Work animation A"
+        },
+        "workB": {
+          "file": "tools",
+          "clipName": "Work_B",
+          "loop": false,
+          "description": "Work animation B"
+        },
+        "chop": {
+          "file": "tools",
+          "clipName": "Chop",
+          "loop": false,
+          "description": "Chopping motion"
+        },
+        "hammer": {
+          "file": "tools",
+          "clipName": "Hammer",
+          "loop": false,
+          "description": "Hammering motion"
+        },
+        "fishing": {
+          "file": "tools",
+          "clipName": "Fishing_Cast",
+          "loop": false,
+          "description": "Cast fishing line"
+        },
+        "fishingIdle": {
+          "file": "tools",
+          "clipName": "Fishing_Idle",
+          "loop": true,
+          "description": "Idle while fishing"
+        },
+        "spawn": {
+          "file": "general",
+          "clipName": "Spawn_Ground",
+          "loop": false,
+          "description": "Character spawn animation"
+        }
+      }
+    }
+  }
+}
