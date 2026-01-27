@@ -4,12 +4,48 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "**/*.blend",
+      "**/*.fbx",
+      "**/*.obj",
+      "**/*.mtl",
+      "**/*.dae",
+      "**/README.md",
+      "**/License.txt",
+      "**/*.pdf",
+      "**/*.url",
+      "**/sourceModels/**",
+      "**/Blends/**",
+      "**/FBX/**",
+      "**/OBJ/**",
+      "**/Documentation/**",
+      "**/Samples/**",
+      "**/samples/**",
+      "**/contents_*.jpg",
+      "**/Preview*.jpg",
+      "**/*.tmpl",
+      "**/test/**",
+      "**/docs/**",
+      "**/manual/**",
+      "**/wiki/**",
+      "**/utils/**",
+      "**/editor/**"
     ],
     "rewrites": [
       {
         "source": "**",
         "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(glb|gltf|bin|png|jpg|jpeg|webp)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
       }
     ]
   }
