@@ -19,6 +19,7 @@ interface WalkingNPCProps {
   speed?: number;
   onClick?: () => void;
   terrainMeshRef?: React.RefObject<THREE.Mesh>;
+  getTerrainHeight?: (x: number, z: number) => number; // Use shared terrain height function
 }
 
 export function WalkingNPC({
@@ -30,6 +31,7 @@ export function WalkingNPC({
   speed = 2,
   onClick,
   terrainMeshRef,
+  getTerrainHeight: externalGetTerrainHeight,
 }: WalkingNPCProps) {
   const groupRef = useRef<THREE.Group>(null);
   const [model, setModel] = useState<THREE.Object3D | null>(null);
@@ -37,18 +39,27 @@ export function WalkingNPC({
   const currentWaypointIndex = useRef(0);
   const isMovingRef = useRef(false);
   const lastAnimationState = useRef<'idle' | 'walk'>('idle');
+  const lastHeightUpdate = useRef(0);
 
-  // Helper function to get terrain height
+  // Use external terrain height function if provided, otherwise fallback to raycasting
   const getTerrainHeight = (x: number, z: number): number => {
-    if (!terrainMeshRef?.current) return 2.5; // Default height
+    if (externalGetTerrainHeight) {
+      return externalGetTerrainHeight(x, z);
+    }
+    
+    // Fallback: raycast (but filter out ocean)
+    if (!terrainMeshRef?.current) return 2.5;
     
     const raycaster = new THREE.Raycaster();
     raycaster.ray.origin.set(x, 100, z);
     raycaster.ray.direction.set(0, -1, 0);
     
+    // Only intersect terrain mesh, not ocean
     const intersects = raycaster.intersectObject(terrainMeshRef.current, false);
     if (intersects.length > 0) {
-      return intersects[0].point.y;
+      const height = intersects[0].point.y;
+      // Ensure we're not getting ocean height (water level is ~0.9)
+      return height > 1.0 ? height : 2.5;
     }
     
     return 2.5; // Fallback to default height
@@ -107,13 +118,13 @@ export function WalkingNPC({
     defaultAnimation: 'idle',
   });
 
-  // Initialize position on terrain
+  // Initialize position on terrain - 0.0 offset = ground level
   useEffect(() => {
     if (groupRef.current && terrainMeshRef?.current) {
       const terrainHeight = getTerrainHeight(position[0], position[2]);
-      groupRef.current.position.set(position[0], terrainHeight + 0.9, position[2]);
+      groupRef.current.position.set(position[0], terrainHeight + 0.0, position[2]); // Ground level
     } else if (groupRef.current) {
-      groupRef.current.position.set(position[0], position[1] + 0.9, position[2]);
+      groupRef.current.position.set(position[0], position[1] + 0.0, position[2]); // Ground level
     }
   }, [terrainMeshRef, position]);
 
@@ -124,32 +135,45 @@ export function WalkingNPC({
     const currentPos = groupRef.current.position;
     const currentWaypoint = new THREE.Vector3(...waypoints[currentWaypointIndex.current]);
     
-    // Check if reached current waypoint
+    // Check if reached current waypoint (with larger threshold to prevent rapid switching)
     const distanceToWaypoint = currentPos.distanceTo(currentWaypoint);
     
-    if (distanceToWaypoint < 2) {
+    if (distanceToWaypoint < 2.5) {
       // Move to next waypoint (loop around)
       currentWaypointIndex.current = (currentWaypointIndex.current + 1) % waypoints.length;
     }
 
     const targetWaypoint = new THREE.Vector3(...waypoints[currentWaypointIndex.current]);
     
-    // Smooth movement direction
+    // Smooth movement direction with normalized check
     const direction = new THREE.Vector3()
-      .subVectors(targetWaypoint, currentPos)
-      .normalize();
-
-    // Only move if we have a valid direction
-    if (direction.length() > 0.01) {
-      // Move horizontally
-      const newX = currentPos.x + direction.x * speed * delta;
-      const newZ = currentPos.z + direction.z * speed * delta;
+      .subVectors(targetWaypoint, currentPos);
+    
+    const distance = direction.length();
+    
+    // Only move if we have a valid direction and distance
+    if (distance > 0.01) {
+      direction.normalize();
       
-      // Get terrain height at new position
+      // Move horizontally with clamped delta to prevent large jumps
+      const clampedDelta = Math.min(delta, 0.05); // Cap delta at 50ms to prevent frame spikes
+      const newX = currentPos.x + direction.x * speed * clampedDelta;
+      const newZ = currentPos.z + direction.z * speed * clampedDelta;
+      
+      // Get terrain height at new position BEFORE moving (prevents walking into hills)
       const terrainHeight = getTerrainHeight(newX, newZ);
       
-      // Update position with terrain height
-      groupRef.current.position.set(newX, terrainHeight + 0.9, newZ);
+      // Use delta-based lerp for smooth, frame-rate independent interpolation
+      const targetY = terrainHeight + 0.0; // Ground level - 0.0 offset
+      const currentY = groupRef.current.position.y;
+      const lerpFactor = Math.min(1.0, clampedDelta * 12); // Faster lerp for better responsiveness
+      const smoothedY = THREE.MathUtils.lerp(currentY, targetY, lerpFactor);
+      
+      // Clamp to prevent going under ground - always stay on top
+      const finalY = Math.max(smoothedY, targetY);
+      
+      // Update position with smoothed terrain height
+      groupRef.current.position.set(newX, finalY, newZ);
 
       // Smooth rotation using lerp
       const targetRotation = Math.atan2(direction.x, direction.z);
@@ -182,11 +206,19 @@ export function WalkingNPC({
       }
     }
     
-    // Ensure NPC stays on terrain
+    // Ensure NPC stays on terrain - use delta-based smoothing
     const terrainHeight = getTerrainHeight(groupRef.current.position.x, groupRef.current.position.z);
-    if (Math.abs(groupRef.current.position.y - (terrainHeight + 0.9)) > 0.1) {
-      groupRef.current.position.y = terrainHeight + 0.9;
-    }
+    const targetY = terrainHeight + 0.0; // Ground level - 0.0 offset
+    const currentY = groupRef.current.position.y;
+    
+    // Use delta-based lerp for smooth, frame-rate independent interpolation
+    const clampedDelta = Math.min(delta, 0.05); // Cap delta at 50ms to prevent frame spikes
+    const lerpFactor = Math.min(1.0, clampedDelta * 12); // Faster lerp for better responsiveness
+    const smoothedY = THREE.MathUtils.lerp(currentY, targetY, lerpFactor);
+    
+    // Clamp to prevent going under ground - always stay on top
+    const finalY = Math.max(smoothedY, targetY);
+    groupRef.current.position.y = finalY;
   });
 
   if (!modelLoaded || !model) {

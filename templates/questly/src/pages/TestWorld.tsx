@@ -1,7 +1,7 @@
 import React, { Suspense, useState, useMemo, useRef, useEffect } from 'react';
 import { useFrame, Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment, Sky, useGLTF } from '@react-three/drei';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import CustomButton from '@/components/CustomButton';
 import * as THREE from 'three';
 import { oceanVertexShader, oceanFragmentShader, skyboxVertexShader, skyboxFragmentShader } from '@/shaders/OceanShaders';
@@ -19,6 +19,9 @@ import CharacterSelector, { CHARACTER_OPTIONS } from '../components/CharacterSel
 import { PhysicsWorldProvider } from '../components/PhysicsWorldProvider';
 import { QuestMarker } from '../components/QuestLabel';
 import { WalkingNPC } from '../components/WalkingNPC';
+import SidebarMenu from '../components/SidebarMenu';
+import DialogueBox from '../components/DialogueBox';
+import FloatingInteractionIcon from '../components/FloatingInteractionIcon';
 import { generateSimplexTerrain, sampleTerrainHeight } from '../utils/simplexTerrain';
 import { createNoise2D } from 'simplex-noise';
 import * as CANNON from 'cannon-es';
@@ -114,6 +117,8 @@ function CharacterController({
   cameraView,
   positionRef: externalPositionRef,
   rotationRef: externalRotationRef,
+  getTerrainHeight,
+  characterHeightOffset = 0.9,
 }: { 
   startPosition: [number, number, number];
   terrainMeshRef: React.RefObject<THREE.Mesh>;
@@ -124,12 +129,15 @@ function CharacterController({
   cameraView?: 'third-person' | 'topdown' | 'isometric' | 'birdseye';
   positionRef?: React.MutableRefObject<THREE.Vector3>;
   rotationRef?: React.MutableRefObject<number>;
+  getTerrainHeight?: (x: number, z: number) => number;
+  characterHeightOffset?: number;
 }) {
   const characterRef = useRef<THREE.Group>(null);
   const groupRef = useRef<THREE.Group>(null);
   const positionRef = useRef<THREE.Vector3>(new THREE.Vector3(...startPosition));
   const [position, setPosition] = useState<THREE.Vector3>(new THREE.Vector3(...startPosition)); // For React rendering
-  const [rotation, setRotation] = useState(0);
+  const rotationRef = useRef(0); // Use ref for immediate updates (no state lag)
+  const [rotation, setRotation] = useState(0); // Keep state for React rendering
   const [model, setModel] = useState<THREE.Object3D | null>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
   const velocity = useRef(new THREE.Vector3());
@@ -364,16 +372,70 @@ function CharacterController({
       velocity.current.z = 0;
     }
     
-    // Rotation
+    // Rotation - update ref immediately for camera sync
     if (keys.current['a'] || keys.current['arrowleft']) {
-      setRotation(prev => prev + rotSpeed * delta);
+      rotationRef.current += rotSpeed * delta;
+      setRotation(rotationRef.current); // Update state for React rendering
     }
     if (keys.current['d'] || keys.current['arrowright']) {
-      setRotation(prev => prev - rotSpeed * delta);
+      rotationRef.current -= rotSpeed * delta;
+      setRotation(rotationRef.current); // Update state for React rendering
     }
     
+    // Use ref for rotation (immediate, no state lag)
+    const currentRotation = rotationRef.current;
+    
     // Apply rotation to velocity
-    const rotatedVelocity = velocity.current.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), rotation);
+    const rotatedVelocity = velocity.current.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), currentRotation);
+    
+    // Get terrain height at CURRENT position
+    const currentTerrainHeight = getTerrainHeight ? getTerrainHeight(positionRef.current.x, positionRef.current.z) : null;
+    
+    // Get terrain height at NEW position BEFORE moving (prevents walking into hills)
+    let terrainHeightAtNewPos: number | null = null;
+    const proposedX = positionRef.current.x + rotatedVelocity.x;
+    const proposedZ = positionRef.current.z + rotatedVelocity.z;
+    
+    if (getTerrainHeight) {
+      terrainHeightAtNewPos = getTerrainHeight(proposedX, proposedZ);
+    } else if (terrainMeshRef && terrainMeshRef.current) {
+      // Fallback to raycasting
+      const raycaster = new THREE.Raycaster();
+      raycaster.ray.origin.set(proposedX, positionRef.current.y + 10, proposedZ);
+      raycaster.ray.direction.set(0, -1, 0);
+      const intersects = raycaster.intersectObject(terrainMeshRef.current, false);
+      
+      if (intersects.length > 0) {
+        let height = intersects[0].point.y;
+        // Filter out ocean hits
+        if (height < 1.0) {
+          height = 2.5; // Default to building area height
+        }
+        terrainHeightAtNewPos = height;
+      }
+    }
+    
+    // Check if terrain ahead is significantly higher (hill detection)
+    if (terrainHeightAtNewPos !== null && currentTerrainHeight !== null) {
+      const heightDifference = terrainHeightAtNewPos - currentTerrainHeight;
+      const maxClimbableHeight = 0.5; // Maximum height difference we can climb per frame
+      
+      // If hill is too steep, prevent horizontal movement or adjust Y position first
+      if (heightDifference > maxClimbableHeight && isGrounded.current) {
+        // Adjust Y position to match terrain ahead BEFORE moving horizontally
+        const targetY = terrainHeightAtNewPos + characterHeightOffset;
+        if (positionRef.current.y < targetY - 0.1) {
+          // Need to climb - adjust Y position first
+          const lerpFactor = Math.min(1.0, delta * 25); // Fast lerp for climbing
+          positionRef.current.y = THREE.MathUtils.lerp(positionRef.current.y, targetY, lerpFactor);
+          // Don't move horizontally until we're closer to the target height
+          if (Math.abs(positionRef.current.y - targetY) > 0.2) {
+            // Still climbing - reduce horizontal movement
+            rotatedVelocity.multiplyScalar(0.3);
+          }
+        }
+      }
+    }
     
     // Update horizontal position using ref (no state update = no jitter)
     const newPos = positionRef.current.clone();
@@ -382,50 +444,39 @@ function CharacterController({
     
     // Apply vertical velocity (for jumping/falling)
     newPos.y += verticalVelocity.current * delta;
-    
-    // Character height offset (feet at ground level, character center ~0.9 units up)
-    const characterHeightOffset = 0.9;
 
     // Check collision before moving
     if (!checkCollision(newPos)) {
-      // Use BVH-accelerated raycast to check ground height
-      if (terrainMeshRef && terrainMeshRef.current) {
-        const raycaster = new THREE.Raycaster();
-        // Raycast from character position downward
-        raycaster.ray.origin.set(newPos.x, newPos.y + 10, newPos.z);
-        raycaster.ray.direction.set(0, -1, 0);
-        const intersects = raycaster.intersectObject(terrainMeshRef.current, false);
+      // Use terrain height at new position (prevents walking into hills)
+      if (terrainHeightAtNewPos !== null) {
+        const targetY = terrainHeightAtNewPos + characterHeightOffset;
+        const groundDistance = newPos.y - terrainHeightAtNewPos;
+        const threshold = characterHeightOffset + 0.3; // Larger threshold for slopes
         
-        if (intersects.length > 0) {
-          const terrainHeight = intersects[0].point.y;
-          const groundDistance = newPos.y - terrainHeight;
+        // Always snap to terrain when grounded or falling (prevents walking into hills)
+        if (isGrounded.current || (verticalVelocity.current <= 0 && groundDistance <= threshold)) {
+          // Use delta-based lerp for smooth, frame-rate independent interpolation
+          const lerpFactor = Math.min(1.0, delta * 25); // Faster lerp for better responsiveness
+          newPos.y = THREE.MathUtils.lerp(newPos.y, targetY, lerpFactor);
           
-          // If grounded (within small threshold) or falling into ground
-          if (isGrounded.current || (verticalVelocity.current <= 0 && groundDistance <= characterHeightOffset + 0.1)) {
-            // Smooth ground snapping - use lerp to reduce jitter
-            const targetY = terrainHeight + characterHeightOffset;
-            newPos.y = THREE.MathUtils.lerp(newPos.y, targetY, 0.3); // Smooth interpolation
-            verticalVelocity.current = 0;
-            isGrounded.current = true;
-          } else {
-            // In air - let gravity work, but check if we're falling into ground
-            if (verticalVelocity.current < 0 && newPos.y <= terrainHeight + characterHeightOffset) {
-              newPos.y = terrainHeight + characterHeightOffset;
+          // Clamp to prevent going under ground - always stay on top
+          if (newPos.y < targetY) {
+            newPos.y = targetY;
+          }
+          
           verticalVelocity.current = 0;
           isGrounded.current = true;
-        }
-      }
         } else {
-          // Raycast failed - if falling and below minimum height, stop falling
-          if (verticalVelocity.current < 0 && newPos.y < 2) {
-            newPos.y = 2;
+          // In air - let gravity work, but check if we're falling into ground
+          if (verticalVelocity.current < 0 && newPos.y <= targetY) {
+            newPos.y = targetY;
             verticalVelocity.current = 0;
             isGrounded.current = true;
           }
         }
       } else {
-        // Terrain not ready - prevent falling below minimum
-        if (newPos.y < 2) {
+        // Terrain height not available - prevent falling below minimum
+        if (verticalVelocity.current < 0 && newPos.y < 2) {
           newPos.y = 2;
           verticalVelocity.current = 0;
           isGrounded.current = true;
@@ -448,31 +499,43 @@ function CharacterController({
       }
     }
     
-    if (characterRef.current) {
-      characterRef.current.rotation.y = rotation;
-    }
+    // Character rotation is handled by groupRef in separate useFrame hook
     
-    // Update external refs if provided
+    // Update external refs if provided - use ref for rotation to ensure sync
     if (externalPositionRef?.current) {
       externalPositionRef.current.copy(positionRef.current);
     }
     if (externalRotationRef) {
-      externalRotationRef.current = rotation;
+      externalRotationRef.current = currentRotation; // Use ref for immediate sync
     }
     
     // Position camera based on view mode (only if third-person, otherwise CameraController handles it)
     if (cameraView === 'third-person' || !cameraView) {
       const cameraOffset = new THREE.Vector3(0, 4, 6);
-      cameraOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotation);
+      cameraOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), currentRotation); // Use ref for sync
       camera.position.copy(positionRef.current).add(cameraOffset);
       camera.lookAt(positionRef.current.x, positionRef.current.y + 1, positionRef.current.z);
+    }
+  });
+  
+  // Initialize rotation ref on mount and sync with external ref
+  useEffect(() => {
+    if (externalRotationRef) {
+      rotationRef.current = externalRotationRef.current || 0;
+    }
+  }, [externalRotationRef]);
+  
+  // Update group rotation in useFrame to use ref (ensures sync)
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y = rotationRef.current;
     }
   });
   
   // KayKit character model
   return (
     <group ref={characterRef} position={position}>
-      <group ref={groupRef} rotation={[0, rotation, 0]}>
+      <group ref={groupRef} rotation={[0, rotationRef.current, 0]}>
         {model ? (
           <primitive object={model} />
         ) : (
@@ -2130,6 +2193,8 @@ export default function TestWorld() {
   const [heightScale, setHeightScale] = useState(55);
   const [waterLevel, setWaterLevel] = useState(0.9);
   const [cliffIntensity, setCliffIntensity] = useState(100);
+  const [leftPanelMinimized, setLeftPanelMinimized] = useState(false);
+  const [rightPanelMinimized, setRightPanelMinimized] = useState(false);
   
   // Building areas - now multiple
   // Default starter terrain at X: 0, Z: 50, Radius: 45, Height: 2.5
@@ -2138,58 +2203,101 @@ export default function TestWorld() {
   ]);
   const [nextAreaId, setNextAreaId] = useState(1);
   
+  // Check if coming from direct test scene link
+  const [searchParams] = useSearchParams();
+  const directTestMode = searchParams.get('direct') === 'true';
+  
   // Manual placement mode
   const [manualMode, setManualMode] = useState(false);
-  const [testMode, setTestMode] = useState(false);
+  const [testMode, setTestMode] = useState(directTestMode); // Start in test mode if direct link
   const [selectedCharacter, setSelectedCharacter] = useState('rogue');
   const [enablePhysics, setEnablePhysics] = useState(false); // Toggle physics
   const animationTriggerRef = useRef<((anim: string) => void) | null>(null);
   
-  // Quest markers for demo
+  // Quest markers for demo - will be positioned on building area once terrain is ready
+  // Note: Marker with id 2 (Merchant) should align with merchant1 NPC
   const [questMarkers, setQuestMarkers] = useState([
-    { id: 1, position: [10, 0, 10] as [number, number, number], label: 'Find the Treasure', type: 'quest' as const },
-    { id: 2, position: [-15, 0, 5] as [number, number, number], label: 'Merchant', type: 'npc' as const },
-    { id: 3, position: [5, 0, -12] as [number, number, number], label: 'Ancient Ruins', type: 'location' as const },
+    { id: 1, position: [0, 2.5, 50] as [number, number, number], label: 'Find the Treasure', type: 'quest' as const },
+    { id: 2, position: [-15, 2.5, 50] as [number, number, number], label: 'Merchant', type: 'npc' as const, npcId: 'merchant1' }, // Aligned with merchant NPC
+    { id: 3, position: [10, 2.5, 50] as [number, number, number], label: 'Ancient Ruins', type: 'location' as const },
   ]);
   
-  // NPCs with waypoints
+  // NPCs with waypoints - will be positioned on building area once terrain is ready
   const [npcs, setNpcs] = useState([
     {
       id: 'guard1',
       name: 'Guard',
-      position: [15, 0, 15] as [number, number, number],
+      position: [15, 2.5, 50] as [number, number, number],
       waypoints: [
-        [15, 0, 15],
-        [20, 0, 15],
-        [20, 0, 20],
-        [15, 0, 20],
+        [15, 2.5, 50],
+        [20, 2.5, 50],
+        [20, 2.5, 55],
+        [15, 2.5, 55],
       ] as [number, number, number][],
       characterModelPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Knight.glb',
     },
     {
       id: 'merchant1',
       name: 'Merchant',
-      position: [-15, 0, 5] as [number, number, number],
+      position: [-15, 2.5, 50] as [number, number, number],
       waypoints: [
-        [-15, 0, 5],
-        [-10, 0, 5],
-        [-10, 0, 0],
-        [-15, 0, 0],
+        [-15, 2.5, 50],
+        [-10, 2.5, 50],
+        [-10, 2.5, 45],
+        [-15, 2.5, 45],
       ] as [number, number, number][],
       characterModelPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Mage.glb',
     },
   ]);
   
+  // Dialogue box state
+  const [dialogueBox, setDialogueBox] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'npc' | 'quest' | 'location' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info'
+  });
+  
+  // Floating icon state (which NPCs/markers have icons visible)
+  const [showFloatingIcons, setShowFloatingIcons] = useState(true);
+  const [interactingWith, setInteractingWith] = useState<string | null>(null); // Track which entity is being interacted with
+  
   // Handle quest marker clicks
   const handleMarkerClick = (markerId: number) => {
-    console.log('Quest marker clicked:', markerId);
-    // TODO: Open quest dialog or show details
+    const marker = questMarkers.find(m => m.id === markerId);
+    if (marker) {
+      setInteractingWith(`marker-${markerId}`);
+      setDialogueBox({
+        isOpen: true,
+        title: marker.label,
+        message: `Quest Marker: ${marker.label}\nType: ${marker.type}\n\nThis will open a quest dialog in the future.`,
+        type: marker.type === 'quest' ? 'quest' : marker.type === 'location' ? 'location' : 'info'
+      });
+    }
   };
   
   // Handle NPC clicks
   const handleNPCClick = (npcId: string) => {
-    console.log('NPC clicked:', npcId);
-    // TODO: Open NPC dialog or show interaction menu
+    const npc = npcs.find(n => n.id === npcId);
+    if (npc) {
+      setInteractingWith(`npc-${npcId}`);
+      setDialogueBox({
+        isOpen: true,
+        title: npc.name,
+        message: `NPC: ${npc.name}\n\nThis will open an interaction dialog in the future.`,
+        type: 'npc'
+      });
+    }
+  };
+  
+  const closeDialogue = () => {
+    setDialogueBox({ isOpen: false, title: '', message: '', type: 'info' });
+    setInteractingWith(null);
   };
   const [eraseMode, setEraseMode] = useState(false);
   const [eraseBrushSize, setEraseBrushSize] = useState(3);
@@ -2201,6 +2309,8 @@ export default function TestWorld() {
   const [zoomMode, setZoomMode] = useState(false);
   const [cameraView, setCameraView] = useState<'third-person' | 'topdown' | 'isometric' | 'birdseye'>('third-person');
   const [isLoading, setIsLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [characterHeightOffset, setCharacterHeightOffset] = useState(0.0); // Slider for height offset - 0.0 = ground level
   
   // Character position/rotation refs for camera controller
   const characterPositionRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 20, 0));
@@ -2267,6 +2377,21 @@ export default function TestWorld() {
     setBuildingAreas(buildingAreas.map(area => 
       area.id === id ? { ...area, x, z } : area
     ));
+  };
+  
+  // Helper function to get a random position within a building area
+  const getPositionInBuildingArea = (area: BuildingArea, offsetFromCenter: number = 0.3): [number, number, number] => {
+    // Generate random angle and distance within the area (avoiding edges)
+    const angle = Math.random() * Math.PI * 2;
+    const maxRadius = area.radius * offsetFromCenter; // Use 30% of radius to stay well within area
+    const distance = Math.random() * maxRadius;
+    
+    const x = area.x + Math.cos(angle) * distance;
+    const z = area.z + Math.sin(angle) * distance;
+    // Use building area height as default, will be updated when terrain is ready
+    const y = area.height;
+    
+    return [x, y, z];
   };
   
   // Shared terrain height function - samples from actual terrain mesh geometry (matches rendered terrain)
@@ -2398,29 +2523,29 @@ export default function TestWorld() {
 
   // Get current world state for saving
   const getCurrentWorldState = () => ({
-    roughness,
-    islandSize,
-    terrainDetail,
+      roughness,
+      islandSize,
+      terrainDetail,
     seed,
-    heightScale,
-    waterLevel,
-    cliffIntensity,
-    treeAmount,
-    treeSize,
-    grassAmount,
-    grassSize,
+      heightScale,
+      waterLevel,
+      cliffIntensity,
+      treeAmount,
+      treeSize,
+      grassAmount,
+      grassSize,
     terrainGrassCoverage,
     buildingGrassFalloff,
-    rockAmount,
-    rockSize,
-    bushAmount,
-    bushSize,
-    treeHeightOffset,
-    grassHeightOffset,
-    rockHeightOffset,
-    bushHeightOffset,
-    slopeAdjustmentIntensity,
-    buildingAreas,
+      rockAmount,
+      rockSize,
+      bushAmount,
+      bushSize,
+      treeHeightOffset,
+      grassHeightOffset,
+      rockHeightOffset,
+      bushHeightOffset,
+      slopeAdjustmentIntensity,
+      buildingAreas,
     nextAreaId,
     manualAssets,
     proceduralAssets,
@@ -2557,8 +2682,19 @@ export default function TestWorld() {
       setNextAreaId(worldState.nextAreaId);
       setManualAssets(worldState.manualAssets);
       setProceduralAssets(worldState.proceduralAssets);
-      setQuestMarkers(worldState.questMarkers);
-      setNpcs(worldState.npcs);
+      // Update quest markers and NPCs, ensuring they're on terrain
+      const updatedMarkers = worldState.questMarkers.map(marker => ({
+        ...marker,
+        position: [marker.position[0], getTerrainHeight(marker.position[0], marker.position[2]), marker.position[2]] as [number, number, number]
+      }));
+      setQuestMarkers(updatedMarkers);
+      
+      const updatedNpcs = worldState.npcs.map(npc => ({
+        ...npc,
+        position: [npc.position[0], getTerrainHeight(npc.position[0], npc.position[2]), npc.position[2]] as [number, number, number],
+        waypoints: npc.waypoints.map(wp => [wp[0], getTerrainHeight(wp[0], wp[2]), wp[2]] as [number, number, number])
+      }));
+      setNpcs(updatedNpcs);
       setTimeOfDay(worldState.timeOfDay);
       setWaveStrength(worldState.waveStrength);
       setWaveSpeed(worldState.waveSpeed);
@@ -2599,8 +2735,12 @@ export default function TestWorld() {
     }
   };
 
-  // Load auto-saved world on mount
+  // Load auto-saved world on mount (prevent double execution in StrictMode)
+  const hasCheckedAutoSave = useRef(false);
   useEffect(() => {
+    if (hasCheckedAutoSave.current) return;
+    hasCheckedAutoSave.current = true;
+    
     const autoSaved = loadAutoSavedWorld();
     if (autoSaved) {
       const shouldLoad = window.confirm('Found auto-saved world. Load it?');
@@ -2625,14 +2765,28 @@ export default function TestWorld() {
     // Check immediately
     if (checkReady()) return;
     
+    // Check more frequently for faster loading feedback
+    const interval = setInterval(() => {
+      if (checkReady()) {
+        clearInterval(interval);
+      }
+    }, 100); // Check every 100ms
+    
     // Also check after a delay to ensure everything is rendered
     const timer = setTimeout(() => {
+      clearInterval(interval);
       if (!checkReady()) {
-        // Force loading to false after 30 seconds max to prevent infinite loading
+        // Force loading to false after 10 seconds max to prevent infinite loading
         console.warn('[Loading] Force clearing loading state after timeout');
         setIsLoading(false);
       }
-    }, 30000); // 30 second timeout to prevent infinite loading
+    }, 10000); // Reduced to 10 second timeout
+    
+    // Cleanup
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timer);
+    };
     
     // Also set a shorter timeout for normal cases
     const normalTimer = setTimeout(() => {
@@ -2644,6 +2798,85 @@ export default function TestWorld() {
       clearTimeout(normalTimer);
     };
   }, [terrainMeshRef]);
+  
+  // Update quest markers and NPCs positions when terrain is ready and building areas change
+  // Ensures they're positioned within building areas and on terrain surface
+  useEffect(() => {
+    if (!terrainMeshRef.current || buildingAreas.length === 0) return;
+    
+    const primaryArea = buildingAreas[0];
+    
+    // Update quest markers to be within building area
+    setQuestMarkers(prev => prev.map(marker => {
+      // Check if marker is within any building area
+      let inArea = false;
+      for (const area of buildingAreas) {
+        const dist = Math.sqrt(Math.pow(marker.position[0] - area.x, 2) + Math.pow(marker.position[2] - area.z, 2));
+        if (dist <= area.radius) {
+          inArea = true;
+          break;
+        }
+      }
+      
+      // If not in area, move to primary building area
+      if (!inArea) {
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.random() * primaryArea.radius * 0.3;
+        const x = primaryArea.x + Math.cos(angle) * distance;
+        const z = primaryArea.z + Math.sin(angle) * distance;
+        const y = getTerrainHeight(x, z);
+        return { ...marker, position: [x, y, z] as [number, number, number] };
+      }
+      
+      // Update Y position to terrain height
+      const y = getTerrainHeight(marker.position[0], marker.position[2]);
+      return { ...marker, position: [marker.position[0], y, marker.position[2]] as [number, number, number] };
+    }));
+    
+    // Update NPCs to be within building area
+    setNpcs(prev => prev.map(npc => {
+      // Check if NPC is within any building area
+      let inArea = false;
+      for (const area of buildingAreas) {
+        const dist = Math.sqrt(Math.pow(npc.position[0] - area.x, 2) + Math.pow(npc.position[2] - area.z, 2));
+        if (dist <= area.radius) {
+          inArea = true;
+          break;
+        }
+      }
+      
+      // If not in area, move to primary building area
+      if (!inArea) {
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.random() * primaryArea.radius * 0.3;
+        const x = primaryArea.x + Math.cos(angle) * distance;
+        const z = primaryArea.z + Math.sin(angle) * distance;
+        const y = getTerrainHeight(x, z);
+        
+        // Generate waypoints within area
+        const waypoints: [number, number, number][] = [[x, y, z]];
+        for (let i = 0; i < 3; i++) {
+          const wpAngle = Math.random() * Math.PI * 2;
+          const wpDistance = Math.random() * primaryArea.radius * 0.4;
+          const wpX = primaryArea.x + Math.cos(wpAngle) * wpDistance;
+          const wpZ = primaryArea.z + Math.sin(wpAngle) * wpDistance;
+          const wpY = getTerrainHeight(wpX, wpZ);
+          waypoints.push([wpX, wpY, wpZ]);
+        }
+        
+        return { ...npc, position: [x, y, z] as [number, number, number], waypoints };
+      }
+      
+      // Update Y position and waypoints to terrain height
+      const y = getTerrainHeight(npc.position[0], npc.position[2]);
+      const waypoints = npc.waypoints.map(wp => {
+        const wpY = getTerrainHeight(wp[0], wp[2]);
+        return [wp[0], wpY, wp[2]] as [number, number, number];
+      });
+      
+      return { ...npc, position: [npc.position[0], y, npc.position[2]] as [number, number, number], waypoints };
+    }));
+  }, [terrainMeshRef, buildingAreas]);
 
   return (
     <div className="fixed inset-0 bg-gradient-to-b from-slate-900 to-slate-800 text-white overflow-hidden">
@@ -2662,41 +2895,61 @@ export default function TestWorld() {
         </div>
       )}
       
+      {/* Sidebar Menu */}
+      <SidebarMenu isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      
       {/* Header - Fixed with proper spacing and mobile responsive */}
-      <div className="fixed top-0 left-0 right-0 z-30 p-2 md:p-4 bg-slate-900/95 backdrop-blur border-b-2 border-slate-600 shadow-lg">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Test World</h1>
-            <p className="text-sm text-slate-400">Low-poly island terrain with procedural assets</p>
+      <div className="fixed top-0 left-0 right-0 z-30 h-14 md:h-16 bg-slate-900/95 backdrop-blur border-b-2 border-slate-600 shadow-lg flex items-center">
+        <div className="max-w-7xl mx-auto w-full px-2 md:px-4 flex items-center justify-between h-full gap-2">
+          {/* Left: Questly Menu Button */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary hover:bg-primary/90 transition-colors shadow-lg border-b-2 border-primary/70 active:translate-y-0.5 active:border-b flex-shrink-0"
+            aria-label="Open menu"
+          >
+            <div className="bg-primary-foreground/20 p-1.5 rounded">
+              <svg className="w-5 h-5 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+          </div>
+            <span className="font-display text-lg text-primary-foreground font-bold hidden sm:block">Questly</span>
+          </button>
+          
+          {/* Center: Title (hidden on mobile) */}
+          <div className="flex-1 text-center hidden md:block min-w-0">
+            <h1 className="text-lg md:text-xl font-bold truncate">Test World</h1>
+            <p className="text-xs text-slate-400 hidden lg:block">Low-poly island terrain</p>
           </div>
           
-          {/* Camera Controls */}
-          <div className="flex items-center gap-2">
+          {/* Right: Controls */}
+          <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
             <button
               onClick={() => setTestMode(!testMode)}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+              className={`px-2 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-semibold transition-all whitespace-nowrap ${
                 testMode 
                   ? 'bg-red-600 text-white shadow-lg shadow-red-500/50' 
                   : 'bg-green-600 text-white shadow-lg shadow-green-500/50'
               }`}
               title={testMode ? 'Exit Test Mode' : 'Enter Test Mode'}
             >
-              {testMode ? '⏸️ EXIT TEST' : '🎮 TEST SCENE'}
+              <span className="hidden md:inline">{testMode ? '⏸️ EXIT TEST' : '🎮 TEST SCENE'}</span>
+              <span className="md:hidden">{testMode ? '⏸️' : '🎮'}</span>
             </button>
             
+            {/* Pan/Zoom - Hidden on mobile */}
             <button
               onClick={() => {
                 setPanMode(!panMode);
                 if (!panMode) setZoomMode(false);
               }}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+              className={`hidden md:flex px-2 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 panMode 
                   ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50' 
                   : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
               }`}
               title="Toggle Pan Mode"
             >
-              ✋ {panMode ? 'Pan ON' : 'Pan'}
+              ✋ {panMode ? 'ON' : ''}
             </button>
             
             <button
@@ -2704,79 +2957,82 @@ export default function TestWorld() {
                 setZoomMode(!zoomMode);
                 if (!zoomMode) setPanMode(false);
               }}
-              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+              className={`hidden md:flex px-2 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 zoomMode 
                   ? 'bg-green-600 text-white shadow-lg shadow-green-500/50' 
                   : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
               }`}
               title="Toggle Zoom Mode"
             >
-              🔍 {zoomMode ? 'Zoom ON' : 'Zoom'}
+              🔍 {zoomMode ? 'ON' : ''}
             </button>
             
-            {/* Camera View Buttons */}
-            <div className="flex items-center gap-1 border-l border-slate-600 pl-2 ml-2">
+            {/* Camera View Buttons - Compact */}
+            <div className="hidden lg:flex items-center gap-1 border-l border-slate-600 pl-2 ml-1">
               <button
                 onClick={() => setCameraView('third-person')}
-                className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-2 py-1.5 rounded text-xs font-semibold transition-all ${
                   cameraView === 'third-person'
-                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/50'
+                    ? 'bg-purple-600 text-white'
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                 }`}
-                title="Third Person View"
+                title="Third Person"
               >
                 3rd
               </button>
               <button
                 onClick={() => setCameraView('topdown')}
-                className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-2 py-1.5 rounded text-xs font-semibold transition-all ${
                   cameraView === 'topdown'
-                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/50'
+                    ? 'bg-purple-600 text-white'
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                 }`}
-                title="Top Down View"
+                title="Top Down"
               >
                 ⬇️
               </button>
               <button
                 onClick={() => setCameraView('isometric')}
-                className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-2 py-1.5 rounded text-xs font-semibold transition-all ${
                   cameraView === 'isometric'
-                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/50'
+                    ? 'bg-purple-600 text-white'
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                 }`}
-                title="Isometric View"
+                title="Isometric"
               >
                 📐
               </button>
               <button
                 onClick={() => setCameraView('birdseye')}
-                className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                className={`px-2 py-1.5 rounded text-xs font-semibold transition-all ${
                   cameraView === 'birdseye'
-                    ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/50'
+                    ? 'bg-purple-600 text-white'
                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                 }`}
-                title="Bird's Eye View"
+                title="Bird's Eye"
               >
                 🦅
               </button>
             </div>
-            
-            <CustomButton
-              onClick={() => navigate('/dashboard')}
-            >
-              Back to Dashboard
-            </CustomButton>
           </div>
         </div>
       </div>
       
       {/* Asset Controls - Left Panel - Mobile responsive with minimize */}
-      <div className="fixed top-14 md:top-16 left-2 md:left-4 bottom-2 md:bottom-4 z-20 w-[calc(100%-1rem)] md:w-64 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg overflow-hidden flex flex-col">
+      <div className={`fixed top-[3.5rem] md:top-16 left-2 md:left-4 ${leftPanelMinimized ? 'bottom-auto h-auto' : 'bottom-2 md:bottom-4'} z-20 ${leftPanelMinimized ? 'w-12' : 'w-[calc(100%-1rem)] md:w-64'} bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg overflow-hidden flex flex-col transition-all duration-300 shadow-xl`}>
         {/* Panel Header */}
-        <div className="flex items-center justify-between p-2 md:p-3 border-b border-slate-700 bg-slate-800/50 flex-shrink-0">
-          <h3 className="text-xs md:text-sm font-bold text-slate-300 uppercase">Controls</h3>
+        <div className="flex items-center justify-between p-2 md:p-3 border-b border-slate-700 bg-slate-800/50 flex-shrink-0 min-h-[2.75rem] md:min-h-[3rem]">
+          {!leftPanelMinimized && <h3 className="text-xs md:text-sm font-bold text-slate-300 uppercase">Controls</h3>}
+          <button
+            onClick={() => setLeftPanelMinimized(!leftPanelMinimized)}
+            className="text-slate-400 hover:text-white transition-colors p-1.5 min-w-[2.5rem] min-h-[2rem] flex items-center justify-center rounded hover:bg-slate-700"
+            title={leftPanelMinimized ? 'Expand panel' : 'Minimize panel'}
+            aria-label={leftPanelMinimized ? 'Expand panel' : 'Minimize panel'}
+          >
+            <span className="text-sm md:text-base">{leftPanelMinimized ? '▶' : '◀'}</span>
+          </button>
         </div>
+        {!leftPanelMinimized && (
         <div className="flex-1 overflow-y-auto p-2 md:p-4">
         {!manualMode ? (
           <>
@@ -3210,6 +3466,7 @@ export default function TestWorld() {
         )}
         
         {/* Manual Placement Mode Button */}
+        {!leftPanelMinimized && (
         <div className="pt-4 mt-4 border-t border-slate-700">
           <button
             onClick={() => setManualMode(!manualMode)}
@@ -3227,16 +3484,49 @@ export default function TestWorld() {
             </p>
           )}
         </div>
+        )}
+        </div>
+        )}
       </div>
       
       {/* Island Controls - Right Panel - Mobile responsive with minimize */}
-      <div className="fixed top-14 md:top-16 right-2 md:right-4 bottom-2 md:bottom-4 z-20 w-[calc(100%-1rem)] md:w-64 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg overflow-hidden flex flex-col">
+      <div className={`fixed top-[3.5rem] md:top-16 right-2 md:right-4 ${rightPanelMinimized ? 'bottom-auto h-auto' : 'bottom-2 md:bottom-4'} z-20 ${rightPanelMinimized ? 'w-12' : 'w-[calc(100%-1rem)] md:w-64'} bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg overflow-hidden flex flex-col transition-all duration-300 shadow-xl`}>
         {/* Panel Header */}
-        <div className="flex items-center justify-between p-2 md:p-3 border-b border-slate-700 bg-slate-800/50 flex-shrink-0">
-          <h3 className="text-xs md:text-sm font-bold text-slate-300 uppercase">Settings</h3>
+        <div className="flex items-center justify-between p-2 md:p-3 border-b border-slate-700 bg-slate-800/50 flex-shrink-0 min-h-[2.75rem] md:min-h-[3rem]">
+          {!rightPanelMinimized && <h3 className="text-xs md:text-sm font-bold text-slate-300 uppercase">Settings</h3>}
+          <button
+            onClick={() => setRightPanelMinimized(!rightPanelMinimized)}
+            className="text-slate-400 hover:text-white transition-colors p-1.5 min-w-[2.5rem] min-h-[2rem] flex items-center justify-center rounded hover:bg-slate-700"
+            title={rightPanelMinimized ? 'Expand panel' : 'Minimize panel'}
+            aria-label={rightPanelMinimized ? 'Expand panel' : 'Minimize panel'}
+          >
+            <span className="text-sm md:text-base">{rightPanelMinimized ? '◀' : '▶'}</span>
+          </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-2 md:p-4">
+        {!rightPanelMinimized && (
+          <div className="flex-1 overflow-y-auto p-2 md:p-4">
         <h3 className="text-sm font-bold text-slate-300 uppercase mb-2">Island Controls</h3>
+            
+            {/* Character Height Offset Slider - Only in test mode */}
+            {testMode && (
+              <div className="mb-4 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                <label className="text-xs font-bold text-slate-300 block mb-2">
+                  Character Height Offset: <span className="text-blue-400">{characterHeightOffset.toFixed(2)}</span>
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.05"
+                  value={characterHeightOffset}
+                  onChange={(e) => setCharacterHeightOffset(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Adjust if character floats or sinks into ground
+                </p>
+              </div>
+            )}
         
         {/* Roughness Slider */}
         <div>
@@ -3640,53 +3930,52 @@ export default function TestWorld() {
           🔄 Regenerate
         </button>
 
-        {/* Save/Load Section */}
-        <div className="border-t border-slate-700 pt-4 mt-4">
-          <div className="text-xs text-slate-400 mb-2">Save & Load</div>
-          
-          {/* Save Button */}
-          <button
-            onClick={() => handleSave(true)}
-            disabled={saveStatus === 'saving'}
-            className={`w-full font-bold py-2 px-4 rounded transition-colors mb-2 ${
-              saveStatus === 'saving' 
-                ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
-                : saveStatus === 'saved'
-                ? 'bg-green-600 text-white'
-                : 'bg-green-600 hover:bg-green-700 text-white'
-            }`}
-            title="Save world (Ctrl+S)"
-          >
-            {saveStatus === 'saving' ? '⏳ Saving...' : saveStatus === 'saved' ? '✅ Saved!' : '💾 Save World'}
-          </button>
-          
-          {/* Load Button */}
-          <button
-            onClick={() => setShowLoadMenu(!showLoadMenu)}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors mb-2"
-          >
-            📂 Load World
-          </button>
-          
-          {/* Cloud Save Button */}
-          <button
-            onClick={() => handleSave(true)}
-            disabled={!isFirebaseAvailable() || saveStatus === 'saving'}
-            className={`w-full font-bold py-2 px-4 rounded transition-colors ${
-              isFirebaseAvailable()
-                ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                : 'bg-purple-600/50 text-slate-400 cursor-not-allowed'
-            }`}
-            title={isFirebaseAvailable() ? 'Save world to cloud (Firebase)' : 'Firebase not configured - set environment variables'}
-          >
-            {isFirebaseAvailable() ? '☁️ Save to Cloud' : '☁️ Cloud (Not Configured)'}
-          </button>
-          </div>
-        </div>
-        
-        {/* Load Menu */}
-        {showLoadMenu && (
-          <div className="absolute left-full ml-2 top-0 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-4 z-50 max-h-96 overflow-y-auto">
+            {/* Save/Load Section */}
+            <div className="border-t border-slate-700 pt-4 mt-4">
+              <div className="text-xs text-slate-400 mb-2">Save & Load</div>
+
+        {/* Save Button */}
+        <button
+                onClick={() => handleSave(true)}
+                disabled={saveStatus === 'saving'}
+                className={`w-full font-bold py-2 px-4 rounded transition-colors mb-2 ${
+                  saveStatus === 'saving' 
+                    ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+                    : saveStatus === 'saved'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-green-600 hover:bg-green-700 text-white'
+                }`}
+                title="Save world (Ctrl+S)"
+              >
+                {saveStatus === 'saving' ? '⏳ Saving...' : saveStatus === 'saved' ? '✅ Saved!' : '💾 Save World'}
+              </button>
+              
+              {/* Load Button */}
+              <button
+                onClick={() => setShowLoadMenu(!showLoadMenu)}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors mb-2"
+              >
+                📂 Load World
+              </button>
+              
+              {/* Cloud Save Button */}
+              <button
+                onClick={() => handleSave(true)}
+                disabled={!isFirebaseAvailable() || saveStatus === 'saving'}
+                className={`w-full font-bold py-2 px-4 rounded transition-colors ${
+                  isFirebaseAvailable()
+                    ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                    : 'bg-purple-600/50 text-slate-400 cursor-not-allowed'
+                }`}
+                title={isFirebaseAvailable() ? 'Save world to cloud (Firebase)' : 'Firebase not configured - set environment variables'}
+              >
+                {isFirebaseAvailable() ? '☁️ Save to Cloud' : '☁️ Cloud (Not Configured)'}
+        </button>
+      </div>
+      
+            {/* Load Menu */}
+            {showLoadMenu && (
+              <div className="absolute left-full ml-2 top-0 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-4 z-50 max-h-96 overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-white">Load World</h3>
               <button
@@ -3765,6 +4054,7 @@ export default function TestWorld() {
           </div>
         )}
         </div>
+        )}
       </div>
       
       {/* 3D Scene - Fixed to fit perfectly in viewport */}
@@ -3777,7 +4067,7 @@ export default function TestWorld() {
           <PhysicsWorldProvider 
             terrainMeshRef={terrainMeshRef}
             enablePhysics={enablePhysics && testMode}
-          >
+        >
           <Suspense fallback={null}>
             {/* Animation system updater */}
             <AnimationUpdater />
@@ -3886,16 +4176,16 @@ export default function TestWorld() {
               roughness={roughness}
               islandSize={islandSize}
               seed={seed}
-              terrainDetail={terrainDetail}
-              treeAmount={treeAmount}
+              terrainDetail={testMode ? Math.max(terrainDetail - 20, 20) : terrainDetail} // Reduce detail in test mode
+              treeAmount={testMode ? Math.floor(treeAmount * 0.7) : treeAmount} // Fewer trees in test mode
               treeSize={treeSize}
-              grassAmount={grassAmount}
+              grassAmount={testMode ? Math.floor(grassAmount * 0.6) : grassAmount} // Less grass in test mode
               grassSize={grassSize}
-              terrainGrassCoverage={terrainGrassCoverage}
+              terrainGrassCoverage={testMode ? terrainGrassCoverage * 0.7 : terrainGrassCoverage} // Less coverage in test mode
               buildingGrassFalloff={buildingGrassFalloff}
-              rockAmount={rockAmount}
+              rockAmount={testMode ? Math.floor(rockAmount * 0.7) : rockAmount} // Fewer rocks in test mode
               rockSize={rockSize}
-              bushAmount={bushAmount}
+              bushAmount={testMode ? Math.floor(bushAmount * 0.7) : bushAmount} // Fewer bushes in test mode
               bushSize={bushSize}
               heightScale={heightScale}
               cliffIntensity={cliffIntensity}
@@ -3913,9 +4203,16 @@ export default function TestWorld() {
             />
             
             {/* Character Controller - only in test mode */}
-                {testMode && (
+                {testMode && (() => {
+                  // Calculate spawn position at building area center with terrain height
+                  const spawnX = buildingAreas.length > 0 ? buildingAreas[0].x : 0;
+                  const spawnZ = buildingAreas.length > 0 ? buildingAreas[0].z : 50;
+                  const spawnY = getTerrainHeight(spawnX, spawnZ) + characterHeightOffset; // Use slider value
+                  const spawnPosition: [number, number, number] = [spawnX, spawnY, spawnZ];
+                  
+                  return (
                   <CharacterController
-                startPosition={[0, 20, 0]}
+                      startPosition={spawnPosition}
                     terrainMeshRef={terrainMeshRef}
                     manualAssets={manualAssets}
                     proceduralAssets={proceduralAssets}
@@ -3923,39 +4220,108 @@ export default function TestWorld() {
                     cameraView={cameraView}
                     positionRef={characterPositionRef}
                     rotationRef={characterRotationRef}
+                      getTerrainHeight={getTerrainHeight}
+                      characterHeightOffset={characterHeightOffset}
                     onAnimationTrigger={(crossfade) => {
                   if (animationTriggerRef.current) {
                       animationTriggerRef.current = crossfade;
                   }
                     }}
                   />
-                )}
-            
-            {/* Quest Markers - 3D labels */}
-            {questMarkers.map((marker) => (
-              <QuestMarker
-                key={marker.id}
-                position={marker.position}
-                label={marker.label}
-                type={marker.type}
-                onClick={() => handleMarkerClick(marker.id)}
-              />
-            ))}
+                  );
+                })()}
             
             {/* Walking NPCs */}
-            {npcs.map((npc) => (
-              <WalkingNPC
-                key={npc.id}
-                id={npc.id}
-                name={npc.name}
-                position={npc.position}
-                waypoints={npc.waypoints}
-                characterModelPath={npc.characterModelPath}
-                speed={2}
-                onClick={() => handleNPCClick(npc.id)}
-                terrainMeshRef={terrainMeshRef}
-              />
-            ))}
+            {npcs.map((npc) => {
+              // Ensure NPC is positioned on terrain - 0.0 offset = ground level
+              const terrainY = getTerrainHeight(npc.position[0], npc.position[2]);
+              const adjustedPosition: [number, number, number] = [npc.position[0], terrainY + 0.0, npc.position[2]];
+              
+              // Adjust waypoints to terrain height - 0.0 offset = ground level
+              const adjustedWaypoints = npc.waypoints.map(wp => 
+                [wp[0], getTerrainHeight(wp[0], wp[2]) + 0.0, wp[2]] as [number, number, number]
+              );
+              
+              return (
+                <group key={npc.id}>
+                  <WalkingNPC
+                    id={npc.id}
+                    name={npc.name}
+                    position={adjustedPosition}
+                    waypoints={adjustedWaypoints}
+                    characterModelPath={npc.characterModelPath}
+                    speed={2}
+                    onClick={() => handleNPCClick(npc.id)}
+                    terrainMeshRef={terrainMeshRef}
+                    getTerrainHeight={getTerrainHeight}
+                  />
+                  {/* Floating interaction icon above NPC */}
+                  {showFloatingIcons && testMode && (
+                    <FloatingInteractionIcon
+                      position={[adjustedPosition[0], adjustedPosition[1] + 3, adjustedPosition[2]]}
+                      icon="💬"
+                      label={npc.name}
+                      onClick={() => handleNPCClick(npc.id)}
+                      color={interactingWith === `npc-${npc.id}` ? '#10b981' : '#3b82f6'}
+                    />
+                  )}
+                </group>
+              );
+            })}
+            
+            {/* Quest Markers - 3D labels */}
+            {questMarkers.map((marker) => {
+              // If marker is linked to an NPC, use NPC position
+              let markerX = marker.position[0];
+              let markerZ = marker.position[2];
+              
+              if ((marker as any).npcId) {
+                const linkedNpc = npcs.find(n => n.id === (marker as any).npcId);
+                if (linkedNpc) {
+                  markerX = linkedNpc.position[0];
+                  markerZ = linkedNpc.position[2];
+                }
+              }
+              
+              // Ensure marker is positioned on terrain
+              const terrainY = getTerrainHeight(markerX, markerZ);
+              const adjustedPosition: [number, number, number] = [markerX, terrainY + 0.1, markerZ];
+              
+              // Get icon based on marker type
+              const getMarkerIcon = () => {
+                switch (marker.type) {
+                  case 'quest':
+                    return '⚔️';
+                  case 'location':
+                    return '📍';
+                  case 'npc':
+                    return '💬';
+                  default:
+                    return '❓';
+                }
+              };
+              
+              return (
+                <group key={marker.id}>
+                  <QuestMarker
+                    position={adjustedPosition}
+                    label={marker.label}
+                    type={marker.type}
+                    onClick={() => handleMarkerClick(marker.id)}
+                  />
+                  {/* Floating interaction icon above marker */}
+                  {showFloatingIcons && testMode && (
+                    <FloatingInteractionIcon
+                      position={[adjustedPosition[0], adjustedPosition[1] + 2.5, adjustedPosition[2]]}
+                      icon={getMarkerIcon()}
+                      label={marker.label}
+                      onClick={() => handleMarkerClick(marker.id)}
+                      color={interactingWith === `marker-${marker.id}` ? '#10b981' : '#8b5cf6'}
+                    />
+                  )}
+                </group>
+              );
+            })}
             
             {/* Ground Click Handler for Manual Placement */}
             {manualMode && (
@@ -3980,35 +4346,74 @@ export default function TestWorld() {
               </>
             )}
             
-            {/* Render manually placed assets */}
-            {manualAssets.map((asset) => {
-              if (!asset || !asset.position) return null;
-              
-              const [x, y, z] = asset.position;
-              
-              if (asset.type === 'tree') {
-                if (asset.treeType === 'pine') {
-                  return <PineTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
-                } else if (asset.treeType === 'broad') {
-                  return <BroadTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
-                } else {
-                  return <BushyTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+            {/* Render manually placed assets - Optimized in test mode */}
+            {testMode ? (
+              // In test mode, group assets and skip grass for better performance
+              <group>
+                {manualAssets.map((asset) => {
+                  if (!asset || !asset.position) return null;
+                  
+                  const [x, y, z] = asset.position;
+                  
+                  // Skip grass in test mode for performance
+                  if (asset.type === 'grass') return null;
+                  
+                  if (asset.type === 'tree') {
+                    if (asset.treeType === 'pine') {
+                      return <PineTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                    } else if (asset.treeType === 'broad') {
+                      return <BroadTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                    } else {
+                      return <BushyTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                    }
+                  } else if (asset.type === 'rock') {
+                    return <Rock key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} variant={asset.variant || 0} />;
+                  } else if (asset.type === 'bush') {
+                    return <Bush key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} variant={asset.variant || 0} />;
+                  }
+                  return null;
+                })}
+              </group>
+            ) : (
+              // In editor mode, render all assets individually for full editability
+              manualAssets.map((asset) => {
+                if (!asset || !asset.position) return null;
+                
+                const [x, y, z] = asset.position;
+                
+                if (asset.type === 'tree') {
+                  if (asset.treeType === 'pine') {
+                    return <PineTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                  } else if (asset.treeType === 'broad') {
+                    return <BroadTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                  } else {
+                    return <BushyTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                  }
+                } else if (asset.type === 'rock') {
+                  return <Rock key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} variant={asset.variant || 0} />;
+                } else if (asset.type === 'grass') {
+                  return <GrassClump key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                } else if (asset.type === 'bush') {
+                  return <Bush key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} variant={asset.variant || 0} />;
                 }
-              } else if (asset.type === 'rock') {
-                return <Rock key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} variant={asset.variant || 0} />;
-              } else if (asset.type === 'grass') {
-                return <GrassClump key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
-              } else if (asset.type === 'bush') {
-                return <Bush key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} variant={asset.variant || 0} />;
-              }
-              return null;
-            })}
+                return null;
+              })
+            )}
             {/* Darkness Overlay for night time */}
             <DarknessOverlay timeOfDay={timeOfDay} />
           </Suspense>
           </PhysicsWorldProvider>
         </Canvas>
       </div>
-    </div>
+      
+      {/* Dialogue Box - Bottom Speech Box */}
+      <DialogueBox
+        isOpen={dialogueBox.isOpen}
+        title={dialogueBox.title}
+        message={dialogueBox.message}
+        type={dialogueBox.type}
+        onClose={closeDialogue}
+      />
+              </div>
   );
 }

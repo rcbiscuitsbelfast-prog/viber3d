@@ -57,8 +57,8 @@ export default function WorldBuilder() {
   return (
     <div className="relative">
       {/* Quest Flow Header */}
-      <div className="absolute top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur border-b border-slate-700 p-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <div className="fixed top-0 left-0 right-0 z-50 h-14 md:h-16 bg-slate-900/90 backdrop-blur border-b border-slate-700 shadow-lg flex items-center">
+        <div className="max-w-7xl mx-auto w-full px-4 flex items-center justify-between h-full">
           <div>
             <h1 className="text-xl font-bold">World Builder</h1>
             <p className="text-sm text-slate-400">
@@ -83,7 +83,7 @@ export default function WorldBuilder() {
       </div>
 
       {/* TestWorld with offset for header */}
-      <div className="pt-20">
+      <div className="pt-14 md:pt-16">
         <TestWorld />
       </div>
     </div>

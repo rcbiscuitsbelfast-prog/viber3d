@@ -1,12 +1,13 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Plus, Compass, Trophy, BookOpen, Lock } from 'lucide-react';
+import { Plus, Compass, Trophy, BookOpen, Lock, Play } from 'lucide-react';
 import ParallaxBackground from '@/components/ParallaxBackground';
 import CustomButton from '@/components/CustomButton';
 
 export default function MainMenu() {
   const menuItems = [
     { label: "Create New Game", icon: Plus, href: "/quest-type", color: "bg-emerald-600" },
+    { label: "Test Scene", icon: Play, href: "/test-world?direct=true", color: "bg-blue-600" },
     { label: "Browse Games", icon: Compass, href: "/browse", color: "bg-amber-600" },
     { label: "Tutorials", icon: BookOpen, href: "/tutorials", color: "bg-blue-600" },
     { label: "Showcase", icon: Trophy, href: "/showcase", color: "bg-purple-600" },

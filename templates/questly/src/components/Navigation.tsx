@@ -10,8 +10,8 @@ export default function Navigation() {
   
   const { isAuthenticated, user } = useAuthStore();
 
-  // Don't show on splash screen
-  if (location.pathname === '/') return null;
+  // Don't show on splash screen or TestWorld (it has its own header)
+  if (location.pathname === '/' || location.pathname === '/test-world') return null;
 
   const handleAuthClick = () => {
     if (isAuthenticated) {
