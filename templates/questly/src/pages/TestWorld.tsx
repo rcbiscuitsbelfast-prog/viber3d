@@ -2646,7 +2646,7 @@ export default function TestWorld() {
   }, [terrainMeshRef]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white">
+    <div className="fixed inset-0 bg-gradient-to-b from-slate-900 to-slate-800 text-white overflow-hidden">
       {/* Loading Overlay */}
       {isLoading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/95 backdrop-blur">
@@ -2662,8 +2662,8 @@ export default function TestWorld() {
         </div>
       )}
       
-      {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-10 p-4 bg-slate-900/80 backdrop-blur border-b border-slate-700">
+      {/* Header - Fixed with proper spacing and mobile responsive */}
+      <div className="fixed top-0 left-0 right-0 z-30 p-2 md:p-4 bg-slate-900/95 backdrop-blur border-b-2 border-slate-600 shadow-lg">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Test World</h1>
@@ -2771,8 +2771,13 @@ export default function TestWorld() {
         </div>
       </div>
       
-      {/* Asset Controls - Left Panel */}
-      <div className="absolute top-20 left-4 bottom-4 z-10 bg-slate-900/90 backdrop-blur border border-slate-700 rounded-lg p-4 w-64 overflow-y-auto relative">
+      {/* Asset Controls - Left Panel - Mobile responsive with minimize */}
+      <div className="fixed top-14 md:top-16 left-2 md:left-4 bottom-2 md:bottom-4 z-20 w-[calc(100%-1rem)] md:w-64 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg overflow-hidden flex flex-col">
+        {/* Panel Header */}
+        <div className="flex items-center justify-between p-2 md:p-3 border-b border-slate-700 bg-slate-800/50 flex-shrink-0">
+          <h3 className="text-xs md:text-sm font-bold text-slate-300 uppercase">Controls</h3>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2 md:p-4">
         {!manualMode ? (
           <>
             <h3 className="text-sm font-bold text-slate-300 uppercase mb-4">Asset Controls</h3>
@@ -3224,8 +3229,13 @@ export default function TestWorld() {
         </div>
       </div>
       
-      {/* Island Controls - Right Panel */}
-      <div className="absolute top-20 right-4 bottom-4 z-10 bg-slate-900/90 backdrop-blur border border-slate-700 rounded-lg p-4 w-64 overflow-y-auto">
+      {/* Island Controls - Right Panel - Mobile responsive with minimize */}
+      <div className="fixed top-14 md:top-16 right-2 md:right-4 bottom-2 md:bottom-4 z-20 w-[calc(100%-1rem)] md:w-64 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg overflow-hidden flex flex-col">
+        {/* Panel Header */}
+        <div className="flex items-center justify-between p-2 md:p-3 border-b border-slate-700 bg-slate-800/50 flex-shrink-0">
+          <h3 className="text-xs md:text-sm font-bold text-slate-300 uppercase">Settings</h3>
+        </div>
+        <div className="flex-1 overflow-y-auto p-2 md:p-4">
         <h3 className="text-sm font-bold text-slate-300 uppercase mb-2">Island Controls</h3>
         
         {/* Roughness Slider */}
@@ -3671,6 +3681,7 @@ export default function TestWorld() {
           >
             {isFirebaseAvailable() ? '☁️ Save to Cloud' : '☁️ Cloud (Not Configured)'}
           </button>
+          </div>
         </div>
         
         {/* Load Menu */}
@@ -3753,10 +3764,11 @@ export default function TestWorld() {
             </div>
           </div>
         )}
+        </div>
       </div>
       
-      {/* 3D Scene */}
-      <div className="h-screen w-full">
+      {/* 3D Scene - Fixed to fit perfectly in viewport */}
+      <div className="fixed inset-0 w-full h-full" style={{ top: '3.5rem', paddingTop: '0' }}>
         <Canvas
           camera={{ position: [80, 60, 80], fov: 60, far: 10000 }}
           shadows
@@ -3765,7 +3777,7 @@ export default function TestWorld() {
           <PhysicsWorldProvider 
             terrainMeshRef={terrainMeshRef}
             enablePhysics={enablePhysics && testMode}
-        >
+          >
           <Suspense fallback={null}>
             {/* Animation system updater */}
             <AnimationUpdater />
@@ -3997,6 +4009,6 @@ export default function TestWorld() {
           </PhysicsWorldProvider>
         </Canvas>
       </div>
-              </div>
+    </div>
   );
 }

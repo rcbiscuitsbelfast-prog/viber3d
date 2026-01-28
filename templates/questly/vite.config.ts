@@ -130,6 +130,8 @@ export default defineConfig({
   },
   build: {
     // Optimize chunk sizes
+    outDir: 'dist',
+    assetsDir: 'assets',
     rollupOptions: {
       output: {
         manualChunks: {
@@ -141,6 +143,7 @@ export default defineConfig({
     },
     chunkSizeWarningLimit: 1000, // Increase limit for large 3D libraries
   },
+  base: '/', // Ensure base path is root for Firebase Hosting
   server: {
     port: 3000,
     open: true,

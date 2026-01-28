@@ -1,0 +1,48 @@
+# TestWorld UI/UX Fixes
+# Apply these changes to fix viewport, mobile, panels, and jittery movement
+
+## 1. Fix Header (line ~2666)
+CHANGE:
+  <div className="absolute top-0 left-0 right-0 z-10 p-4 bg-slate-900/80 backdrop-blur border-b border-slate-700">
+
+TO:
+  <div className="fixed top-0 left-0 right-0 z-30 p-2 md:p-4 bg-slate-900/95 backdrop-blur border-b-2 border-slate-600 shadow-lg">
+
+## 2. Fix Canvas Container (line ~3759)
+CHANGE:
+  <div className="h-screen w-full">
+
+TO:
+  <div className="fixed inset-0 w-full h-full" style={{ top: '3.5rem', paddingTop: '0' }}>
+
+## 3. Fix Left Panel (line ~2775)
+CHANGE:
+  <div className="absolute top-20 left-4 bottom-4 z-10 bg-slate-900/90 backdrop-blur border border-slate-700 rounded-lg p-4 w-64 overflow-y-auto relative">
+
+TO:
+  <div className="fixed top-14 md:top-16 left-2 md:left-4 bottom-2 md:bottom-4 z-20 w-[calc(100%-1rem)] md:w-64 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg overflow-hidden flex flex-col">
+    <div className="flex items-center justify-between p-2 md:p-3 border-b border-slate-700 bg-slate-800/50 flex-shrink-0">
+      <h3 className="text-xs md:text-sm font-bold text-slate-300 uppercase">Controls</h3>
+    </div>
+    <div className="flex-1 overflow-y-auto p-2 md:p-4">
+
+## 4. Fix Right Panel (line ~3228)
+CHANGE:
+  <div className="absolute top-20 right-4 bottom-4 z-10 bg-slate-900/90 backdrop-blur border border-slate-700 rounded-lg p-4 w-64 overflow-y-auto">
+
+TO:
+  <div className="fixed top-14 md:top-16 right-2 md:right-4 bottom-2 md:bottom-4 z-20 w-[calc(100%-1rem)] md:w-64 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg overflow-hidden flex flex-col">
+    <div className="flex items-center justify-between p-2 md:p-3 border-b border-slate-700 bg-slate-800/50 flex-shrink-0">
+      <h3 className="text-xs md:text-sm font-bold text-slate-300 uppercase">Settings</h3>
+    </div>
+    <div className="flex-1 overflow-y-auto p-2 md:p-4">
+
+## 5. Fix Jittery Movement (line ~407)
+CHANGE:
+  newPos.y = THREE.MathUtils.lerp(newPos.y, targetY, 0.3); // Smooth interpolation
+
+TO:
+  newPos.y = THREE.MathUtils.lerp(newPos.y, targetY, 0.5); // Smoother interpolation to reduce jitter
+
+## 6. Close Panel Divs
+Add closing </div> tags after panel content ends (before closing the main panel div)
