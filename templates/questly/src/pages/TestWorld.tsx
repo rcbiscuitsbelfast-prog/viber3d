@@ -22,6 +22,8 @@ import { WalkingNPC } from '../components/WalkingNPC';
 import SidebarMenu from '../components/SidebarMenu';
 import DialogueBox from '../components/DialogueBox';
 import FloatingInteractionIcon from '../components/FloatingInteractionIcon';
+// import ModularCastle from '../components/ModularCastle'; // Removed - using saved builds instead
+import { CastleAsset, BUILDING_ASSET_PACKS } from './CastleBuilder';
 import { generateSimplexTerrain, sampleTerrainHeight } from '../utils/simplexTerrain';
 import { createNoise2D } from 'simplex-noise';
 import * as CANNON from 'cannon-es';
@@ -112,6 +114,7 @@ function CharacterController({
   terrainMeshRef,
   manualAssets,
   proceduralAssets,
+  placedBuilds,
   characterModelPath,
   onAnimationTrigger,
   cameraView,
@@ -122,6 +125,15 @@ function CharacterController({
 }: { 
   startPosition: [number, number, number];
   terrainMeshRef: React.RefObject<THREE.Mesh>;
+  placedBuilds?: Array<{
+    id: string;
+    buildName: string;
+    assets: CastleAsset[];
+    position: [number, number, number];
+    rotation: number;
+    areaId: number;
+    heightOffset?: number;
+  }>;
   manualAssets: Array<any>;
   proceduralAssets: { trees: Array<any>; rocks: Array<any> };
   characterModelPath?: string;
@@ -136,8 +148,8 @@ function CharacterController({
   const groupRef = useRef<THREE.Group>(null);
   const positionRef = useRef<THREE.Vector3>(new THREE.Vector3(...startPosition));
   const [position, setPosition] = useState<THREE.Vector3>(new THREE.Vector3(...startPosition)); // For React rendering
-  const rotationRef = useRef(0); // Use ref for immediate updates (no state lag)
-  const [rotation, setRotation] = useState(0); // Keep state for React rendering
+  const rotationRef = useRef(Math.PI); // Start facing opposite direction (180 degrees)
+  const [rotation, setRotation] = useState(Math.PI); // Keep state for React rendering
   const [model, setModel] = useState<THREE.Object3D | null>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
   const velocity = useRef(new THREE.Vector3());
@@ -280,6 +292,52 @@ function CharacterController({
           return true;
         }
       }
+    }
+    
+    // Check placed castle builds
+    if (placedBuilds) {
+      for (const build of placedBuilds) {
+      const buildWorldPos = [
+        build.position[0],
+        build.position[1],
+        build.position[2]
+      ];
+      
+      // Check each asset in the build
+      for (const asset of build.assets) {
+        // Get asset world position relative to build
+        const assetWorldX = buildWorldPos[0] + asset.position[0];
+        const assetWorldZ = buildWorldPos[2] + asset.position[2];
+        const assetWorldY = buildWorldPos[1] + asset.position[1];
+        
+        // Get asset bounds from BUILDING_ASSET_PACKS or use defaults
+        const assetBounds = BUILDING_ASSET_PACKS
+          .flatMap(pack => pack.assets)
+          .find(a => a.type === asset.type)?.bounds || { width: 2, depth: 2, height: 3 };
+        
+        const scaledWidth = assetBounds.width * asset.scale;
+        const scaledDepth = assetBounds.depth * asset.scale;
+        const scaledHeight = assetBounds.height * asset.scale;
+        
+        // Create bounding box for this asset
+        const assetBox = new THREE.Box3(
+          new THREE.Vector3(
+            assetWorldX - scaledWidth / 2,
+            assetWorldY,
+            assetWorldZ - scaledDepth / 2
+          ),
+          new THREE.Vector3(
+            assetWorldX + scaledWidth / 2,
+            assetWorldY + scaledHeight,
+            assetWorldZ + scaledDepth / 2
+          )
+        );
+        
+        if (characterBox.intersectsBox(assetBox)) {
+          return true;
+        }
+      }
+    }
     }
     
     // Check procedural trees with exact trunk boxes
@@ -564,6 +622,81 @@ interface BuildingArea {
   radius: number;
   height: number;
   minimized: boolean;
+}
+
+// Component to render a placed castle build
+function PlacedCastleBuild({
+  build,
+  getTerrainHeight,
+  onUpdate,
+  onDelete,
+}: {
+  build: {
+    id: string;
+    buildName: string;
+    assets: CastleAsset[];
+    position: [number, number, number];
+    rotation: number;
+    areaId: number;
+    heightOffset?: number;
+  };
+  getTerrainHeight: (x: number, z: number) => number;
+  onUpdate: (updates: Partial<typeof build>) => void;
+  onDelete: () => void;
+}) {
+  const basePath = '/Assets/KayKit_Medieval_Hexagon_Pack_1.0_FREE/Assets/gltf/buildings/';
+  const bluePath = `${basePath}blue/`;
+  const neutralPath = `${basePath}neutral/`;
+  
+  const getModelPath = (type: CastleAsset['type']) => {
+    switch (type) {
+      case 'castle': return `${bluePath}building_castle_blue.gltf`;
+      case 'tower_a': return `${bluePath}building_tower_A_blue.gltf`;
+      case 'tower_b': return `${bluePath}building_tower_B_blue.gltf`;
+      case 'tower_base': return `${bluePath}building_tower_base_blue.gltf`;
+      case 'wall_straight': return `${neutralPath}wall_straight.gltf`;
+      case 'wall_corner': return `${neutralPath}wall_corner_A_outside.gltf`;
+      case 'wall_gate': return `${neutralPath}wall_straight_gate.gltf`;
+      case 'wall_gate_open': return `${neutralPath}wall_straight_gate.gltf`; // Same model
+      default: return `${bluePath}building_castle_blue.gltf`;
+    }
+  };
+
+  const terrainY = getTerrainHeight(build.position[0], build.position[2]);
+  const heightOffset = build.heightOffset || 0;
+  const finalPosition: [number, number, number] = [
+    build.position[0],
+    terrainY + heightOffset, // Use heightOffset instead of build.position[1]
+    build.position[2]
+  ];
+
+  return (
+    <group position={finalPosition} rotation={[0, build.rotation, 0]}>
+      {build.assets.map((asset) => {
+        const { scene } = useGLTF(getModelPath(asset.type));
+        const assetTerrainY = getTerrainHeight(
+          build.position[0] + asset.position[0],
+          build.position[2] + asset.position[2]
+        );
+        const assetPosition: [number, number, number] = [
+          asset.position[0],
+          assetTerrainY + asset.position[1] - terrainY,
+          asset.position[2]
+        ];
+        
+        return (
+          <group
+            key={asset.id}
+            position={assetPosition}
+            rotation={[0, asset.rotation, 0]}
+            scale={asset.scale}
+          >
+            <primitive object={scene.clone()} />
+          </group>
+        );
+      })}
+    </group>
+  );
 }
 
 // Draggable Building Area Marker
@@ -2203,6 +2336,20 @@ export default function TestWorld() {
   ]);
   const [nextAreaId, setNextAreaId] = useState(1);
   
+  // Saved castle builds placed in the world
+  const [placedBuilds, setPlacedBuilds] = useState<Array<{
+    id: string;
+    buildName: string;
+    assets: CastleAsset[];
+    position: [number, number, number];
+    rotation: number;
+    areaId: number;
+    heightOffset: number; // Height adjustment offset
+  }>>([]);
+  
+  // Global height offset for all placed builds
+  const [buildHeightOffset, setBuildHeightOffset] = useState(0);
+  
   // Check if coming from direct test scene link
   const [searchParams] = useSearchParams();
   const directTestMode = searchParams.get('direct') === 'true';
@@ -2264,7 +2411,8 @@ export default function TestWorld() {
   });
   
   // Floating icon state (which NPCs/markers have icons visible)
-  const [showFloatingIcons, setShowFloatingIcons] = useState(true);
+  // Temporarily disabled until browser cache clears - component needs hard refresh
+  const [showFloatingIcons, setShowFloatingIcons] = useState(false);
   const [interactingWith, setInteractingWith] = useState<string | null>(null); // Track which entity is being interacted with
   
   // Handle quest marker clicks
@@ -3916,6 +4064,49 @@ export default function TestWorld() {
                       className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
                     />
                   </div>
+                  
+                  {/* Add Buildings Dropdown */}
+                  <div className="mt-2">
+                    <label className="text-xs text-slate-400 block mb-1">Add Saved Build</label>
+                    <select
+                      onChange={(e) => {
+                        const selectedBuildName = e.target.value;
+                        if (selectedBuildName) {
+                          const builds = JSON.parse(localStorage.getItem('castleBuilds') || '{}');
+                          const buildData = builds[selectedBuildName];
+                          if (buildData) {
+                            // Place build at building area center
+                            const terrainY = getTerrainHeight(area.x, area.z);
+                            const newBuild = {
+                              id: `build-${Date.now()}-${Math.random()}`,
+                              buildName: selectedBuildName,
+                              assets: buildData.assets || [],
+                              position: [area.x, terrainY, area.z] as [number, number, number],
+                              rotation: 0,
+                              areaId: area.id,
+                              heightOffset: buildHeightOffset, // Use global offset
+                            };
+                            setPlacedBuilds(prev => [...prev, newBuild]);
+                            e.target.value = ''; // Reset dropdown
+                          }
+                        }
+                      }}
+                      className="w-full bg-slate-700 border border-slate-600 rounded text-xs text-white px-2 py-1.5"
+                      defaultValue=""
+                    >
+                      <option value="">Select build...</option>
+                      {(() => {
+                        try {
+                          const builds = JSON.parse(localStorage.getItem('castleBuilds') || '{}');
+                          return Object.keys(builds).map(name => (
+                            <option key={name} value={name}>{name}</option>
+                          ));
+                        } catch {
+                          return null;
+                        }
+                      })()}
+                    </select>
+                  </div>
                 </>
               )}
             </div>
@@ -4216,6 +4407,7 @@ export default function TestWorld() {
                     terrainMeshRef={terrainMeshRef}
                     manualAssets={manualAssets}
                     proceduralAssets={proceduralAssets}
+                    placedBuilds={placedBuilds}
                     characterModelPath={CHARACTER_OPTIONS.find(c => c.id === selectedCharacter)?.modelPath}
                     cameraView={cameraView}
                     positionRef={characterPositionRef}
@@ -4231,16 +4423,39 @@ export default function TestWorld() {
                   );
                 })()}
             
+            {/* Saved Castle Builds */}
+            {placedBuilds.map((build) => (
+              <Suspense key={build.id} fallback={null}>
+                <PlacedCastleBuild
+                  build={build}
+                  getTerrainHeight={getTerrainHeight}
+                  onUpdate={(updates) => {
+                    setPlacedBuilds(prev => prev.map(b => 
+                      b.id === build.id ? { ...b, ...updates } : b
+                    ));
+                  }}
+                  onDelete={() => {
+                    setPlacedBuilds(prev => prev.filter(b => b.id !== build.id));
+                  }}
+                />
+              </Suspense>
+            ))}
+
             {/* Walking NPCs */}
             {npcs.map((npc) => {
+              // Memoize waypoint adjustments to prevent recalculation every frame
+              // Only recalculate when terrain is ready
+              const adjustedWaypoints = useMemo(() => {
+                if (!terrainMeshRef.current) return npc.waypoints; // Return original if terrain not ready
+                return npc.waypoints.map(wp => {
+                  const terrainY = getTerrainHeight(wp[0], wp[2]);
+                  return [wp[0], terrainY + 0.0, wp[2]] as [number, number, number];
+                });
+              }, [npc.waypoints, terrainMeshRef.current]); // Only recalc when terrain mesh changes
+              
               // Ensure NPC is positioned on terrain - 0.0 offset = ground level
               const terrainY = getTerrainHeight(npc.position[0], npc.position[2]);
               const adjustedPosition: [number, number, number] = [npc.position[0], terrainY + 0.0, npc.position[2]];
-              
-              // Adjust waypoints to terrain height - 0.0 offset = ground level
-              const adjustedWaypoints = npc.waypoints.map(wp => 
-                [wp[0], getTerrainHeight(wp[0], wp[2]) + 0.0, wp[2]] as [number, number, number]
-              );
               
               return (
                 <group key={npc.id}>
@@ -4254,6 +4469,9 @@ export default function TestWorld() {
                     onClick={() => handleNPCClick(npc.id)}
                     terrainMeshRef={terrainMeshRef}
                     getTerrainHeight={getTerrainHeight}
+                    isInteracting={interactingWith === `npc-${npc.id}`}
+                    playerPosition={characterPositionRef.current}
+                    showPath={false} // Disabled - causing lag
                   />
                   {/* Floating interaction icon above NPC */}
                   {showFloatingIcons && testMode && (

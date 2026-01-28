@@ -7,7 +7,8 @@ import CustomButton from '@/components/CustomButton';
 export default function MainMenu() {
   const menuItems = [
     { label: "Create New Game", icon: Plus, href: "/quest-type", color: "bg-emerald-600" },
-    { label: "Test Scene", icon: Play, href: "/test-world?direct=true", color: "bg-blue-600" },
+    { label: "Terrain Builder", icon: Play, href: "/test-world?direct=true", color: "bg-blue-600" },
+    { label: "Builder", icon: Compass, href: "/builder", color: "bg-amber-600" },
     { label: "Browse Games", icon: Compass, href: "/browse", color: "bg-amber-600" },
     { label: "Tutorials", icon: BookOpen, href: "/tutorials", color: "bg-blue-600" },
     { label: "Showcase", icon: Trophy, href: "/showcase", color: "bg-purple-600" },

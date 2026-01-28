@@ -11,6 +11,7 @@ import WorldBuilder from './pages/WorldBuilder';
 import WorldPreview from './pages/WorldPreview';
 import QuestSettings from './pages/QuestSettings';
 import QuestComplete from './pages/QuestComplete';
+import CastleBuilder from './pages/CastleBuilder';
 import Navigation from './components/Navigation';
 import { useAuthStore } from './lib/auth';
 
@@ -33,7 +34,8 @@ function App() {
         <Routes>
           <Route path="/" element={<SplashScreen />} />
           <Route path="/menu" element={<MainMenu />} />
-          <Route path="/builder" element={<GameBuilder />} />
+          <Route path="/builder" element={<CastleBuilder />} />
+          <Route path="/game-builder" element={<GameBuilder />} />
           <Route path="/quest-type" element={<QuestTypeSelector />} />
           <Route path="/templates" element={<TemplateQuests />} />
           <Route path="/world-builder" element={<WorldBuilder />} />

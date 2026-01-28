@@ -20,6 +20,9 @@ interface WalkingNPCProps {
   onClick?: () => void;
   terrainMeshRef?: React.RefObject<THREE.Mesh>;
   getTerrainHeight?: (x: number, z: number) => number; // Use shared terrain height function
+  isInteracting?: boolean; // Stop and face player when interacting
+  playerPosition?: THREE.Vector3; // Player position to face when interacting
+  showPath?: boolean; // Show visible walk path
 }
 
 export function WalkingNPC({
@@ -32,6 +35,9 @@ export function WalkingNPC({
   onClick,
   terrainMeshRef,
   getTerrainHeight: externalGetTerrainHeight,
+  isInteracting = false,
+  playerPosition,
+  showPath = false,
 }: WalkingNPCProps) {
   const groupRef = useRef<THREE.Group>(null);
   const [model, setModel] = useState<THREE.Object3D | null>(null);
@@ -118,21 +124,87 @@ export function WalkingNPC({
     defaultAnimation: 'idle',
   });
 
-  // Initialize position on terrain - 0.0 offset = ground level
+  // Ensure animations start playing when they become available
   useEffect(() => {
-    if (groupRef.current && terrainMeshRef?.current) {
-      const terrainHeight = getTerrainHeight(position[0], position[2]);
-      groupRef.current.position.set(position[0], terrainHeight + 0.0, position[2]); // Ground level
-    } else if (groupRef.current) {
-      groupRef.current.position.set(position[0], position[1] + 0.0, position[2]); // Ground level
+    if (animationsLoaded && crossfadeTo && model) {
+      // Force start with idle animation when animations load - don't check state
+      try {
+        crossfadeTo('idle', 0.2);
+        lastAnimationState.current = 'idle'; // Set state to match
+      } catch (err) {
+        console.warn(`[WalkingNPC ${id}] Failed to initialize idle animation:`, err);
+      }
     }
-  }, [terrainMeshRef, position]);
+  }, [animationsLoaded, crossfadeTo, model, id]);
+
+  // Initialize position on terrain - use the passed position prop which already has terrain height
+  // Set initial position when component mounts or terrain becomes available
+  useEffect(() => {
+    if (groupRef.current) {
+      // Use the position prop which already has terrain height calculated in parent
+      // But also verify with terrain if available
+      if (terrainMeshRef?.current) {
+        const terrainHeight = getTerrainHeight(position[0], position[2]);
+        // Use the higher of the two (passed position or calculated) to ensure NPC is on terrain
+        const finalY = Math.max(position[1], terrainHeight + 0.0);
+        groupRef.current.position.set(position[0], finalY, position[2]);
+      } else {
+        // If terrain not ready, use passed position (which should have correct Y from parent)
+        groupRef.current.position.set(position[0], position[1], position[2]);
+      }
+    }
+  }, [position, terrainMeshRef?.current, getTerrainHeight]); // Re-run when position changes or terrain becomes available
 
   // Waypoint following behavior
   useFrame((_state, delta) => {
     if (!groupRef.current || !modelLoaded || waypoints.length === 0) return;
+    
+    // Ensure position is set correctly if it wasn't set in useEffect (fallback)
+    if (groupRef.current.position.y === 0 && terrainMeshRef?.current) {
+      const terrainHeight = getTerrainHeight(groupRef.current.position.x, groupRef.current.position.z);
+      groupRef.current.position.y = terrainHeight + 0.0;
+    }
 
     const currentPos = groupRef.current.position;
+    
+    // If interacting, stop and face player
+    if (isInteracting && playerPosition) {
+      // Stop movement
+      isMovingRef.current = false;
+      
+      // Face player
+      const directionToPlayer = new THREE.Vector3()
+        .subVectors(playerPosition, currentPos)
+        .normalize();
+      
+      const targetRotation = Math.atan2(directionToPlayer.x, directionToPlayer.z);
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(
+        groupRef.current.rotation.y,
+        targetRotation,
+        0.15 // Faster rotation to face player
+      );
+      
+      // Play idle animation
+      if (lastAnimationState.current !== 'idle') {
+        lastAnimationState.current = 'idle';
+        if (animationsLoaded && crossfadeTo) {
+          crossfadeTo('idle', 0.2);
+        }
+      }
+      
+      // Still update terrain height
+      const terrainHeight = getTerrainHeight(currentPos.x, currentPos.z);
+      const targetY = terrainHeight + 0.0;
+      const currentY = groupRef.current.position.y;
+      const lerpFactor = Math.min(1.0, delta * 12);
+      const smoothedY = THREE.MathUtils.lerp(currentY, targetY, lerpFactor);
+      const finalY = Math.max(smoothedY, targetY);
+      groupRef.current.position.y = finalY;
+      
+      return; // Don't continue with waypoint following
+    }
+    
+    // Normal waypoint following behavior
     const currentWaypoint = new THREE.Vector3(...waypoints[currentWaypointIndex.current]);
     
     // Check if reached current waypoint (with larger threshold to prevent rapid switching)
@@ -183,25 +255,33 @@ export function WalkingNPC({
         0.1
       );
 
-      // Update animation state
-      if (!isMovingRef.current || lastAnimationState.current !== 'walk') {
+      // Update animation state - always check and update animation
+      if (lastAnimationState.current !== 'walk') {
         isMovingRef.current = true;
         lastAnimationState.current = 'walk';
         
-        // Play walk animation
-        if (animationsLoaded && crossfadeTo) {
-          crossfadeTo('walk', 0.2);
+        // Play walk animation - ensure animations are loaded
+        if (animationsLoaded && crossfadeTo && model) {
+          try {
+            crossfadeTo('walk', 0.2);
+          } catch (err) {
+            console.warn(`[WalkingNPC ${id}] Failed to play walk animation:`, err);
+          }
         }
       }
     } else {
-      // Update animation state
-      if (isMovingRef.current || lastAnimationState.current !== 'idle') {
+      // Update animation state - always check and update animation
+      if (lastAnimationState.current !== 'idle') {
         isMovingRef.current = false;
         lastAnimationState.current = 'idle';
         
-        // Play idle animation
-        if (animationsLoaded && crossfadeTo) {
-          crossfadeTo('idle', 0.2);
+        // Play idle animation - ensure animations are loaded
+        if (animationsLoaded && crossfadeTo && model) {
+          try {
+            crossfadeTo('idle', 0.2);
+          } catch (err) {
+            console.warn(`[WalkingNPC ${id}] Failed to play idle animation:`, err);
+          }
         }
       }
     }
@@ -228,7 +308,6 @@ export function WalkingNPC({
   return (
     <group 
       ref={groupRef} 
-      position={position}
       onClick={onClick}
       onPointerOver={() => {
         // Optional: highlight on hover

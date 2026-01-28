@@ -528,12 +528,20 @@ export default function UserDashboard() {
             </h1>
             <p className="text-slate-400">Choose a character to preview</p>
           </div>
-          <CustomButton
-            onClick={() => window.location.href = '/test-world'}
-            variant="primary"
-          >
-            🌍 Test World
-          </CustomButton>
+          <div className="flex gap-2">
+            <CustomButton
+              onClick={() => window.location.href = '/test-world'}
+              variant="primary"
+            >
+              🏔️ Terrain Builder
+            </CustomButton>
+            <CustomButton
+              onClick={() => window.location.href = '/builder'}
+              variant="primary"
+            >
+              🏰 Builder
+            </CustomButton>
+          </div>
         </motion.div>
 
         {/* Asset Pack Selection */}

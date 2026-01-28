@@ -24,7 +24,7 @@ export default function FloatingInteractionIcon({
 
   // Floating animation and billboard effect
   useFrame((_, delta) => {
-    if (groupRef.current) {
+    if (groupRef.current && camera) {
       floatOffset.current += delta * 2;
       groupRef.current.position.y = position[1] + Math.sin(floatOffset.current) * 0.3 + 2.5;
       

@@ -65,6 +65,37 @@ Three.js repository containing animation models used by Viber3D. Primary source 
 5. **Testing:** Verify animation playback with Quaternius characters
 
 ---
+
+## Building Asset Packs
+
+### KayKit Medieval Hexagon Pack
+**Location:** `Assets/KayKit_Medieval_Hexagon_Pack_1.0_FREE/`  
+**Status:** ✅ Fully Integrated  
+**Format:** GLTF  
+**Assets:** 7 castle/fortification pieces
+- Castle (building_castle_blue.gltf)
+- Tower A (building_tower_A_blue.gltf)
+- Tower B (building_tower_B_blue.gltf)
+- Tower Base (building_tower_base_blue.gltf)
+- Wall Straight (wall_straight.gltf)
+- Wall Corner (wall_corner_A_outside.gltf)
+- Wall Gate (wall_straight_gate.gltf)
+
+**Usage:** Castle Builder - Primary building pack
+
+### Free Medieval Houses 3D Low-Poly Pack
+**Location:** `Assets/free-medieval-houses-3d-low-poly-pack/`  
+**Status:** ⚠️ Indexed, Requires FBX to GLTF Conversion  
+**Format:** FBX (needs conversion for web use)  
+**Assets:** 20 house models
+- House_01_full.fbx through House_20_full.fbx
+- Located in: `fbx/House_Full_ordinar/`
+
+**Note:** FBX files need to be converted to GLTF/GLB format for use in Three.js web applications. Currently indexed but not usable until conversion.
+
+**Usage:** Castle Builder - Secondary building pack (pending conversion)
+
+---
 **Source:** Three.js Repository (examples/models/gltf/)  
 **License:** MIT  
 **Purpose:** Animation source library  

@@ -39,9 +39,9 @@ export default function DialogueBox({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-2xl px-4"
+          className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-lg px-4"
         >
-          <div className={`${getTypeColor()} border-2 rounded-lg shadow-2xl p-4 md:p-6 backdrop-blur-sm`}>
+          <div className={`${getTypeColor()} border-2 rounded-lg shadow-2xl p-3 md:p-4 backdrop-blur-sm`}>
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
               <h3 className="text-lg md:text-xl font-bold text-white flex items-center gap-2">
