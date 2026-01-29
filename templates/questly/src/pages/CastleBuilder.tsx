@@ -7,6 +7,7 @@ import { oceanVertexShader, oceanFragmentShader } from '@/shaders/OceanShaders';
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import SidebarMenu from '../components/SidebarMenu';
 import { InstancedGrass } from '../components/InstancedGrass';
+import { VolumetricFog } from '../components/VolumetricFog';
 import { Menu, Eraser, Save, Download } from 'lucide-react';
 import { useCharacterAnimation } from '../hooks/useCharacterAnimation';
 import { cloneGltf } from '../utils/cloneGltf';
@@ -110,6 +111,9 @@ export const BUILDING_ASSET_PACKS: BuildingAssetPack[] = [
       },
     ],
   },
+  // Medieval houses pack disabled - FBX files require conversion to GLTF/GLB
+  // Uncomment and convert FBX files to GLTF/GLB format before enabling
+  /*
   {
     id: 'medieval_houses',
     name: 'Medieval Houses',
@@ -119,7 +123,7 @@ export const BUILDING_ASSET_PACKS: BuildingAssetPack[] = [
       ...Array.from({ length: 20 }, (_, i) => ({
         id: `house_${i + 1}`,
         name: `House ${i + 1}`,
-        type: 'house',
+        type: `house_${i + 1}`, // Each house needs unique type
         modelPath: `House_${String(i + 1).padStart(2, '0')}_full.fbx`,
         icon: '🏠',
         defaultScale: 1.0,
@@ -127,6 +131,7 @@ export const BUILDING_ASSET_PACKS: BuildingAssetPack[] = [
       })),
     ],
   },
+  */
 ];
 
 // Castle asset types
@@ -166,34 +171,30 @@ export function loadCastleBuild(name: string): SavedCastleBuild | null {
   return builds[name] || null;
 }
 
-// Circular Terrain Component
+// Circular Terrain Component - Matches TestWorld building area style
 function CircularTerrain({ radius, getTerrainHeight, terrainMeshRef }: { radius: number; getTerrainHeight: (x: number, z: number) => number; terrainMeshRef: React.RefObject<THREE.Mesh> }) {
-  const segments = 64;
-  const geometry = useMemo(() => {
-    const geom = new THREE.RingGeometry(0, radius, segments);
-    const positions = geom.attributes.position;
-    const vertices = positions.count;
-    
-    for (let i = 0; i < vertices; i++) {
-      const x = positions.getX(i);
-      const z = positions.getZ(i);
-      const y = getTerrainHeight(x, z);
-      positions.setY(i, y);
-    }
-    
-    geom.computeVertexNormals();
-    return geom;
-  }, [radius, getTerrainHeight]);
-  
+  // Use same approach as TestWorld building area - circleGeometry with rotation
   useEffect(() => {
     if (terrainMeshRef.current) {
       terrainMeshRef.current.userData.isTerrain = true;
+      terrainMeshRef.current.updateMatrix();
     }
   }, [terrainMeshRef]);
   
   return (
-    <mesh ref={terrainMeshRef} geometry={geometry} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-      <meshStandardMaterial color="#4a7c59" />
+    <mesh 
+      ref={terrainMeshRef} 
+      rotation={[-Math.PI / 2, 0, 0]} 
+      position={[0, 0, 0]} 
+      receiveShadow
+    >
+      <circleGeometry args={[radius, 32]} />
+      <meshStandardMaterial 
+        color="#4a7c59" 
+        roughness={0.9}
+        metalness={0.1}
+        side={THREE.DoubleSide}
+      />
     </mesh>
   );
 }
@@ -219,7 +220,7 @@ function DynamicOcean({ radius }: { radius: number }) {
   }), []);
   
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -2, 0]}>
       <ringGeometry args={[radius, radius * 2, 64]} />
       <shaderMaterial
         ref={materialRef}
@@ -233,15 +234,16 @@ function DynamicOcean({ radius }: { radius: number }) {
   );
 }
 
-// Terrain height function - flat circular island
-function getTerrainHeight(x: number, z: number): number {
+// Terrain height function - flat circular island (exported for use in components)
+// Accepts terrainRadius parameter to match the actual terrain size
+export function getTerrainHeight(x: number, z: number, terrainRadius: number = 30): number {
   const distance = Math.sqrt(x * x + z * z);
-  if (distance > 30) return -2; // Water level
+  if (distance > terrainRadius) return -2; // Water level
   return 0; // Flat terrain
 }
 
 // Generate grass positions for circular terrain
-function generateGrassPositions(radius: number, count: number): Array<{ pos: [number, number, number]; rotation: number; scale: number; variant?: number }> {
+function generateGrassPositions(radius: number, count: number, getTerrainHeightFn: (x: number, z: number) => number): Array<{ pos: [number, number, number]; rotation: number; scale: number; variant?: number }> {
   const positions: Array<{ pos: [number, number, number]; rotation: number; scale: number; variant?: number }> = [];
   
   for (let i = 0; i < count; i++) {
@@ -249,7 +251,7 @@ function generateGrassPositions(radius: number, count: number): Array<{ pos: [nu
     const distance = Math.random() * radius * 0.9; // Keep grass within terrain
     const x = Math.cos(angle) * distance;
     const z = Math.sin(angle) * distance;
-    const y = getTerrainHeight(x, z);
+    const y = getTerrainHeightFn(x, z);
     
     positions.push({
       pos: [x, y, z],
@@ -273,17 +275,82 @@ export default function CastleBuilder() {
   const [eraseMode, setEraseMode] = useState(false);
   const [eraseBrushSize, setEraseBrushSize] = useState(3);
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
+  const [previewPosition, setPreviewPosition] = useState<[number, number, number] | null>(null);
+  const [isDraggingAsset, setIsDraggingAsset] = useState(false);
+  const [isRotatingAsset, setIsRotatingAsset] = useState(false);
+  const [activeRotationRingId, setActiveRotationRingId] = useState<string | null>(null);
+  const [lastPlacedAssetId, setLastPlacedAssetId] = useState<string | null>(null);
+  const [dragStartPos, setDragStartPos] = useState<[number, number, number] | null>(null);
+  const [fogEnabled, setFogEnabled] = useState(true);
+  const [fogHeight, setFogHeight] = useState(5);
+  const [bubbleScale, setBubbleScale] = useState(0.5);
+  const [bubbleDensity, setBubbleDensity] = useState(50);
+  const [bubbleSpeed, setBubbleSpeed] = useState(10);
+  const [showLoadModal, setShowLoadModal] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveBuildName, setSaveBuildName] = useState('');
   const terrainMeshRef = useRef<THREE.Mesh>(null);
+  const controlsRef = useRef<any>(null);
   
   const selectedPack = BUILDING_ASSET_PACKS.find(p => p.id === selectedPackId);
   const availableAssets = selectedPack?.assets || [];
   
+  // Terrain height function for this component
+  const getTerrainHeightLocal = useCallback((x: number, z: number) => {
+    return getTerrainHeight(x, z, terrainRadius);
+  }, [terrainRadius]);
+  
   // Generate grass positions
-  const grassPositions = useMemo(() => generateGrassPositions(terrainRadius, 500), [terrainRadius]);
+  const grassPositions = useMemo(() => generateGrassPositions(terrainRadius, 500, getTerrainHeightLocal), [terrainRadius, getTerrainHeightLocal]);
+  
+  // Arrow key movement for last placed asset
+  useEffect(() => {
+    if (!lastPlacedAssetId) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
+      const asset = castleAssets.find(a => a.id === lastPlacedAssetId);
+      if (!asset) return;
+      
+      const moveSpeed = 0.5; // Grid snap size
+      let newX = asset.position[0];
+      let newZ = asset.position[2];
+      
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+        newZ -= moveSpeed;
+      } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+        newZ += moveSpeed;
+      } else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+        newX -= moveSpeed;
+      } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+        newX += moveSpeed;
+      } else {
+        return;
+      }
+      
+      e.preventDefault();
+      
+      // Snap to grid
+      const snappedX = Math.round(newX * 2) / 2;
+      const snappedZ = Math.round(newZ * 2) / 2;
+      const terrainY = getTerrainHeightLocal(snappedX, snappedZ);
+      
+      setCastleAssets(prev => prev.map(a => 
+        a.id === lastPlacedAssetId 
+          ? { ...a, position: [snappedX, terrainY, snappedZ] }
+          : a
+      ));
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lastPlacedAssetId, castleAssets, getTerrainHeightLocal]);
   
   const handlePlaceAsset = useCallback((asset: CastleAsset) => {
     setCastleAssets(prev => [...prev, asset]);
     setSelectedAssetType(null); // Deselect after placing
+    setLastPlacedAssetId(asset.id); // Track last placed asset for arrow key movement
   }, []);
   
   const handleDeleteAsset = useCallback((id: string) => {
@@ -296,30 +363,32 @@ export default function CastleBuilder() {
   }, [handleDeleteAsset]);
   
   const handleSaveBuild = useCallback(() => {
-    const name = prompt('Enter build name:');
-    if (name) {
-      saveCastleBuild(name, {
-        name,
+    setShowSaveModal(true);
+  }, []);
+  
+  const handleConfirmSave = useCallback(() => {
+    if (saveBuildName.trim()) {
+      saveCastleBuild(saveBuildName.trim(), {
+        name: saveBuildName.trim(),
         assets: castleAssets,
         terrainRadius,
       });
-      alert(`Build "${name}" saved!`);
+      setSaveBuildName('');
+      setShowSaveModal(false);
     }
-  }, [castleAssets, terrainRadius]);
+  }, [saveBuildName, castleAssets, terrainRadius]);
   
   const handleLoadBuild = useCallback(() => {
+    setShowLoadModal(true);
+  }, []);
+  
+  const handleSelectBuild = useCallback((buildName: string) => {
     const builds = getSavedCastleBuilds();
-    const buildNames = Object.keys(builds);
-    if (buildNames.length === 0) {
-      alert('No saved builds found!');
-      return;
-    }
-    const name = prompt(`Enter build name to load:\nAvailable: ${buildNames.join(', ')}`);
-    if (name && builds[name]) {
-      const build = builds[name];
+    const build = builds[buildName];
+    if (build) {
       setCastleAssets(build.assets);
       if (build.terrainRadius) setTerrainRadius(build.terrainRadius);
-      alert(`Build "${name}" loaded!`);
+      setShowLoadModal(false);
     }
   }, []);
   
@@ -441,6 +510,79 @@ export default function CastleBuilder() {
                   />
                 </div>
                 
+                <div className="pt-2 border-t border-slate-700">
+                  <label className="text-sm font-bold mb-2 block">Fog</label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={fogEnabled}
+                        onChange={(e) => setFogEnabled(e.target.checked)}
+                        className="w-4 h-4"
+                      />
+                      <span>Enable Fog</span>
+                    </label>
+                    {fogEnabled && (
+                      <>
+                        <div>
+                          <label className="text-xs text-slate-400 block mb-1">
+                            Height: {fogHeight.toFixed(1)}
+                          </label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="20"
+                            step="0.5"
+                            value={fogHeight}
+                            onChange={(e) => setFogHeight(Number(e.target.value))}
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-400 block mb-1">
+                            Scale: {bubbleScale.toFixed(1)}
+                          </label>
+                          <input
+                            type="range"
+                            min="0.1"
+                            max="1.0"
+                            step="0.05"
+                            value={bubbleScale}
+                            onChange={(e) => setBubbleScale(Number(e.target.value))}
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-400 block mb-1">
+                            Density: {bubbleDensity}
+                          </label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={bubbleDensity}
+                            onChange={(e) => setBubbleDensity(Number(e.target.value))}
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-400 block mb-1">
+                            Speed: {bubbleSpeed}
+                          </label>
+                          <input
+                            type="range"
+                            min="0"
+                            max="50"
+                            value={bubbleSpeed}
+                            onChange={(e) => setBubbleSpeed(Number(e.target.value))}
+                            className="w-full"
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+                
                 <div className="pt-2 border-t border-slate-700 space-y-2">
                   <button
                     onClick={handleSaveBuild}
@@ -457,6 +599,103 @@ export default function CastleBuilder() {
                     Load Build
                   </button>
                 </div>
+                
+                {/* Save Build Modal */}
+                {showSaveModal && (
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowSaveModal(false)}>
+                    <div className="bg-slate-800 border-2 border-slate-600 rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-bold text-white">Save Build</h3>
+                        <button
+                          onClick={() => {
+                            setShowSaveModal(false);
+                            setSaveBuildName('');
+                          }}
+                          className="text-slate-400 hover:text-white text-xl"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm text-slate-300 mb-2">Build Name</label>
+                          <input
+                            type="text"
+                            value={saveBuildName}
+                            onChange={(e) => setSaveBuildName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleConfirmSave();
+                              if (e.key === 'Escape') {
+                                setShowSaveModal(false);
+                                setSaveBuildName('');
+                              }
+                            }}
+                            placeholder="Enter build name..."
+                            className="w-full bg-slate-700 border border-slate-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                            autoFocus
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleConfirmSave}
+                            disabled={!saveBuildName.trim()}
+                            className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded transition-colors"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowSaveModal(false);
+                              setSaveBuildName('');
+                            }}
+                            className="flex-1 bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Load Build Modal */}
+                {showLoadModal && (
+                  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowLoadModal(false)}>
+                    <div className="bg-slate-800 border-2 border-slate-600 rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-bold text-white">Load Saved Build</h3>
+                        <button
+                          onClick={() => setShowLoadModal(false)}
+                          className="text-slate-400 hover:text-white text-xl"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {Object.keys(getSavedCastleBuilds()).length === 0 ? (
+                          <p className="text-slate-400 text-sm">No saved builds found.</p>
+                        ) : (
+                          Object.keys(getSavedCastleBuilds()).map((buildName) => {
+                            const build = getSavedCastleBuilds()[buildName];
+                            return (
+                              <button
+                                key={buildName}
+                                onClick={() => handleSelectBuild(buildName)}
+                                className="w-full p-3 bg-slate-700 hover:bg-slate-600 rounded text-left transition-colors"
+                              >
+                                <div className="font-bold text-white">{buildName}</div>
+                                <div className="text-xs text-slate-400 mt-1">
+                                  {build.assets?.length || 0} assets
+                                  {build.terrainRadius && ` • Radius: ${build.terrainRadius}`}
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {selectedAsset && (
                   <div className="pt-2 border-t border-slate-700">
@@ -483,14 +722,33 @@ export default function CastleBuilder() {
           <Sky sunPosition={[100, 20, 100]} />
           <Environment preset="sunset" />
           
-          <OrbitControls enablePan enableZoom enableRotate />
+          <OrbitControls
+            ref={controlsRef}
+            enablePan={!isDraggingAsset && !isRotatingAsset}
+            enableZoom={!isDraggingAsset && !isRotatingAsset}
+            enableRotate={!isDraggingAsset && !isRotatingAsset}
+          />
           
-          <CircularTerrain radius={terrainRadius} getTerrainHeight={getTerrainHeight} terrainMeshRef={terrainMeshRef} />
+          {/* Terrain - render first */}
+          <CircularTerrain radius={terrainRadius} getTerrainHeight={getTerrainHeightLocal} terrainMeshRef={terrainMeshRef} />
           
           {/* Instanced Grass */}
           <InstancedGrass grass={grassPositions} castShadow receiveShadow={false} />
           
+          {/* Ocean - render after terrain so it doesn't cover it */}
           <DynamicOcean radius={terrainRadius * 1.5} />
+          
+          {/* Volumetric Fog - matches island size */}
+          {fogEnabled && (
+            <VolumetricFog
+              timeOfDay={0.5}
+              fogHeight={fogHeight}
+              bubbleScale={bubbleScale}
+              bubbleDensity={bubbleDensity}
+              bubbleSpeed={bubbleSpeed}
+              terrainRadius={terrainRadius}
+            />
+          )}
           
           {/* Ground click handler for placing/erasing assets */}
           <GroundClickHandler
@@ -501,9 +759,26 @@ export default function CastleBuilder() {
             castleAssets={castleAssets}
             onPlaceAsset={handlePlaceAsset}
             onEraseAsset={handleEraseAsset}
-            getTerrainHeight={getTerrainHeight}
+            getTerrainHeight={getTerrainHeightLocal}
             terrainMeshRef={terrainMeshRef}
+            setPreviewPosition={setPreviewPosition}
           />
+          
+          {/* Ghost preview of selected asset */}
+          {selectedAssetType && previewPosition && !eraseMode && (
+            <Suspense fallback={null}>
+              <GhostCastleAsset
+                assetType={selectedAssetType}
+                packId={selectedPackId}
+                position={previewPosition}
+              />
+            </Suspense>
+          )}
+          
+          {/* Player Character for Scale Reference - Optional, won't crash if model fails */}
+          <Suspense fallback={null}>
+            <PlayerCharacter position={[0, getTerrainHeightLocal(0, 0), 0]} />
+          </Suspense>
           
           {/* Render placed assets */}
           {castleAssets.map(asset => {
@@ -518,11 +793,51 @@ export default function CastleBuilder() {
                   asset={asset}
                   modelPath={modelPath}
                   isSelected={selectedAsset === asset.id}
-                  onSelect={() => setSelectedAsset(asset.id)}
+                  isRotationActive={activeRotationRingId === asset.id}
+                  isLastPlaced={lastPlacedAssetId === asset.id}
+                  onSelect={() => {
+                    setSelectedAsset(asset.id);
+                    setActiveRotationRingId(asset.id);
+                    setLastPlacedAssetId(asset.id); // Make selected asset the last placed for arrow keys
+                  }}
+                  onDragStart={(pos) => {
+                    setIsDraggingAsset(true);
+                    setDragStartPos(pos);
+                  }}
+                  onDragEnd={() => {
+                    setIsDraggingAsset(false);
+                    setDragStartPos(null);
+                  }}
+                  onRotationStart={() => setIsRotatingAsset(true)}
+                  onRotationEnd={() => setIsRotatingAsset(false)}
+                  onUpdate={(updates) => {
+                    setCastleAssets(prev => prev.map(a => 
+                      a.id === asset.id ? { ...a, ...updates } : a
+                    ));
+                  }}
+                  getTerrainHeight={getTerrainHeightLocal}
                 />
               </Suspense>
             );
           })}
+          
+          {/* UI hint for arrow key movement */}
+          {lastPlacedAssetId && (
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-slate-800/90 text-white px-4 py-2 rounded text-sm">
+              Use Arrow Keys or WASD to move last placed asset
+            </div>
+          )}
+          
+          {/* Deselect rotation ring when clicking empty space */}
+          <mesh
+            visible={false}
+            onClick={() => {
+              setActiveRotationRingId(null);
+              setSelectedAsset(null);
+            }}
+          >
+            <planeGeometry args={[1000, 1000]} />
+          </mesh>
         </Canvas>
       </div>
     </div>
@@ -540,6 +855,7 @@ function GroundClickHandler({
   onEraseAsset,
   getTerrainHeight,
   terrainMeshRef,
+  setPreviewPosition,
 }: {
   selectedAssetType: string | null;
   selectedPackId: string;
@@ -550,9 +866,57 @@ function GroundClickHandler({
   onEraseAsset: (id: string) => void;
   getTerrainHeight: (x: number, z: number) => number;
   terrainMeshRef: React.RefObject<THREE.Mesh>;
+  setPreviewPosition: (pos: [number, number, number] | null) => void;
 }) {
   const { camera, raycaster, pointer, scene } = useThree();
   
+  // Update preview position on mouse move
+  useEffect(() => {
+    if (!selectedAssetType || eraseMode) {
+      setPreviewPosition(null);
+      return;
+    }
+    
+    const handleMouseMove = (event: MouseEvent) => {
+      const canvas = event.target as HTMLCanvasElement;
+      if (!canvas || canvas.tagName !== 'CANVAS') {
+        setPreviewPosition(null);
+        return;
+      }
+      
+      const rect = canvas.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      
+      raycaster.setFromCamera(pointer, camera);
+      
+      const terrainMesh = terrainMeshRef.current || scene.children.find(
+        (child) => child.type === 'Mesh' && child.userData?.isTerrain
+      );
+      
+      if (!terrainMesh) {
+        setPreviewPosition(null);
+        return;
+      }
+      
+      const intersects = raycaster.intersectObject(terrainMesh, false);
+      
+      if (intersects.length > 0) {
+        const point = intersects[0].point;
+        const terrainY = getTerrainHeight(point.x, point.z);
+        const snappedX = Math.round(point.x * 2) / 2;
+        const snappedZ = Math.round(point.z * 2) / 2;
+        setPreviewPosition([snappedX, terrainY, snappedZ]);
+      } else {
+        setPreviewPosition(null);
+      }
+    };
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [selectedAssetType, eraseMode, camera, raycaster, pointer, scene, getTerrainHeight, terrainMeshRef, setPreviewPosition]);
+  
+  // Handle clicks for placing/erasing
   useEffect(() => {
     if (!selectedAssetType && !eraseMode) return;
     
@@ -628,10 +992,267 @@ function GroundClickHandler({
   return null;
 }
 
-// Asset model component with selection highlighting
-function CastleAssetModel({ asset, modelPath, isSelected, onSelect }: { asset: CastleAsset; modelPath: string; isSelected?: boolean; onSelect?: () => void }) {
-  const { scene } = useGLTF(modelPath);
+// Rotation Ring Component
+function RotationRing({
+  position,
+  radius,
+  onRotate,
+  isRotating,
+  onRotationStart,
+  onRotationEnd,
+}: {
+  position: [number, number, number];
+  radius: number;
+  onRotate: (deltaAngle: number) => void;
+  isRotating: boolean;
+  onRotationStart?: () => void;
+  onRotationEnd?: () => void;
+}) {
+  const ringRef = useRef<THREE.Group>(null);
+  const isRotatingRef = useRef(false);
+  const lastAngleRef = useRef(0);
+  const { gl, camera, pointer: pointerState } = useThree();
+  
+  const handlePointerDown = (e: any) => {
+    e.stopPropagation();
+    if (e.preventDefault && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
+    isRotatingRef.current = true;
+    onRotationStart?.();
+    
+    // Calculate initial angle
+    const toMouse = new THREE.Vector3(
+      Math.cos(pointerState.x * Math.PI),
+      0,
+      Math.sin(pointerState.x * Math.PI)
+    );
+    lastAngleRef.current = Math.atan2(toMouse.z, toMouse.x);
+    
+    gl.domElement.setPointerCapture(e.pointerId);
+  };
+  
+  useFrame(() => {
+    if (isRotatingRef.current && ringRef.current) {
+      const angle = Math.atan2(pointerState.y, pointerState.x);
+      const deltaAngle = angle - lastAngleRef.current;
+      
+      if (Math.abs(deltaAngle) > 0.001) {
+        onRotate(deltaAngle);
+        lastAngleRef.current = angle;
+      }
+    }
+  });
+  
+  useEffect(() => {
+    const handlePointerUp = (e: PointerEvent) => {
+      if (isRotatingRef.current) {
+        isRotatingRef.current = false;
+        onRotationEnd?.();
+        gl.domElement.releasePointerCapture(e.pointerId);
+      }
+    };
+    
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => window.removeEventListener('pointerup', handlePointerUp);
+  }, [gl, onRotationEnd]);
+  
+  const ringColor = isRotating ? '#00ff00' : '#1a3a5f';
+  const orbColor = isRotating ? '#00ff00' : '#1a3a5f';
+  
+  return (
+    <group ref={ringRef} position={position}>
+      {/* Outer ring */}
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[radius * 0.9, radius, 64]} />
+        <meshBasicMaterial color={ringColor} transparent opacity={isRotating ? 0.8 : 0.4} side={THREE.DoubleSide} />
+      </mesh>
+      {/* Inner ring */}
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[radius * 0.7, radius * 0.85, 64]} />
+        <meshBasicMaterial color={ringColor} transparent opacity={isRotating ? 0.6 : 0.3} side={THREE.DoubleSide} />
+      </mesh>
+      {/* Handle points */}
+      {[0, Math.PI / 2, Math.PI, Math.PI * 1.5].map((angle, i) => (
+        <mesh
+          key={i}
+          position={[Math.cos(angle) * radius * 0.85, 0, Math.sin(angle) * radius * 0.85]}
+          onPointerDown={handlePointerDown}
+        >
+          <sphereGeometry args={[0.2, 16, 16]} />
+          <meshBasicMaterial color={orbColor} transparent opacity={isRotating ? 0.9 : 0.5} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+// Ghost preview component
+function GhostCastleAsset({
+  assetType,
+  packId,
+  position,
+}: {
+  assetType: string;
+  packId: string;
+  position: [number, number, number];
+}) {
+  const pack = BUILDING_ASSET_PACKS.find(p => p.id === packId);
+  if (!pack) return null;
+  
+  const assetDef = pack.assets.find(a => a.type === assetType);
+  if (!assetDef) return null;
+  
+  // Skip FBX files - useGLTF only supports GLTF/GLB
+  if (assetDef.modelPath.toLowerCase().endsWith('.fbx')) {
+    return null; // Don't render FBX files
+  }
+  
+  const modelPath = `${pack.basePath}${assetDef.modelPath}`;
+  
+  try {
+    const { scene } = useGLTF(modelPath);
+    const defaultScale = assetDef.defaultScale || 6.0;
+    
+    return (
+      <group position={position} scale={defaultScale}>
+        <primitive
+          object={scene.clone()}
+          onBeforeRender={(renderer: any) => {
+            scene.traverse((child) => {
+              if (child instanceof THREE.Mesh) {
+                child.material = child.material.clone();
+                child.material.transparent = true;
+                child.material.opacity = 0.5;
+                child.material.color.setHex(0x00ffff);
+              }
+            });
+          }}
+        />
+      </group>
+    );
+  } catch (error) {
+    console.warn(`[GhostCastleAsset] Failed to load: ${modelPath}`, error);
+    return null;
+  }
+}
+
+// Player Character Component - Optional, won't crash if model doesn't load
+function PlayerCharacter({ position }: { position: [number, number, number] }) {
+  // Use correct path - .glb file from TestWorld
+  const gltf = useGLTF('/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Knight.glb', true);
   const groupRef = useRef<THREE.Group>(null);
+  const modelRef = useRef<THREE.Object3D | null>(null);
+  
+  const [modelReady, setModelReady] = useState(false);
+  
+  useEffect(() => {
+    if (groupRef.current && gltf && gltf.scene) {
+      try {
+        // cloneGltf expects the full GLTF object, not just the scene
+        const clonedGltf = cloneGltf(gltf);
+        if (clonedGltf && clonedGltf.scene) {
+          modelRef.current = clonedGltf.scene;
+          groupRef.current.add(clonedGltf.scene);
+          
+          // Scale to match TestWorld
+          groupRef.current.scale.set(1, 1, 1);
+          
+          groupRef.current.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+            }
+          });
+          
+          setModelReady(true);
+        }
+      } catch (error) {
+        console.warn('[PlayerCharacter] Failed to clone GLTF:', error);
+      }
+    }
+  }, [gltf]);
+  
+  // Use animation hook - only when model is loaded
+  const { playAnimation } = useCharacterAnimation({
+    characterId: 'builder-player',
+    assetId: 'knight',
+    model: modelReady ? modelRef.current : null,
+    defaultAnimation: 'idle',
+  });
+  
+  useEffect(() => {
+    if (modelReady && modelRef.current && playAnimation) {
+      // Small delay to ensure animation system is ready
+      const timer = setTimeout(() => {
+        try {
+          playAnimation('idle', { loop: true });
+        } catch (error) {
+          console.debug('[PlayerCharacter] Animation not ready yet');
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [modelReady, playAnimation]);
+  
+  const characterHeightOffset = 0.9;
+  
+  return (
+    <group ref={groupRef} position={[position[0], position[1] + characterHeightOffset, position[2]]}>
+      {/* Character is added via useEffect */}
+    </group>
+  );
+}
+
+// Asset model component with rotation ring and drag-to-move
+function CastleAssetModel({
+  asset,
+  modelPath,
+  isSelected,
+  isRotationActive,
+  isLastPlaced,
+  onSelect,
+  onDragStart,
+  onDragEnd,
+  onRotationStart,
+  onRotationEnd,
+  onUpdate,
+  getTerrainHeight,
+}: {
+  asset: CastleAsset;
+  modelPath: string;
+  isSelected?: boolean;
+  isRotationActive?: boolean;
+  isLastPlaced?: boolean;
+  onSelect?: () => void;
+  onDragStart?: (pos: [number, number, number]) => void;
+  onDragEnd?: () => void;
+  onRotationStart?: () => void;
+  onRotationEnd?: () => void;
+  onUpdate?: (updates: Partial<CastleAsset>) => void;
+  getTerrainHeight: (x: number, z: number) => number;
+}) {
+  // Skip FBX files - useGLTF only supports GLTF/GLB
+  if (modelPath.toLowerCase().endsWith('.fbx')) {
+    console.warn(`[CastleAssetModel] Skipping FBX file: ${modelPath} - requires conversion to GLTF/GLB`);
+    return null;
+  }
+  
+  let scene: THREE.Object3D | null = null;
+  try {
+    const gltf = useGLTF(modelPath);
+    scene = gltf?.scene || null;
+  } catch (error) {
+    console.warn(`[CastleAssetModel] Failed to load: ${modelPath}`, error);
+    return null;
+  }
+  
+  if (!scene) return null;
+  
+  const groupRef = useRef<THREE.Group>(null);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef<THREE.Vector3 | null>(null);
+  const { gl, camera, raycaster, pointer } = useThree();
   
   useEffect(() => {
     if (groupRef.current) {
@@ -644,6 +1265,73 @@ function CastleAssetModel({ asset, modelPath, isSelected, onSelect }: { asset: C
     }
   }, []);
   
+  // Calculate bounding box for rotation ring position
+  const boundingBox = useMemo(() => {
+    if (!groupRef.current) return null;
+    const box = new THREE.Box3().setFromObject(groupRef.current);
+    return { min: box.min, max: box.max, size: box.getSize(new THREE.Vector3()), center: box.getCenter(new THREE.Vector3()) };
+  }, [scene]);
+  
+  const ringRadius = 2.0; // Fixed small size
+  const topSurfaceY = boundingBox ? boundingBox.max.y - boundingBox.center.y : 3.5;
+  const ringPosition: [number, number, number] = [
+    asset.position[0],
+    asset.position[1] + topSurfaceY * asset.scale,
+    asset.position[2],
+  ];
+  
+  const handleRotate = useCallback((deltaAngle: number) => {
+    if (onUpdate) {
+      onUpdate({ rotation: asset.rotation + deltaAngle });
+    }
+  }, [asset.rotation, onUpdate]);
+  
+  // Drag to move functionality
+  const handlePointerDown = useCallback((e: any) => {
+    if (e.detail === 2) return; // Ignore double clicks
+    e.stopPropagation();
+    if (isSelected && !isRotationActive) {
+      isDraggingRef.current = true;
+      dragStartRef.current = new THREE.Vector3(...asset.position);
+      onDragStart?.(asset.position);
+      gl.domElement.setPointerCapture(e.pointerId);
+    }
+  }, [isSelected, isRotationActive, asset.position, onDragStart, gl]);
+  
+  useFrame(() => {
+    if (isDraggingRef.current && groupRef.current && onUpdate) {
+      raycaster.setFromCamera(pointer, camera);
+      
+      // Raycast against XZ plane at asset height
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -asset.position[1]);
+      const intersectPoint = new THREE.Vector3();
+      raycaster.ray.intersectPlane(plane, intersectPoint);
+      
+      if (intersectPoint) {
+        // Snap to grid
+        const snappedX = Math.round(intersectPoint.x * 2) / 2;
+        const snappedZ = Math.round(intersectPoint.z * 2) / 2;
+        const terrainY = getTerrainHeight(snappedX, snappedZ);
+        
+        onUpdate({ position: [snappedX, terrainY, snappedZ] });
+      }
+    }
+  });
+  
+  useEffect(() => {
+    const handlePointerUp = () => {
+      if (isDraggingRef.current) {
+        isDraggingRef.current = false;
+        dragStartRef.current = null;
+        onDragEnd?.();
+        gl.domElement.releasePointerCapture(0);
+      }
+    };
+    
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => window.removeEventListener('pointerup', handlePointerUp);
+  }, [onDragEnd, gl]);
+  
   return (
     <group
       ref={groupRef}
@@ -654,13 +1342,31 @@ function CastleAssetModel({ asset, modelPath, isSelected, onSelect }: { asset: C
         e.stopPropagation();
         onSelect?.();
       }}
+      onPointerDown={handlePointerDown}
     >
       <primitive object={scene.clone()} />
       {isSelected && (
-        <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.5, 1, 32]} />
-          <meshBasicMaterial color="#00ff00" transparent opacity={0.5} side={THREE.DoubleSide} />
-        </mesh>
+        <>
+          {/* Selection highlight - green for selected, blue for last placed */}
+          <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.5, 1, 32]} />
+            <meshBasicMaterial 
+              color={isLastPlaced ? "#00aaff" : "#00ff00"} 
+              transparent 
+              opacity={0.5} 
+              side={THREE.DoubleSide} 
+            />
+          </mesh>
+          {/* Rotation ring */}
+          <RotationRing
+            position={ringPosition}
+            radius={ringRadius}
+            onRotate={handleRotate}
+            isRotating={isRotationActive || false}
+            onRotationStart={onRotationStart}
+            onRotationEnd={onRotationEnd}
+          />
+        </>
       )}
     </group>
   );

@@ -14,6 +14,7 @@ export interface TerrainConfig {
   islandRadius: number;
   heightScale: number;
   roughness: number;
+  isSquareTerrain?: boolean; // If true, no island falloff - square terrain
 }
 
 export interface TerrainData {
@@ -89,26 +90,48 @@ export function generateSimplexTerrain(config: TerrainConfig): TerrainData {
       const angle = Math.atan2(centerZ_norm, centerX_norm);
       const radialNoise = noise2D(Math.cos(angle) * 6 + seed * 0.001, Math.sin(angle) * 4) * 0.12 * roughnessFactor;
       
-      // Island falloff
-      const baseRadius = islandRadius / 100;
-      const irregularRadius = baseRadius + coastNoise1 + coastNoise2 + coastNoise3 + radialNoise;
-      const islandFalloff = Math.max(0, 1 - (distanceFromCenter / irregularRadius));
+      // Island falloff (skip if square terrain)
+      const isSquareTerrain = config.isSquareTerrain ?? false;
+      let islandFalloff = 1.0; // Default to no falloff for square terrain
+      let edgeFalloff = 1.0; // For square terrain - hills on edges
       
-      // Cliff detection
+      if (!isSquareTerrain) {
+        const baseRadius = islandRadius / 100;
+        const irregularRadius = baseRadius + coastNoise1 + coastNoise2 + coastNoise3 + radialNoise;
+        islandFalloff = Math.max(0, 1 - (distanceFromCenter / irregularRadius));
+      } else {
+        // Square terrain: hills on edges, flat in middle
+        // Distance from edge (0 = center, 0.5 = edge)
+        const edgeDistanceX = Math.abs(nx - 0.5) * 2; // 0 at center, 1 at edge
+        const edgeDistanceZ = Math.abs(nz - 0.5) * 2; // 0 at center, 1 at edge
+        const maxEdgeDistance = Math.max(edgeDistanceX, edgeDistanceZ); // Use max to create square pattern
+        
+        // Create hills on edges: smooth transition from flat center to hilly edges
+        // Edge falloff: 0.0 at center (flat), 1.0 at edges (hills)
+        edgeFalloff = Math.pow(maxEdgeDistance, 0.7); // Smooth curve, hills start appearing at ~30% from edge
+      }
+      
+      // Cliff detection (only for island terrain)
       const cliffMask = noise2D((nx + seed * 0.0001) * 20, nz * 20);
       const cliffThreshold = 0.85 - (roughness / 200);
-      const hasCliff = cliffMask > cliffThreshold && distanceFromCenter > baseRadius * 0.7 && distanceFromCenter < irregularRadius;
+      const hasCliff = !isSquareTerrain && cliffMask > cliffThreshold && distanceFromCenter > (islandRadius / 100) * 0.7 && distanceFromCenter < (islandRadius / 100) * 1.2;
       
       // Calculate height
       let height: number;
-      if (islandFalloff < 0.1) {
-        // Water edge - smooth transition
+      if (!isSquareTerrain && islandFalloff < 0.1) {
+        // Water edge - smooth transition (only for island)
         height = islandFalloff * 10 - 2;
       } else if (hasCliff) {
-        // Cliff areas
+        // Cliff areas (only for island)
         height = -1;
+      } else if (isSquareTerrain) {
+        // Square terrain: flat center with hills on edges
+        // Base height is flat (around 2), add hills on edges using edgeFalloff
+        const baseHeight = 2.0; // Flat center
+        const hillHeight = noiseValue * edgeFalloff * heightScale * 0.3; // Hills only on edges
+        height = baseHeight + hillHeight;
       } else {
-        // Main terrain - combine noise with island falloff
+        // Main terrain - combine noise with falloff (falloff is 1.0 for square terrain)
         height = (noiseValue * islandFalloff * heightScale * 0.5) + 2;
       }
       

@@ -4,6 +4,7 @@
 export const oceanVertexShader = /*glsl*/`
   uniform float time;
   uniform float waveStrength;
+  uniform float waveAmplitude;
   uniform float waveSpeed;
   uniform float rippleScale;
   
@@ -43,8 +44,8 @@ export const oceanVertexShader = /*glsl*/`
     float wave3 = noise(scaledUV * 3.0 + vec2(speed * 1.2, speed * 0.3)) * 2.0 - 1.0;
     float wave4 = noise(scaledUV * 6.0 + vec2(speed * 0.6, speed * 1.1)) * 2.0 - 1.0;
     
-    // Combine waves - significantly increased amplitude for visible ocean movement
-    float displacement = (wave1 * 0.4 + wave2 * 0.3 + wave3 * 0.2 + wave4 * 0.1) * waveStrength * 15.0;
+    // Combine waves - waveAmplitude controls height (affects coastline), waveStrength controls overall waviness
+    float displacement = (wave1 * 0.4 + wave2 * 0.3 + wave3 * 0.2 + wave4 * 0.1) * waveStrength * waveAmplitude;
     // PlaneGeometry creates vertices in XY plane (z=0). After rotation [-PI/2, 0, 0]:
     // The plane lies flat on XZ plane in world space
     // Local Y → World Z, Local Z → World -Y
@@ -59,8 +60,8 @@ export const oceanVertexShader = /*glsl*/`
              + (noise((scaledUV + vec2(0.0, d)) * 1.2 - vec2(speed * 0.5, speed * 0.9)) * 2.0 - 1.0) * 0.3;
     
     // Calculate tangent and bitangent for normal calculation (plane rotated, so adjust accordingly)
-    vec3 tangent = normalize(vec3(1.0, (h1 - wave1 * 0.6 - wave2 * 0.3) * waveStrength * 15.0, 0.0));
-    vec3 bitangent = normalize(vec3(0.0, (h2 - wave1 * 0.6 - wave2 * 0.3) * waveStrength * 15.0, 1.0));
+    vec3 tangent = normalize(vec3(1.0, (h1 - wave1 * 0.6 - wave2 * 0.3) * waveStrength * waveAmplitude, 0.0));
+    vec3 bitangent = normalize(vec3(0.0, (h2 - wave1 * 0.6 - wave2 * 0.3) * waveStrength * waveAmplitude, 1.0));
     vec3 calculatedNormal = normalize(cross(bitangent, tangent));
     
     vNormal = normalize(normalMatrix * calculatedNormal);

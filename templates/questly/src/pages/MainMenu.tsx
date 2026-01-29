@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Plus, Compass, Trophy, BookOpen, Lock, Play } from 'lucide-react';
 import ParallaxBackground from '@/components/ParallaxBackground';
 import CustomButton from '@/components/CustomButton';
+import AssetCreditsFooter from '@/components/AssetCreditsFooter';
 
 export default function MainMenu() {
   const menuItems = [
@@ -16,7 +17,7 @@ export default function MainMenu() {
 
   return (
     <ParallaxBackground>
-      <div className="flex-1 flex flex-col items-center justify-center p-4 max-w-md mx-auto w-full pt-20">
+      <div className="flex-1 flex flex-col items-center justify-center p-4 max-w-md mx-auto w-full pt-20 min-h-screen">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -87,6 +88,9 @@ export default function MainMenu() {
             </div>
           </div>
         </motion.div>
+
+        {/* Footer */}
+        <AssetCreditsFooter />
       </div>
     </ParallaxBackground>
   );

@@ -25,6 +25,11 @@ Complete index of all 3D assets, models, animations, and resources available in 
 | **KayKit Medieval Hexagon Pack** | City Building | 85+ | Hexagonal grid | 📋 Available | [View Details](KayKit_Medieval_Hexagon_Pack_1.0_FREE/README.md) |
 | **Medieval Village MegaKit** | Modular Building | 200+ | Component system | 📋 Available | [View Details](Medieval%20Village%20MegaKit%5BStandard%5D/README.md) |
 
+### Audio & Music Assets
+| Asset Pack | Type | Tracks | Formats | Status | Documentation |
+|------------|------|--------|---------|--------|---------------|
+| **AlkaKrab Medieval Vol. 2** | Music Pack | 8 loops | MP3, OGG, WAV | ✅ Available | [View Details](Loops%20Medieval%20Vol.%202/) |
+
 ### Animation Source Libraries
 | Source Repository | Type | Key Models | Purpose | Status | Documentation |
 |-------------------|------|------------|---------|--------|---------------|
@@ -39,6 +44,7 @@ Complete index of all 3D assets, models, animations, and resources available in 
 - **Animations:** 80+ individual animation clips
 - **Environment:** 189+ nature/environment models
 - **Buildings:** 285+ architectural components  
+- **Audio/Music:** 8 medieval music loops
 - **Animation Sources:** 3 major repositories
 - **Total Models:** 500+ individual 3D assets
 
@@ -99,6 +105,7 @@ Complete index of all 3D assets, models, animations, and resources available in 
 - **glTF Samples:** Mixed (CC0, MIT, Custom)
 - **Premium Assets:** Standard License
 - **Quaternius:** CC0 Public Domain
+- **AlkaKrab:** See [License Info](Loops%20Medieval%20Vol.%202/AlkaKrab%20Music%20License%20Info.pdf)
 
 ## Technical Specifications
 
@@ -136,6 +143,8 @@ Assets/
 ├── Building Packs/
 │   ├── KayKit_Medieval_Hexagon_Pack_1.0_FREE/  # 85+ hex buildings  
 │   └── Medieval Village MegaKit[Standard]/      # 200+ components
+├── Audio & Music/
+│   └── Loops Medieval Vol. 2/                  # 8 medieval music loops (AlkaKrab)
 └── Animation Sources/
     ├── three.js/                        # Three.js repo with models
     ├── glTF-Sample-Models/              # Khronos reference
@@ -196,4 +205,5 @@ Assets/
 - [Quaternius Characters](RPG%20Characters%20-%20Nov%202020/README.md) - 6 classes
 - [Forest Nature Pack](KayKit_Forest_Nature_Pack_1.0_FREE/README.md) - 122 nature assets
 - [Medieval Hexagon Pack](KayKit_Medieval_Hexagon_Pack_1.0_FREE/README.md) - 85+ buildings
+- [AlkaKrab Medieval Music](Loops%20Medieval%20Vol.%202/) - 8 medieval music loops
 - [Three.js Assets](VIBER3D_three-js-assets.md) - Animation sources
