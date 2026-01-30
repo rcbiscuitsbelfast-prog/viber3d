@@ -123,15 +123,14 @@ export default function SidebarMenu({ isOpen, onClose }: SidebarMenuProps) {
                 <span className="font-medium">{isMusicOn ? 'Music On' : 'Music Off'}</span>
               </button>
 
-              {/* Settings */}
-              <Link
-                to="/settings"
-                onClick={onClose}
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white"
+              {/* Settings - Coming Soon */}
+              <button
+                disabled
+                className="flex items-center gap-3 p-3 rounded-lg opacity-50 cursor-not-allowed text-slate-500"
               >
                 <Settings className="w-5 h-5" />
-                <span className="font-medium">Settings</span>
-              </Link>
+                <span className="font-medium">Settings (Soon)</span>
+              </button>
             </div>
           </motion.div>
         )}

@@ -1443,15 +1443,15 @@ export default function CastleBuilder() {
           
           <OrbitControls
             ref={controlsRef}
-            enablePan={panMode && !isDraggingAsset && !isRotatingAsset}
-            enableZoom={zoomMode && !isDraggingAsset && !isRotatingAsset}
-            enableRotate={!isDraggingAsset && !isRotatingAsset}
+            enablePan={!isDraggingAsset && !isRotatingAsset}
+            enableZoom={!isDraggingAsset && !isRotatingAsset}
+            enableRotate={!panMode && !zoomMode && !isDraggingAsset && !isRotatingAsset}
             touches={{
               ONE: 0, // One finger rotates
               TWO: 1, // Two fingers pan/zoom
             }}
             mouseButtons={{
-              LEFT: 0, // Left mouse button rotates
+              LEFT: panMode ? 2 : (zoomMode ? 1 : 0), // Pan mode: pan, Zoom mode: dolly, Default: rotate
               MIDDLE: 1, // Middle mouse button pans
               RIGHT: 2, // Right mouse button zooms
             }}

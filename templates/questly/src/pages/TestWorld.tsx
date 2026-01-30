@@ -4470,7 +4470,16 @@ export default function TestWorld() {
             ) : (
               <>
                 {cameraView === 'third-person' ? (
-                  <OrbitControls enablePan={panMode} enableZoom={zoomMode} enableRotate={true} />
+                  <OrbitControls
+                    enablePan={true}
+                    enableZoom={true}
+                    enableRotate={!panMode && !zoomMode}
+                    mouseButtons={{
+                      LEFT: panMode ? 2 : (zoomMode ? 1 : 0), // Pan mode: pan, Zoom mode: dolly, Default: rotate
+                      MIDDLE: 1,
+                      RIGHT: 2,
+                    }}
+                  />
                 ) : (
                   <>
                     {/* Build mode camera views - focus on center of terrain */}
