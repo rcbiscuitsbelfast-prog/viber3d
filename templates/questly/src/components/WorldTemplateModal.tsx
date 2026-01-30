@@ -117,7 +117,7 @@ export const WORLD_TEMPLATES: WorldTemplate[] = [
       fogHeight: 3.0,
       bubbleScale: 0.3,
       bubbleDensity: 3.0,
-      bubbleSpeed: 0.01, // 1% = effectively static
+      bubbleSpeed: 0, // 0 = completely static
     },
   },
 ];
@@ -230,8 +230,8 @@ export default function WorldTemplateModal({
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => {
-                          onSelectTemplate(template);
                           onClose();
+                          setTimeout(() => onSelectTemplate(template), 100);
                         }}
                         className="bg-slate-800 hover:bg-slate-700 border-2 border-primary/30 hover:border-primary/50 rounded-lg p-4 text-left transition-all group"
                       >

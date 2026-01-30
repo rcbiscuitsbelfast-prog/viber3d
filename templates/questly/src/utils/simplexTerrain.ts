@@ -78,59 +78,65 @@ export function generateSimplexTerrain(config: TerrainConfig): TerrainData {
       let maxValue = 0;
       
       if (noiseType === 'smooth') {
-        // Smooth: gentler, rolling hills - lower frequency, higher persistence
-        frequency = 0.005;
+        // Smooth: very gentle rolling hills - much lower frequency, high persistence
+        frequency = 0.003;
         amplitude = 1;
         for (let i = 0; i < octaves; i++) {
           const n = noise2D(worldX * frequency, worldZ * frequency);
-          noiseValue += n * amplitude;
+          // Smooth the noise with sine curve for gentle rolling
+          noiseValue += Math.sin(n * Math.PI * 0.5) * amplitude;
           maxValue += amplitude;
-          amplitude *= Math.min(persistence * 1.2, 0.9); // Higher persistence for smoother
-          frequency *= lacunarity * 0.9; // Slower frequency increase
+          amplitude *= 0.7; // High persistence for smooth transitions
+          frequency *= 1.5; // Slow frequency increase
         }
+        noiseValue *= 0.6; // Reduce overall height for gentle hills
       } else if (noiseType === 'rocky') {
-        // Rocky: sharper peaks and valleys - use absolute value for ridges
-        frequency = 0.015;
+        // Rocky: dramatic sharp mountain peaks - use absolute value and power
+        frequency = 0.008;
         amplitude = 1;
         for (let i = 0; i < octaves; i++) {
           const n = noise2D(worldX * frequency, worldZ * frequency);
-          // Use absolute value for sharper peaks
-          const sharpness = i < 2 ? Math.abs(n) : n;
-          noiseValue += sharpness * amplitude;
+          // Sharp peaks using absolute value and power function
+          const sharp = Math.pow(Math.abs(n), 0.7) * Math.sign(n);
+          noiseValue += sharp * amplitude;
           maxValue += amplitude;
-          amplitude *= persistence * 0.8; // Lower persistence for sharper contrast
-          frequency *= lacunarity * 1.2; // Faster frequency increase
+          amplitude *= 0.45; // Lower persistence for dramatic peaks
+          frequency *= 2.5; // Fast frequency increase for detail
         }
+        noiseValue *= 1.4; // Amplify for taller mountains
       } else if (noiseType === 'ridged') {
-        // Ridged: valley/ridge patterns - invert and use absolute
-        frequency = 0.01;
+        // Ridged: dramatic mountain ridges and deep valleys
+        frequency = 0.006;
         amplitude = 1;
         for (let i = 0; i < octaves; i++) {
           const n = noise2D(worldX * frequency, worldZ * frequency);
-          // Create ridges by inverting and using absolute value
-          const ridged = 1 - Math.abs(n);
+          // Create sharp ridges by inverting absolute value and squaring
+          let ridged = 1.0 - Math.abs(n);
+          ridged = ridged * ridged; // Square for sharper ridges
           noiseValue += ridged * amplitude;
           maxValue += amplitude;
-          amplitude *= persistence;
-          frequency *= lacunarity;
+          amplitude *= 0.5;
+          frequency *= 2.2;
         }
+        noiseValue *= 1.3; // Amplify ridges
       } else if (noiseType === 'turbulent') {
-        // Turbulent: chaotic, varied terrain - multiple noise layers with different scales
-        frequency = 0.01;
+        // Turbulent: chaotic varied terrain with dramatic height changes
+        frequency = 0.007;
         amplitude = 1;
         for (let i = 0; i < octaves; i++) {
           const n1 = noise2D(worldX * frequency, worldZ * frequency);
-          const n2 = noise2D(worldX * frequency * 1.7, worldZ * frequency * 1.3);
-          const n3 = noise2D(worldX * frequency * 0.5, worldZ * frequency * 0.7);
-          // Combine multiple noise layers for turbulence
-          const turbulent = (n1 + n2 * 0.5 + n3 * 0.3) / 1.8;
+          const n2 = noise2D(worldX * frequency * 2.3, worldZ * frequency * 1.7);
+          const n3 = noise2D(worldX * frequency * 0.4, worldZ * frequency * 0.6);
+          // Combine with absolute values for turbulence
+          const turbulent = (Math.abs(n1) + Math.abs(n2) * 0.6 + n3 * 0.4) / 1.5;
           noiseValue += turbulent * amplitude;
           maxValue += amplitude;
-          amplitude *= persistence;
-          frequency *= lacunarity * 1.1;
+          amplitude *= 0.55;
+          frequency *= 2.0;
         }
+        noiseValue *= 1.2; // Slightly amplify
       } else {
-        // Standard: default FBM
+        // Standard: default FBM - balanced terrain
         for (let i = 0; i < octaves; i++) {
           noiseValue += noise2D(worldX * frequency, worldZ * frequency) * amplitude;
           maxValue += amplitude;

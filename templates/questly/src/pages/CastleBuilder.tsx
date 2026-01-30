@@ -7,7 +7,6 @@ import { oceanVertexShader, oceanFragmentShader } from '@/shaders/OceanShaders';
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
 import SidebarMenu from '../components/SidebarMenu';
 import { InstancedGrass } from '../components/InstancedGrass';
-import { VolumetricFog } from '../components/VolumetricFog';
 import { Menu, Eraser, Save, Download, PenTool } from 'lucide-react';
 import { useCharacterAnimation } from '../hooks/useCharacterAnimation';
 import { cloneGltf } from '../utils/cloneGltf';
@@ -632,11 +631,6 @@ export default function CastleBuilder() {
   const [activeRotationRingId, setActiveRotationRingId] = useState<string | null>(null);
   const [lastPlacedAssetId, setLastPlacedAssetId] = useState<string | null>(null);
   const [dragStartPos, setDragStartPos] = useState<[number, number, number] | null>(null);
-  const [fogEnabled, setFogEnabled] = useState(true);
-  const [fogHeight, setFogHeight] = useState(5);
-  const [bubbleScale, setBubbleScale] = useState(0.5);
-  const [bubbleDensity, setBubbleDensity] = useState(50);
-  const [bubbleSpeed, setBubbleSpeed] = useState(10);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveBuildName, setSaveBuildName] = useState('');
@@ -1174,80 +1168,7 @@ export default function CastleBuilder() {
                     className="w-full"
                   />
                 </div>
-                
-                <div className="pt-2 border-t border-slate-700">
-                  <label className="text-sm font-bold mb-2 block">Fog</label>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-xs">
-                      <input
-                        type="checkbox"
-                        checked={fogEnabled}
-                        onChange={(e) => setFogEnabled(e.target.checked)}
-                        className="w-4 h-4"
-                      />
-                      <span>Enable Fog</span>
-                    </label>
-                    {fogEnabled && (
-                      <>
-                        <div>
-                          <label className="text-xs text-slate-400 block mb-1">
-                            Height: {fogHeight.toFixed(1)}
-                          </label>
-                          <input
-                            type="range"
-                            min="0"
-                            max="20"
-                            step="0.5"
-                            value={fogHeight}
-                            onChange={(e) => setFogHeight(Number(e.target.value))}
-                            className="w-full"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-slate-400 block mb-1">
-                            Scale: {bubbleScale.toFixed(1)}
-                          </label>
-                          <input
-                            type="range"
-                            min="0.1"
-                            max="1.0"
-                            step="0.05"
-                            value={bubbleScale}
-                            onChange={(e) => setBubbleScale(Number(e.target.value))}
-                            className="w-full"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-slate-400 block mb-1">
-                            Density: {bubbleDensity}
-                          </label>
-                          <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={bubbleDensity}
-                            onChange={(e) => setBubbleDensity(Number(e.target.value))}
-                            className="w-full"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-slate-400 block mb-1">
-                            Speed: {bubbleSpeed}
-                          </label>
-                          <input
-                            type="range"
-                            min="0"
-                            max="50"
-                            value={bubbleSpeed}
-                            onChange={(e) => setBubbleSpeed(Number(e.target.value))}
-                            className="w-full"
-                          />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-                
+
                 <div className="pt-2 border-t border-slate-700 space-y-2">
                   <button
                     onClick={handleSaveBuild}
@@ -1505,19 +1426,8 @@ export default function CastleBuilder() {
           
           {/* Ocean removed - floating island, no water */}
           
-          {/* Volumetric Fog - matches island size */}
-          {fogEnabled && (
-            <VolumetricFog
-              timeOfDay={timeOfDay}
-              fogHeight={fogHeight}
-              bubbleScale={bubbleScale}
-              bubbleDensity={1.0}
-              bubbleSpeed={0.01}
-              terrainRadius={terrainRadius}
-              isSquareTerrain={false}
-            />
-          )}
-          
+          {/* Volumetric Fog removed per user request */}
+
           {/* Erase brush indicator */}
           {eraseMode && (
             <EraseIndicator

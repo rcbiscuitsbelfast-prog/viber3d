@@ -28,7 +28,8 @@ import { generateSimplexTerrain, sampleTerrainHeight } from '../utils/simplexTer
 import { createNoise2D } from 'simplex-noise';
 import * as CANNON from 'cannon-es';
 import { VolumetricFog } from '../components/VolumetricFog';
-import { 
+import WorldTemplateModal, { WORLD_TEMPLATES, type WorldTemplate } from '../components/WorldTemplateModal';
+import {
   exportWorldConfig, 
   importWorldConfigFromJSON, 
   configToWorldState,
@@ -809,17 +810,22 @@ const LowPolyTerrain = React.forwardRef<THREE.Mesh, {
   heightScale: number;
   cliffIntensity: number;
   buildingAreas: BuildingArea[];
-}>(({ 
-  roughness, 
-  islandSize, 
-  seed, 
-  terrainDetail, 
-  heightScale, 
+  isSquareTerrain: boolean;
+  noiseType: 'standard' | 'smooth' | 'rocky' | 'ridged' | 'turbulent';
+}>(({
+  roughness,
+  islandSize,
+  seed,
+  terrainDetail,
+  heightScale,
   cliffIntensity,
-  buildingAreas
+  buildingAreas,
+  isSquareTerrain,
+  noiseType
 }, ref) => {
   const terrainSize = terrainDetail;
-  const scale = 200;
+  // Dynamic scale: square terrain scales with islandSize, island terrain fixed at 200
+  const scale = isSquareTerrain ? (islandSize * 2) : 200;
   const terrainDataRef = useRef<ReturnType<typeof generateSimplexTerrain> | null>(null);
   
   // Generate heightmap using Simplex Noise for professional terrain
@@ -837,6 +843,8 @@ const LowPolyTerrain = React.forwardRef<THREE.Mesh, {
       islandRadius: islandSize,
       heightScale,
       roughness,
+      isSquareTerrain,
+      noiseType,
     });
     
     // Store terrain data for height sampling
@@ -912,9 +920,9 @@ const LowPolyTerrain = React.forwardRef<THREE.Mesh, {
     
     geom.computeVertexNormals();
     geom.rotateX(-Math.PI / 2);
-    
+
     return geom;
-  }, [terrainSize, roughness, islandSize, seed, heightScale, cliffIntensity, buildingAreas]);
+  }, [terrainSize, roughness, islandSize, seed, heightScale, cliffIntensity, buildingAreas, noiseType, isSquareTerrain]);
   
   const meshRef = useRef<THREE.Mesh>(null);
   
@@ -1163,26 +1171,27 @@ interface ForestProps {
   getTerrainHeight: (x: number, z: number) => number;
   onAssetsGenerated?: (assets: { trees: Array<{ pos: [number, number, number]; scale: number }>; rocks: Array<{ pos: [number, number, number]; scale: number }> }) => void;
   terrainMeshRef: React.RefObject<THREE.Mesh>;
+  isSquareTerrain: boolean;
 }
 
 // Forest with multiple trees - positioned on green terrain only
 function Forest(props: ForestProps) {
   const {
-  roughness, 
-  islandSize, 
-  seed, 
-  terrainDetail, 
-  treeAmount, 
-  treeSize, 
-  grassAmount, 
-  grassSize, 
+  roughness,
+  islandSize,
+  seed,
+  terrainDetail,
+  treeAmount,
+  treeSize,
+  grassAmount,
+  grassSize,
   terrainGrassCoverage,
   buildingGrassFalloff,
-  rockAmount, 
-  rockSize, 
-  bushAmount, 
-  bushSize, 
-  heightScale, 
+  rockAmount,
+  rockSize,
+  bushAmount,
+  bushSize,
+  heightScale,
   cliffIntensity,
   treeHeightOffset,
   grassHeightOffset,
@@ -1192,7 +1201,8 @@ function Forest(props: ForestProps) {
   slopeAdjustmentIntensity,
   getTerrainHeight,
     onAssetsGenerated,
-    terrainMeshRef
+    terrainMeshRef,
+    isSquareTerrain
   } = props;
   
   // Calculate slope-based height adjustment for assets
@@ -1259,13 +1269,14 @@ function Forest(props: ForestProps) {
   
   // Generate tree positions with type-based distribution by height
   const generateTreePositions = () => {
-    const positions: Array<{ 
-      pos: [number, number, number]; 
+    const positions: Array<{
+      pos: [number, number, number];
       rotation: number;
       scale: number;
       treeType: 'pine' | 'broad' | 'bushy';
     }> = [];
-    const scale = 200;
+    // Dynamic scale: match terrain size (square terrain scales with islandSize, island fixed at 200)
+    const scale = isSquareTerrain ? (islandSize * 2) : 200;
     const attempts = treeAmount; // Use slider value
     
     // Use seed for consistent random generation
@@ -1378,13 +1389,14 @@ function Forest(props: ForestProps) {
   // Generate grass positions automatically based on terrain grid
   // Much faster: samples terrain grid directly instead of random attempts + raycasting
   const generateGrassPositions = (terrainGrassCoverage: number, buildingGrassFalloff: number) => {
-    const positions: Array<{ 
-      pos: [number, number, number]; 
+    const positions: Array<{
+      pos: [number, number, number];
       rotation: number;
       scale: number;
       variant?: number;
     }> = [];
-    const scale = 200;
+    // Dynamic scale: match terrain size (square terrain scales with islandSize, island fixed at 200)
+    const scale = isSquareTerrain ? (islandSize * 2) : 200;
     
     // Grid-based sampling for automatic coverage - much faster than random attempts
     // SIGNIFICANTLY increased spacing to prevent freezing and PC lockup
@@ -1748,13 +1760,14 @@ function Forest(props: ForestProps) {
   
   // Generate bush positions - low grass areas
   const generateBushPositions = () => {
-    const positions: Array<{ 
-      pos: [number, number, number]; 
+    const positions: Array<{
+      pos: [number, number, number];
       rotation: number;
       scale: number;
       variant: number;
     }> = [];
-    const scale = 200;
+    // Dynamic scale: match terrain size (square terrain scales with islandSize, island fixed at 200)
+    const scale = isSquareTerrain ? (islandSize * 2) : 200;
     const attempts = bushAmount;
     
     let seedRandom = seed + 3000;
@@ -1814,14 +1827,14 @@ function Forest(props: ForestProps) {
     const result = generateTreePositions();
     console.log(`[Loading] Generated ${result.length} trees`);
     return result;
-  }, [roughness, islandSize, seed, terrainDetail, treeAmount, treeSize, treeHeightOffset, buildingAreas, getTerrainHeight, slopeAdjustmentIntensity]);
+  }, [roughness, islandSize, seed, terrainDetail, treeAmount, treeSize, treeHeightOffset, buildingAreas, getTerrainHeight, slopeAdjustmentIntensity, isSquareTerrain]);
   
   const grass = useMemo(() => {
     console.log('[Loading] Generating grass...');
     const result = generateGrassPositions(terrainGrassCoverage, buildingGrassFalloff);
     console.log(`[Loading] Generated ${result.length} grass instances`);
     return result;
-  }, [roughness, islandSize, seed, terrainDetail, grassSize, grassHeightOffset, buildingAreas, terrainMeshRef, getTerrainHeight, slopeAdjustmentIntensity, terrainGrassCoverage, buildingGrassFalloff]);
+  }, [roughness, islandSize, seed, terrainDetail, grassSize, grassHeightOffset, buildingAreas, terrainMeshRef, getTerrainHeight, slopeAdjustmentIntensity, terrainGrassCoverage, buildingGrassFalloff, isSquareTerrain]);
   
   const rocks = useMemo(() => {
     console.log('[Loading] Generating rocks...');
@@ -1835,7 +1848,7 @@ function Forest(props: ForestProps) {
     const result = generateBushPositions();
     console.log(`[Loading] Generated ${result.length} bushes`);
     return result;
-  }, [roughness, islandSize, seed, terrainDetail, bushAmount, bushSize, bushHeightOffset, buildingAreas, getTerrainHeight, slopeAdjustmentIntensity]);
+  }, [roughness, islandSize, seed, terrainDetail, bushAmount, bushSize, bushHeightOffset, buildingAreas, getTerrainHeight, slopeAdjustmentIntensity, isSquareTerrain]);
   
   // Assets are generated, but loading state is managed by parent TestWorld component
   
@@ -2044,6 +2057,8 @@ function DynamicOcean({
         fragmentShader={oceanFragmentShader}
         transparent
         side={THREE.DoubleSide}
+        depthWrite={false}
+        renderOrder={-1}
         needsUpdate
       />
     </mesh>
@@ -2327,9 +2342,12 @@ export default function TestWorld() {
   const [heightScale, setHeightScale] = useState(55);
   const [waterLevel, setWaterLevel] = useState(0.9);
   const [cliffIntensity, setCliffIntensity] = useState(100);
+  const [noiseType, setNoiseType] = useState<'standard' | 'smooth' | 'rocky' | 'ridged' | 'turbulent'>('standard');
   const [leftPanelMinimized, setLeftPanelMinimized] = useState(false);
   const [rightPanelMinimized, setRightPanelMinimized] = useState(false);
-  
+  const [isSquareTerrain, setIsSquareTerrain] = useState(false); // false = island, true = square/forest
+  const [templateModalOpen, setTemplateModalOpen] = useState(true); // Template selection modal - open by default
+
   // Building areas - now multiple
   // Default starter terrain at X: 0, Z: 50, Radius: 45, Height: 2.5
   const [buildingAreas, setBuildingAreas] = useState<BuildingArea[]>([
@@ -2478,9 +2496,9 @@ export default function TestWorld() {
   const [oceanSize, setOceanSize] = useState(500);
   const [rippleScale, setRippleScale] = useState(5.0);
   const [fogHeight, setFogHeight] = useState(16);
-  const [bubbleScale, setBubbleScale] = useState(0.7);
+  const [bubbleScale, setBubbleScale] = useState(0.3);
   const [bubbleDensity, setBubbleDensity] = useState(1.5);
-  const [bubbleSpeed, setBubbleSpeed] = useState(0.01); // Speed multiplier (0-1, default 0.01 = 1% speed for very slow rolling fog)
+  const [bubbleSpeed, setBubbleSpeed] = useState(0); // Speed multiplier (0 = static, 1 = max speed)
   const [manualAssets, setManualAssets] = useState<Array<{
     id: string;
     type: 'tree' | 'rock' | 'grass' | 'bush';
@@ -2884,18 +2902,71 @@ export default function TestWorld() {
     }
   };
 
+  // Handle template selection
+  const handleSelectTemplate = (template: WorldTemplate) => {
+    const config = template.config;
+    setRoughness(config.roughness);
+    setIslandSize(config.islandSize);
+    setTerrainDetail(config.terrainDetail);
+    setSeed(config.seed);
+    setHeightScale(config.heightScale);
+    setWaterLevel(config.waterLevel);
+    setCliffIntensity(config.cliffIntensity);
+    setTreeAmount(config.treeAmount);
+    setTreeSize(config.treeSize);
+    setGrassAmount(config.grassAmount);
+    setGrassSize(config.grassSize);
+    setTerrainGrassCoverage(config.terrainGrassCoverage);
+    setBuildingGrassFalloff(config.buildingGrassFalloff);
+    setRockAmount(config.rockAmount);
+    setRockSize(config.rockSize);
+    setBushAmount(config.bushAmount);
+    setBushSize(config.bushSize);
+    setTreeHeightOffset(config.treeHeightOffset);
+    setGrassHeightOffset(config.grassHeightOffset);
+    setRockHeightOffset(config.rockHeightOffset);
+    setBushHeightOffset(config.bushHeightOffset);
+    setSlopeAdjustmentIntensity(config.slopeAdjustmentIntensity);
+    setIsSquareTerrain(config.isSquareTerrain ?? false);
+    if (config.sunIntensity !== undefined) setSunIntensity(config.sunIntensity);
+    if (config.waveStrength !== undefined) setWaveStrength(config.waveStrength);
+    if (config.waveAmplitude !== undefined) setWaveAmplitude(config.waveAmplitude);
+    if (config.waveSpeed !== undefined) setWaveSpeed(config.waveSpeed);
+    if (config.oceanTransparency !== undefined) setOceanTransparency(config.oceanTransparency);
+    if (config.oceanSize !== undefined) setOceanSize(config.oceanSize);
+    if (config.rippleScale !== undefined) setRippleScale(config.rippleScale);
+    if (config.fogHeight !== undefined) setFogHeight(config.fogHeight);
+    if (config.bubbleScale !== undefined) setBubbleScale(config.bubbleScale);
+    if (config.bubbleDensity !== undefined) setBubbleDensity(config.bubbleDensity);
+    if (config.bubbleSpeed !== undefined) setBubbleSpeed(config.bubbleSpeed);
+  };
+
+  // Handle saved world selection
+  const handleSelectSavedWorld = (worldId: string) => {
+    const config = loadWorldFromLocalStorage(worldId);
+    if (config) {
+      handleLoad(config);
+    }
+  };
+
   // Load auto-saved world on mount (prevent double execution in StrictMode)
   const hasCheckedAutoSave = useRef(false);
   useEffect(() => {
     if (hasCheckedAutoSave.current) return;
     hasCheckedAutoSave.current = true;
-    
+
     const autoSaved = loadAutoSavedWorld();
     if (autoSaved) {
       const shouldLoad = window.confirm('Found auto-saved world. Load it?');
       if (shouldLoad) {
         handleLoad(autoSaved);
+      } else {
+        // User declined auto-save, show template modal
+        setTemplateModalOpen(true);
       }
+    } else {
+      // No auto-saved world, show template modal on first load
+      setTemplateModalOpen(true);
     }
   }, []); // Only on mount
   
@@ -2947,7 +3018,32 @@ export default function TestWorld() {
       clearTimeout(normalTimer);
     };
   }, [terrainMeshRef]);
-  
+
+  // Auto-scale fog parameters based on terrain size (50-100 range) - ONLY for forest/square terrain
+  useEffect(() => {
+    // Only auto-scale for square terrain (forest), not island
+    if (!isSquareTerrain) return;
+
+    // Clamp size to 50-100 for scaling interpolation
+    const size = Math.min(Math.max(islandSize, 50), 100);
+    const t = (size - 50) / (100 - 50); // Interpolation factor 0-1
+
+    // Fog parameter ranges (size 50 → size 100)
+    const minFogHeight = 8.5;
+    const maxFogHeight = 16.0;
+    const minBubbleScale = 0.5;
+    const maxBubbleScale = 1.3;
+    const minBubbleDensity = 2.3;
+    const maxBubbleDensity = 3.0;
+    const targetSpeed = 0;
+
+    // Interpolate values
+    setFogHeight(minFogHeight + t * (maxFogHeight - minFogHeight));
+    setBubbleScale(minBubbleScale + t * (maxBubbleScale - minBubbleScale));
+    setBubbleDensity(minBubbleDensity + t * (maxBubbleDensity - minBubbleDensity));
+    setBubbleSpeed(targetSpeed);
+  }, [islandSize, isSquareTerrain]);
+
   // Update quest markers and NPCs positions when terrain is ready and building areas change
   // Ensures they're positioned within building areas and on terrain surface
   useEffect(() => {
@@ -3676,7 +3772,67 @@ export default function TestWorld() {
                 </p>
               </div>
             )}
-        
+
+        {/* Terrain Type Presets */}
+        <div className="mb-4">
+          <label className="text-xs text-slate-400 block mb-2">Terrain Presets:</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => {
+                setRoughness(60);
+                setHeightScale(70);
+              }}
+              className="bg-slate-700 hover:bg-slate-600 text-white text-xs py-2 px-3 rounded transition-colors"
+            >
+              ⛰️ Mountains
+            </button>
+            <button
+              onClick={() => {
+                setRoughness(35);
+                setHeightScale(45);
+              }}
+              className="bg-slate-700 hover:bg-slate-600 text-white text-xs py-2 px-3 rounded transition-colors"
+            >
+              🏔️ Hills
+            </button>
+            <button
+              onClick={() => {
+                setRoughness(15);
+                setHeightScale(25);
+              }}
+              className="bg-slate-700 hover:bg-slate-600 text-white text-xs py-2 px-3 rounded transition-colors"
+            >
+              🌾 Plains
+            </button>
+            <button
+              onClick={() => {
+                setRoughness(25);
+                setHeightScale(35);
+                setCliffIntensity(80);
+              }}
+              className="bg-slate-700 hover:bg-slate-600 text-white text-xs py-2 px-3 rounded transition-colors"
+            >
+              🏞️ Valley
+            </button>
+          </div>
+        </div>
+
+        {/* Noise Type Dropdown */}
+        <div className="mb-4">
+          <label className="text-xs text-slate-400 block mb-1">Island Terrain Type:</label>
+          <select
+            value={noiseType}
+            onChange={(e) => setNoiseType(e.target.value as any)}
+            className="w-full bg-slate-700 text-white text-sm py-2 px-3 rounded border border-slate-600 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="standard">Standard</option>
+            <option value="smooth">Smooth (Rolling Hills)</option>
+            <option value="rocky">Rocky (Sharp Peaks)</option>
+            <option value="ridged">Ridged (Valleys)</option>
+            <option value="turbulent">Turbulent (Chaotic)</option>
+          </select>
+        </div>
+
         {/* Roughness Slider */}
         <div>
           <label className="text-xs text-slate-400 block mb-1">
@@ -3692,15 +3848,15 @@ export default function TestWorld() {
           />
         </div>
 
-        {/* Island Size Slider */}
+        {/* Terrain Size Slider */}
         <div>
           <label className="text-xs text-slate-400 block mb-1">
-            Island Size: <span className="text-white">{islandSize}</span>
+            {isSquareTerrain ? 'Terrain' : 'Island'} Size: <span className="text-white">{islandSize}</span>
           </label>
           <input
             type="range"
-            min="20"
-            max="50"
+            min="50"
+            max="200"
             value={islandSize}
             onChange={(e) => setIslandSize(Number(e.target.value))}
             className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
@@ -4149,7 +4305,15 @@ export default function TestWorld() {
               >
                 📂 Load World
               </button>
-              
+
+              {/* Load Template Button */}
+              <button
+                onClick={() => setTemplateModalOpen(true)}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors mb-2"
+              >
+                🏝️ Load Template
+              </button>
+
               {/* Cloud Save Button */}
               <button
                 onClick={() => handleSave(true)}
@@ -4341,26 +4505,34 @@ export default function TestWorld() {
                   heightScale={heightScale}
                   cliffIntensity={cliffIntensity}
                   buildingAreas={buildingAreas}
+                  isSquareTerrain={isSquareTerrain}
+                  noiseType={noiseType}
                 />
             
-            {/* Dynamic Ocean */}
-            <DynamicOcean
-              timeOfDay={timeOfDay}
-              oceanSize={oceanSize}
-              waveStrength={waveStrength}
-              waveSpeed={waveSpeed}
-              oceanTransparency={oceanTransparency}
-              rippleScale={rippleScale}
-              waterLevel={waterLevel}
-            />
+            {/* Dynamic Ocean - Only show in island mode (not square terrain/forest) */}
+            {!isSquareTerrain && (
+              <DynamicOcean
+                timeOfDay={timeOfDay}
+                oceanSize={oceanSize}
+                waveStrength={waveStrength}
+                waveSpeed={waveSpeed}
+                oceanTransparency={oceanTransparency}
+                rippleScale={rippleScale}
+                waterLevel={waterLevel}
+              />
+            )}
             
             {/* Volumetric Fog / Cloud Mesh - Restored donut bubble ring */}
             <VolumetricFog
+              key={`fog-${isSquareTerrain ? 'square' : 'circle'}-${islandSize}`}
               timeOfDay={timeOfDay}
               fogHeight={fogHeight}
               bubbleScale={bubbleScale}
               bubbleDensity={bubbleDensity}
               bubbleSpeed={bubbleSpeed}
+              terrainSize={isSquareTerrain ? (islandSize * 2) : 230}
+              terrainRadius={islandSize}
+              isSquareTerrain={isSquareTerrain}
             />
             
             {/* Procedural Forest Assets */}
@@ -4392,6 +4564,7 @@ export default function TestWorld() {
                 setProceduralAssets(assets);
               }}
               terrainMeshRef={terrainMeshRef}
+              isSquareTerrain={isSquareTerrain}
             />
             
             {/* Character Controller - only in test mode */}
@@ -4632,6 +4805,15 @@ export default function TestWorld() {
         message={dialogueBox.message}
         type={dialogueBox.type}
         onClose={closeDialogue}
+      />
+
+      {/* World Template Modal */}
+      <WorldTemplateModal
+        isOpen={templateModalOpen}
+        onClose={() => setTemplateModalOpen(false)}
+        onSelectTemplate={handleSelectTemplate}
+        onSelectSavedWorld={handleSelectSavedWorld}
+        savedWorlds={getSavedWorldsMetadata()}
       />
               </div>
   );

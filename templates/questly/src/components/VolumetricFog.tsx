@@ -40,10 +40,7 @@ function AnimatedBubble({
   const angleRef = useRef(baseAngle);
   const yPosRef = useRef(baseY);
   const verticalPhaseRef = useRef(0); // Phase accumulator for smooth vertical oscillation
-  // Clamp radius to scaleFactor * [165, 240]
-  const minRadius = 165 * scaleFactor;
-  const maxRadius = 240 * scaleFactor;
-  const clampedRadius = Math.max(minRadius, Math.min(maxRadius, radius));
+
   useFrame((state, delta) => {
     if (!meshRef.current) return;
     if (bubbleSpeed === 0) return;
@@ -52,8 +49,8 @@ function AnimatedBubble({
     angleRef.current += angleDelta;
     verticalPhaseRef.current += clampedDelta * 0.01 * bubbleSpeed;
     yPosRef.current = baseY + verticalSpeed * Math.sin(verticalPhaseRef.current) * 0.5 * scaleFactor;
-    const x = Math.cos(angleRef.current) * clampedRadius;
-    const z = Math.sin(angleRef.current) * clampedRadius;
+    const x = Math.cos(angleRef.current) * radius;
+    const z = Math.sin(angleRef.current) * radius;
     const y = yPosRef.current;
     meshRef.current.position.set(x, y, z);
   });
@@ -73,7 +70,25 @@ function AnimatedBubble({
 }
 
 // Volumetric Fog Component (Donut-shaped cloud ring)
-export function VolumetricFog({ timeOfDay, fogHeight, bubbleScale, bubbleDensity, bubbleSpeed }: { timeOfDay: number; fogHeight: number; bubbleScale: number; bubbleDensity: number; bubbleSpeed: number }) {
+export function VolumetricFog({
+  timeOfDay,
+  fogHeight,
+  bubbleScale,
+  bubbleDensity,
+  bubbleSpeed,
+  terrainSize,
+  terrainRadius,
+  isSquareTerrain
+}: {
+  timeOfDay: number;
+  fogHeight: number;
+  bubbleScale: number;
+  bubbleDensity: number;
+  bubbleSpeed: number;
+  terrainSize: number;
+  terrainRadius: number;
+  isSquareTerrain: boolean;
+}) {
   const groupRef = useRef<THREE.Group>(null);
 
   // Clamp and remap slider values for stability
@@ -81,12 +96,41 @@ export function VolumetricFog({ timeOfDay, fogHeight, bubbleScale, bubbleDensity
   const safeDensity = Math.max(0.1, Math.min(bubbleDensity, 3)); // 0.1x to 3x
   const safeSpeed = Math.max(0, Math.min(bubbleSpeed, 1)); // 0 (stopped) to 1 (max)
 
-  // Torus size and thickness scale with safeScale
-  const torusRadius = 190 * safeScale;
-  const torusTube = 25 * safeScale;
-  const torusOuterRadius = 220 * safeScale;
-  const torusOuterTube = 20 * safeScale;
+  // For circular terrain: torus geometry (donut shape) - positioned at island edge
+  const islandRadius = terrainRadius || 30;
+  // Position fog directly at world edge
+  const fogMargin = 5; // Small margin to sit right at edge
+  const torusRadius = islandRadius + fogMargin; // Donut at island edge
+  const torusTube = 15 * safeScale; // Thickness of donut tube
+  const torusOuterRadius = islandRadius + fogMargin + (torusTube * 1.5); // Outer donut slightly further out
+  const torusOuterTube = 12 * safeScale;
   const torusVerticalScale = 0.08 * safeScale;
+
+  // Fog positioning - different for square vs circular terrain
+  // Memoize fogBounds to prevent recalculation on every render (prevents fog moving/disappearing)
+  const fogBounds = useMemo(() => {
+    if (isSquareTerrain) {
+      // Square fog: position bubbles directly at square edges
+      // Terrain scale is dynamic: islandSize * 2
+      const halfSize = terrainSize / 2;
+      return {
+        minX: -halfSize,
+        maxX: halfSize,
+        minZ: -halfSize,
+        maxZ: halfSize,
+      };
+    } else {
+      // Circular fog: donut shape around island - position directly at island edge
+      const islandRadius = terrainRadius || 30; // Island radius
+      // Fog positioned right at island edge (matching small fogMargin of 5)
+      return {
+        minX: -islandRadius * 1.05,
+        maxX: islandRadius * 1.05,
+        minZ: -islandRadius * 1.05,
+        maxZ: islandRadius * 1.05,
+      };
+    }
+  }, [isSquareTerrain, terrainSize, terrainRadius]);
 
   // Create noisy cloud texture
   const cloudTexture = useMemo(() => {
@@ -145,101 +189,48 @@ export function VolumetricFog({ timeOfDay, fogHeight, bubbleScale, bubbleDensity
   const outerCount = Math.floor(40 * safeDensity);
   const detailCount = Math.floor(20 * safeDensity);
 
+  // ALWAYS use square perimeter fog for both templates
+  // Position fog at land-water transition (actual world-space dimensions)
+  const squareSize = terrainSize; // Use terrainSize for both (200 for island, 400 for forest)
+
+  // Helper to position bubbles along square perimeter
+  const getSquarePerimeterPosition = (index: number, total: number, size: number, variation: number = 0) => {
+    const perimeter = size * 4;
+    const position = (index / total) * perimeter + variation;
+    const edge = Math.floor(position / size) % 4;
+    const edgePos = (position % size) - size / 2;
+
+    switch(edge) {
+      case 0: return { x: edgePos, z: size / 2 }; // Top edge
+      case 1: return { x: size / 2, z: size / 2 - (position - size) }; // Right edge
+      case 2: return { x: size / 2 - (position - size * 2), z: -size / 2 }; // Bottom edge
+      case 3: return { x: -size / 2, z: -size / 2 + (position - size * 3) }; // Left edge
+      default: return { x: 0, z: 0 };
+    }
+  };
+
   return (
     <group ref={groupRef}>
-      {/* Main torus */}
-      <mesh position={[0, fogHeight, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[1, 1, torusVerticalScale]}>
-        <torusGeometry args={[torusRadius, torusTube, 24, 48]} />
-        <meshBasicMaterial
-          map={cloudTexture}
-          color={fogColor}
-          transparent
-          opacity={0.9}
-          side={THREE.DoubleSide}
-          depthWrite={false}
-        />
-      </mesh>
-      {/* Outer torus */}
-      <mesh position={[0, fogHeight, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[1, 1, torusVerticalScale]}>
-        <torusGeometry args={[torusOuterRadius, torusOuterTube, 20, 40]} />
-        <meshBasicMaterial
-          map={cloudTexture}
-          color={fogColor}
-          transparent
-          opacity={0.85}
-          side={THREE.DoubleSide}
-          depthWrite={false}
-        />
-      </mesh>
-      {/* Inner bubbles */}
-      {Array.from({ length: innerCount }).map((_, i) => {
-        const totalCount = innerCount;
-        const baseAngle = (i / totalCount) * Math.PI * 2;
-        const radiusVariation = (170 + (Math.sin(i * 2.5) * 25)) * safeScale;
-        const baseY = fogHeight + (Math.random() * 6 * safeScale);
-        const scale = (20 + Math.random() * 25) * safeScale;
+      {/* No torus meshes - square perimeter fog only */}
+      {/* Static square perimeter fog bubbles */}
+      {Array.from({ length: innerCount + outerCount }).map((_, i) => {
+        const totalBubbles = innerCount + outerCount;
+        const pos = getSquarePerimeterPosition(i, totalBubbles, squareSize, Math.sin(i * 2.3) * 2);
+        const y = fogHeight + (Math.sin(i * 3.7) * 3 * safeScale) + 1;
+        const bubbleSize = (15 + Math.sin(i * 5.1) * 10) * safeScale;
+
         return (
-          <AnimatedBubble
-            key={`inner-${i}`}
-            baseAngle={baseAngle}
-            radius={radiusVariation}
-            baseY={baseY}
-            scale={scale}
-            speed={(0.0001 + Math.random() * 0.00005) * (0.5 + safeSpeed)}
-            verticalSpeed={0.05 * safeScale}
-            cloudTexture={cloudTexture}
-            fogColor={fogColor}
-            opacity={0.5}
-            bubbleSpeed={safeSpeed}
-            scaleFactor={safeScale}
-          />
-        );
-      })}
-      {/* Outer bubbles */}
-      {Array.from({ length: outerCount }).map((_, i) => {
-        const totalCount = outerCount;
-        const baseAngle = (i / totalCount) * Math.PI * 2;
-        const radiusVariation = (210 + (Math.sin(i * 1.8) * 35) + Math.random() * 20) * safeScale;
-        const baseY = fogHeight + (Math.random() * 8 * safeScale);
-        const scale = (25 + Math.random() * 40) * safeScale;
-        return (
-          <AnimatedBubble
-            key={`outer-${i}`}
-            baseAngle={baseAngle}
-            radius={radiusVariation}
-            baseY={baseY}
-            scale={scale}
-            speed={(0.00008 + Math.random() * 0.00004) * (0.5 + safeSpeed)}
-            verticalSpeed={0.05 * safeScale}
-            cloudTexture={cloudTexture}
-            fogColor={fogColor}
-            opacity={0.6}
-            bubbleSpeed={safeSpeed}
-            scaleFactor={safeScale}
-          />
-        );
-      })}
-      {/* Detail bubbles */}
-      {Array.from({ length: detailCount }).map((_, i) => {
-        const baseAngle = Math.random() * Math.PI * 2;
-        const radius = (180 + Math.random() * 60) * safeScale;
-        const baseY = fogHeight + (Math.random() * 5 * safeScale);
-        const scale = (12 + Math.random() * 18) * safeScale;
-        return (
-          <AnimatedBubble
-            key={`detail-${i}`}
-            baseAngle={baseAngle}
-            radius={radius}
-            baseY={baseY}
-            scale={scale}
-            speed={(0.00012 + Math.random() * 0.00008) * (0.5 + safeSpeed)}
-            verticalSpeed={0.05 * safeScale}
-            cloudTexture={cloudTexture}
-            fogColor={fogColor}
-            opacity={0.5}
-            bubbleSpeed={safeSpeed}
-            scaleFactor={safeScale}
-          />
+          <mesh key={`fog-${i}`} position={[pos.x, y, pos.z]} renderOrder={10}>
+            <sphereGeometry args={[bubbleSize, 12, 12]} />
+            <meshBasicMaterial
+              map={cloudTexture}
+              color={fogColor}
+              transparent
+              opacity={0.6}
+              side={THREE.DoubleSide}
+              depthWrite={false}
+            />
+          </mesh>
         );
       })}
     </group>
