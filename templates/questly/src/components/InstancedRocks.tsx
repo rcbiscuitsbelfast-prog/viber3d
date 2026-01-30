@@ -4,6 +4,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
+import { getAssetPath } from '../utils/assetPath';
 
 interface RockInstance {
   pos: [number, number, number];
@@ -20,24 +21,24 @@ interface InstancedRocksProps {
 
 // Preload all rock models (hooks must be called unconditionally)
 function useRockModels() {
-  const rock1a = useGLTF('/kaykit/Rock_1_A_Color1.gltf');
-  const rock1b = useGLTF('/kaykit/Rock_1_B_Color1.gltf');
-  const rock1c = useGLTF('/kaykit/Rock_1_C_Color1.gltf');
-  const rock1d = useGLTF('/kaykit/Rock_1_D_Color1.gltf');
-  const rock1e = useGLTF('/kaykit/Rock_1_E_Color1.gltf');
-  const rock1f = useGLTF('/kaykit/Rock_1_F_Color1.gltf');
-  const rock2a = useGLTF('/kaykit/Rock_2_A_Color1.gltf');
-  const rock2b = useGLTF('/kaykit/Rock_2_B_Color1.gltf');
-  const rock2c = useGLTF('/kaykit/Rock_2_C_Color1.gltf');
-  const rock2d = useGLTF('/kaykit/Rock_2_D_Color1.gltf');
-  const rock2e = useGLTF('/kaykit/Rock_2_E_Color1.gltf');
-  const rock2f = useGLTF('/kaykit/Rock_2_F_Color1.gltf');
-  const rock3a = useGLTF('/kaykit/Rock_3_A_Color1.gltf');
-  const rock3b = useGLTF('/kaykit/Rock_3_B_Color1.gltf');
-  const rock3c = useGLTF('/kaykit/Rock_3_C_Color1.gltf');
-  const rock3d = useGLTF('/kaykit/Rock_3_D_Color1.gltf');
-  const rock3e = useGLTF('/kaykit/Rock_3_E_Color1.gltf');
-  const rock3f = useGLTF('/kaykit/Rock_3_F_Color1.gltf');
+  const rock1a = useGLTF(getAssetPath('/kaykit/Rock_1_A_Color1.gltf'));
+  const rock1b = useGLTF(getAssetPath('/kaykit/Rock_1_B_Color1.gltf'));
+  const rock1c = useGLTF(getAssetPath('/kaykit/Rock_1_C_Color1.gltf'));
+  const rock1d = useGLTF(getAssetPath('/kaykit/Rock_1_D_Color1.gltf'));
+  const rock1e = useGLTF(getAssetPath('/kaykit/Rock_1_E_Color1.gltf'));
+  const rock1f = useGLTF(getAssetPath('/kaykit/Rock_1_F_Color1.gltf'));
+  const rock2a = useGLTF(getAssetPath('/kaykit/Rock_2_A_Color1.gltf'));
+  const rock2b = useGLTF(getAssetPath('/kaykit/Rock_2_B_Color1.gltf'));
+  const rock2c = useGLTF(getAssetPath('/kaykit/Rock_2_C_Color1.gltf'));
+  const rock2d = useGLTF(getAssetPath('/kaykit/Rock_2_D_Color1.gltf'));
+  const rock2e = useGLTF(getAssetPath('/kaykit/Rock_2_E_Color1.gltf'));
+  const rock2f = useGLTF(getAssetPath('/kaykit/Rock_2_F_Color1.gltf'));
+  const rock3a = useGLTF(getAssetPath('/kaykit/Rock_3_A_Color1.gltf'));
+  const rock3b = useGLTF(getAssetPath('/kaykit/Rock_3_B_Color1.gltf'));
+  const rock3c = useGLTF(getAssetPath('/kaykit/Rock_3_C_Color1.gltf'));
+  const rock3d = useGLTF(getAssetPath('/kaykit/Rock_3_D_Color1.gltf'));
+  const rock3e = useGLTF(getAssetPath('/kaykit/Rock_3_E_Color1.gltf'));
+  const rock3f = useGLTF(getAssetPath('/kaykit/Rock_3_F_Color1.gltf'));
 
   return [
     rock1a.scene, rock1b.scene, rock1c.scene, rock1d.scene, rock1e.scene, rock1f.scene,

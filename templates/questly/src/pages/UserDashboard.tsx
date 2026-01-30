@@ -1,5 +1,6 @@
 import { Suspense, useState, useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows } from '@react-three/drei';
 import { User, ChevronDown, ChevronRight } from 'lucide-react';
@@ -1051,6 +1052,7 @@ function WeaponShieldAdjustments({
 }
 
 export default function UserDashboard() {
+  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const [selectedPack, setSelectedPack] = useState<AssetPack>(ASSET_PACKS[0]);
   const [selectedCharacter, setSelectedCharacter] = useState<Character>(ASSET_PACKS[0].characters[0]);
@@ -1083,13 +1085,13 @@ export default function UserDashboard() {
           </div>
           <div className="flex gap-2">
             <CustomButton
-              onClick={() => window.location.href = '/test-world'}
+              onClick={() => navigate('/test-world')}
               variant="primary"
             >
               🏔️ Terrain Builder
             </CustomButton>
             <CustomButton
-              onClick={() => window.location.href = '/builder'}
+              onClick={() => navigate('/builder')}
               variant="primary"
             >
               🏰 Builder

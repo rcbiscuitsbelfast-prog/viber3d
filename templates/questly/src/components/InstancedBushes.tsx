@@ -4,6 +4,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
+import { getAssetPath } from '../utils/assetPath';
 
 interface BushInstance {
   pos: [number, number, number];
@@ -20,14 +21,14 @@ interface InstancedBushesProps {
 
 // Preload all bush models (hooks must be called unconditionally)
 function useBushModels() {
-  const bush3b = useGLTF('/kaykit/Bush_3_B_Color1.gltf');
-  const bush3c = useGLTF('/kaykit/Bush_3_C_Color1.gltf');
-  const bush4a = useGLTF('/kaykit/Bush_4_A_Color1.gltf');
-  const bush4b = useGLTF('/kaykit/Bush_4_B_Color1.gltf');
-  const bush4c = useGLTF('/kaykit/Bush_4_C_Color1.gltf');
-  const bush4d = useGLTF('/kaykit/Bush_4_D_Color1.gltf');
-  const bush4e = useGLTF('/kaykit/Bush_4_E_Color1.gltf');
-  const bush4f = useGLTF('/kaykit/Bush_4_F_Color1.gltf');
+  const bush3b = useGLTF(getAssetPath('/kaykit/Bush_3_B_Color1.gltf'));
+  const bush3c = useGLTF(getAssetPath('/kaykit/Bush_3_C_Color1.gltf'));
+  const bush4a = useGLTF(getAssetPath('/kaykit/Bush_4_A_Color1.gltf'));
+  const bush4b = useGLTF(getAssetPath('/kaykit/Bush_4_B_Color1.gltf'));
+  const bush4c = useGLTF(getAssetPath('/kaykit/Bush_4_C_Color1.gltf'));
+  const bush4d = useGLTF(getAssetPath('/kaykit/Bush_4_D_Color1.gltf'));
+  const bush4e = useGLTF(getAssetPath('/kaykit/Bush_4_E_Color1.gltf'));
+  const bush4f = useGLTF(getAssetPath('/kaykit/Bush_4_F_Color1.gltf'));
 
   return [
     bush3b.scene,

@@ -5,6 +5,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF, InstancedMesh } from '@react-three/drei';
 import * as THREE from 'three';
+import { getAssetPath } from '../utils/assetPath';
 
 interface TreeInstance {
   pos: [number, number, number];
@@ -25,9 +26,9 @@ export function InstancedForest({ trees, castShadow = true, receiveShadow = fals
   const bushyRef = useRef<THREE.InstancedMesh>(null);
 
   // Load tree models
-  const { scene: pineScene } = useGLTF('/kaykit/Tree_4_A_Color1.gltf');
-  const { scene: broadScene } = useGLTF('/kaykit/Tree_1_A_Color1.gltf');
-  const { scene: bushyScene } = useGLTF('/kaykit/Tree_2_A_Color1.gltf');
+  const { scene: pineScene } = useGLTF(getAssetPath('/kaykit/Tree_4_A_Color1.gltf'));
+  const { scene: broadScene } = useGLTF(getAssetPath('/kaykit/Tree_1_A_Color1.gltf'));
+  const { scene: bushyScene } = useGLTF(getAssetPath('/kaykit/Tree_2_A_Color1.gltf'));
 
   // Extract geometry and material from scenes
   const pineGeometry = useMemo(() => {

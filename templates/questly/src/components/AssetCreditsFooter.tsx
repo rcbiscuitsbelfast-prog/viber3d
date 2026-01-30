@@ -1,25 +1,26 @@
 import { motion } from 'framer-motion';
+import { getAssetPath } from '../utils/assetPath';
 
 export default function AssetCreditsFooter() {
   const creators = [
     {
       name: 'Kenney',
-      logo: '/Assets/kenny logo.png',
+      logo: getAssetPath('/Assets/kenny logo.png'),
       url: 'https://kenney.nl/assets',
     },
     {
       name: 'KayKit',
-      logo: '/Assets/kaykit logo.png',
+      logo: getAssetPath('/Assets/kaykit logo.png'),
       url: 'https://www.kaylousberg.com/',
     },
     {
       name: 'Quaternius',
-      logo: '/Assets/quaternius logo.png',
+      logo: getAssetPath('/Assets/quaternius logo.png'),
       url: 'https://quaternius.com/',
     },
     {
       name: 'AlkaKrab',
-      logo: '/Assets/alkakrab logo.png',
+      logo: getAssetPath('/Assets/alkakrab logo.png'),
       url: 'https://alkakrab.itch.io/',
     },
   ];

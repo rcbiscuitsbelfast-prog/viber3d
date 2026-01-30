@@ -4,6 +4,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
+import { getAssetPath } from '../utils/assetPath';
 
 interface GrassInstance {
   pos: [number, number, number];
@@ -20,10 +21,10 @@ interface InstancedGrassProps {
 
 // Preload all grass models (hooks must be called unconditionally)
 function useGrassModels() {
-  const grass1a = useGLTF('/kaykit/Grass_1_A_Color1.gltf');
-  const grass1b = useGLTF('/kaykit/Grass_1_B_Color1.gltf');
-  const grass1c = useGLTF('/kaykit/Grass_1_C_Color1.gltf');
-  const grass1d = useGLTF('/kaykit/Grass_1_D_Color1.gltf');
+  const grass1a = useGLTF(getAssetPath('/kaykit/Grass_1_A_Color1.gltf'));
+  const grass1b = useGLTF(getAssetPath('/kaykit/Grass_1_B_Color1.gltf'));
+  const grass1c = useGLTF(getAssetPath('/kaykit/Grass_1_C_Color1.gltf'));
+  const grass1d = useGLTF(getAssetPath('/kaykit/Grass_1_D_Color1.gltf'));
 
   return [
     grass1a.scene,
