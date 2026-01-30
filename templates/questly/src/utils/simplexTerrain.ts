@@ -4,6 +4,8 @@
 import { createNoise2D } from 'simplex-noise';
 import * as THREE from 'three';
 
+export type NoiseType = 'standard' | 'smooth' | 'rocky' | 'ridged' | 'turbulent';
+
 export interface TerrainConfig {
   size: number;
   scale: number;
@@ -15,6 +17,7 @@ export interface TerrainConfig {
   heightScale: number;
   roughness: number;
   isSquareTerrain?: boolean; // If true, no island falloff - square terrain
+  noiseType?: NoiseType; // Type of noise pattern to use
 }
 
 export interface TerrainData {
@@ -67,16 +70,73 @@ export function generateSimplexTerrain(config: TerrainConfig): TerrainData {
       const distanceFromCenter = Math.sqrt(centerX_norm * centerX_norm + centerZ_norm * centerZ_norm);
       
       // Fractal Brownian Motion (FBM) for natural terrain
+      // Apply different noise types for variation
+      const noiseType = config.noiseType || 'standard';
       let noiseValue = 0;
       let amplitude = 1;
       let frequency = 0.01;
       let maxValue = 0;
       
-      for (let i = 0; i < octaves; i++) {
-        noiseValue += noise2D(worldX * frequency, worldZ * frequency) * amplitude;
-        maxValue += amplitude;
-        amplitude *= persistence;
-        frequency *= lacunarity;
+      if (noiseType === 'smooth') {
+        // Smooth: gentler, rolling hills - lower frequency, higher persistence
+        frequency = 0.005;
+        amplitude = 1;
+        for (let i = 0; i < octaves; i++) {
+          const n = noise2D(worldX * frequency, worldZ * frequency);
+          noiseValue += n * amplitude;
+          maxValue += amplitude;
+          amplitude *= Math.min(persistence * 1.2, 0.9); // Higher persistence for smoother
+          frequency *= lacunarity * 0.9; // Slower frequency increase
+        }
+      } else if (noiseType === 'rocky') {
+        // Rocky: sharper peaks and valleys - use absolute value for ridges
+        frequency = 0.015;
+        amplitude = 1;
+        for (let i = 0; i < octaves; i++) {
+          const n = noise2D(worldX * frequency, worldZ * frequency);
+          // Use absolute value for sharper peaks
+          const sharpness = i < 2 ? Math.abs(n) : n;
+          noiseValue += sharpness * amplitude;
+          maxValue += amplitude;
+          amplitude *= persistence * 0.8; // Lower persistence for sharper contrast
+          frequency *= lacunarity * 1.2; // Faster frequency increase
+        }
+      } else if (noiseType === 'ridged') {
+        // Ridged: valley/ridge patterns - invert and use absolute
+        frequency = 0.01;
+        amplitude = 1;
+        for (let i = 0; i < octaves; i++) {
+          const n = noise2D(worldX * frequency, worldZ * frequency);
+          // Create ridges by inverting and using absolute value
+          const ridged = 1 - Math.abs(n);
+          noiseValue += ridged * amplitude;
+          maxValue += amplitude;
+          amplitude *= persistence;
+          frequency *= lacunarity;
+        }
+      } else if (noiseType === 'turbulent') {
+        // Turbulent: chaotic, varied terrain - multiple noise layers with different scales
+        frequency = 0.01;
+        amplitude = 1;
+        for (let i = 0; i < octaves; i++) {
+          const n1 = noise2D(worldX * frequency, worldZ * frequency);
+          const n2 = noise2D(worldX * frequency * 1.7, worldZ * frequency * 1.3);
+          const n3 = noise2D(worldX * frequency * 0.5, worldZ * frequency * 0.7);
+          // Combine multiple noise layers for turbulence
+          const turbulent = (n1 + n2 * 0.5 + n3 * 0.3) / 1.8;
+          noiseValue += turbulent * amplitude;
+          maxValue += amplitude;
+          amplitude *= persistence;
+          frequency *= lacunarity * 1.1;
+        }
+      } else {
+        // Standard: default FBM
+        for (let i = 0; i < octaves; i++) {
+          noiseValue += noise2D(worldX * frequency, worldZ * frequency) * amplitude;
+          maxValue += amplitude;
+          amplitude *= persistence;
+          frequency *= lacunarity;
+        }
       }
       
       // Normalize noise value
@@ -108,7 +168,8 @@ export function generateSimplexTerrain(config: TerrainConfig): TerrainData {
         
         // Create hills on edges: smooth transition from flat center to hilly edges
         // Edge falloff: 0.0 at center (flat), 1.0 at edges (hills)
-        edgeFalloff = Math.pow(maxEdgeDistance, 0.7); // Smooth curve, hills start appearing at ~30% from edge
+        // Use stronger curve for more pronounced hills on edges
+        edgeFalloff = Math.pow(maxEdgeDistance, 0.5); // Stronger curve, hills start appearing at ~20% from edge
       }
       
       // Cliff detection (only for island terrain)
@@ -128,7 +189,8 @@ export function generateSimplexTerrain(config: TerrainConfig): TerrainData {
         // Square terrain: flat center with hills on edges
         // Base height is flat (around 2), add hills on edges using edgeFalloff
         const baseHeight = 2.0; // Flat center
-        const hillHeight = noiseValue * edgeFalloff * heightScale * 0.3; // Hills only on edges
+        // Increased multiplier (0.3 -> 0.8) and stronger edgeFalloff for taller hills on edges
+        const hillHeight = noiseValue * edgeFalloff * heightScale * 0.8; // Hills only on edges - much taller
         height = baseHeight + hillHeight;
       } else {
         // Main terrain - combine noise with falloff (falloff is 1.0 for square terrain)

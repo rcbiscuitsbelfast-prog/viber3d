@@ -28,7 +28,6 @@ import { generateSimplexTerrain, sampleTerrainHeight } from '../utils/simplexTer
 import { createNoise2D } from 'simplex-noise';
 import * as CANNON from 'cannon-es';
 import { VolumetricFog } from '../components/VolumetricFog';
-import WorldTemplateModal, { WORLD_TEMPLATES, WorldTemplate } from '../components/WorldTemplateModal';
 import { 
   exportWorldConfig, 
   importWorldConfigFromJSON, 
@@ -774,17 +773,6 @@ function BuildingAreaMarker({
   
   return (
     <group position={[area.x, terrainHeight + area.height, area.z]}>
-      {/* Grass terrain plane for building area */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
-        <circleGeometry args={[area.radius, 32]} />
-        <meshStandardMaterial 
-          color="#4a7c59" // Grass green color
-          roughness={0.9}
-          metalness={0.1}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-      
       {/* Flat disc marker */}
       <mesh
         ref={meshRef}
@@ -821,7 +809,6 @@ const LowPolyTerrain = React.forwardRef<THREE.Mesh, {
   heightScale: number;
   cliffIntensity: number;
   buildingAreas: BuildingArea[];
-  isSquareTerrain: boolean;
 }>(({ 
   roughness, 
   islandSize, 
@@ -829,8 +816,7 @@ const LowPolyTerrain = React.forwardRef<THREE.Mesh, {
   terrainDetail, 
   heightScale, 
   cliffIntensity,
-  buildingAreas,
-  isSquareTerrain
+  buildingAreas
 }, ref) => {
   const terrainSize = terrainDetail;
   const scale = 200;
@@ -851,7 +837,6 @@ const LowPolyTerrain = React.forwardRef<THREE.Mesh, {
       islandRadius: islandSize,
       heightScale,
       roughness,
-      isSquareTerrain: isSquareTerrain,
     });
     
     // Store terrain data for height sampling
@@ -878,16 +863,14 @@ const LowPolyTerrain = React.forwardRef<THREE.Mesh, {
           );
           
           const blendRadius = area.radius * 0.2;
-          // Use 95% of radius for collision to sync with visible area
-          const collisionRadius = area.radius * 0.95;
           
-          if (distToBuildArea < collisionRadius - blendRadius) {
+          if (distToBuildArea < area.radius - blendRadius) {
             // Full flat area
             height = area.height;
             break;
-          } else if (distToBuildArea < collisionRadius + blendRadius) {
+          } else if (distToBuildArea < area.radius + blendRadius) {
             // Smooth blend zone
-            const blendFactor = (distToBuildArea - (collisionRadius - blendRadius)) / (blendRadius * 2);
+            const blendFactor = (distToBuildArea - (area.radius - blendRadius)) / (blendRadius * 2);
             height = area.height * (1 - blendFactor) + height * blendFactor;
             break;
           }
@@ -1949,7 +1932,6 @@ function DynamicOcean({
   waterLevel,
   timeOfDay,
   waveStrength,
-  waveAmplitude,
   waveSpeed,
   oceanTransparency,
   oceanSize,
@@ -1958,7 +1940,6 @@ function DynamicOcean({
   waterLevel: number;
   timeOfDay: number;
   waveStrength: number;
-  waveAmplitude: number;
   waveSpeed: number;
   oceanTransparency: number;
   oceanSize: number;
@@ -1970,7 +1951,6 @@ function DynamicOcean({
   useEffect(() => {
     if (materialRef.current && materialRef.current.uniforms) {
       materialRef.current.uniforms.waveStrength.value = waveStrength;
-      materialRef.current.uniforms.waveAmplitude.value = waveAmplitude;
       materialRef.current.uniforms.waveSpeed.value = waveSpeed;
       materialRef.current.uniforms.transparency.value = oceanTransparency;
       materialRef.current.uniforms.rippleScale.value = rippleScale;
@@ -2005,14 +1985,6 @@ function DynamicOcean({
         waterColor = new THREE.Color(0.227, 0.270, 0.314);
       }
       materialRef.current.uniforms.waterColor.value = waterColor;
-    }
-  }, [timeOfDay, waveStrength, waveAmplitude, waveSpeed, oceanTransparency, rippleScale]);
-  
-  // Update time uniform and sun direction every frame - critical for wave animation
-  useFrame(({ clock }) => {
-    if (materialRef.current && materialRef.current.uniforms) {
-      // Update time uniform for wave animation
-      materialRef.current.uniforms.time.value = clock.getElapsedTime();
       
       // Update sun direction
       const angle = (timeOfDay - 0.25) * Math.PI * 2;
@@ -2023,6 +1995,20 @@ function DynamicOcean({
       ).normalize();
       materialRef.current.uniforms.sunDirection.value = sunDir;
     }
+  }, [timeOfDay, waveStrength, waveSpeed, oceanTransparency, rippleScale]);
+  
+  // Update time uniform every frame - critical for wave animation
+  useFrame((state) => {
+    // Always update time uniform if material exists
+    // This ensures waves animate properly regardless of test mode
+    const material = materialRef.current;
+    if (material && material.uniforms) {
+      const timeUniform = material.uniforms.time;
+      if (timeUniform) {
+        const elapsedTime = state.clock.getElapsedTime();
+        timeUniform.value = elapsedTime;
+      }
+    }
   });
   
   // Initialize uniforms once - values updated via useEffect
@@ -2032,7 +2018,6 @@ function DynamicOcean({
       sunDirection: { value: new THREE.Vector3(0, 1, 0) },
       waterColor: { value: new THREE.Color(0.1, 0.3, 0.5) },
       waveStrength: { value: waveStrength },
-      waveAmplitude: { value: waveAmplitude },
       waveSpeed: { value: waveSpeed },
       specularStrength: { value: 2.0 },
       transparency: { value: oceanTransparency },
@@ -2316,11 +2301,6 @@ function DarknessOverlay({ timeOfDay }: { timeOfDay: number }) {
 
 export default function TestWorld() {
   const navigate = useNavigate();
-  
-  // Check if coming from direct test scene link - must be declared early
-  const [searchParams] = useSearchParams();
-  const directTestMode = searchParams.get('direct') === 'true';
-  
   const [roughness, setRoughness] = useState(26);
   const [islandSize, setIslandSize] = useState(44);
   const [terrainDetail, setTerrainDetail] = useState(64);
@@ -2347,12 +2327,8 @@ export default function TestWorld() {
   const [heightScale, setHeightScale] = useState(55);
   const [waterLevel, setWaterLevel] = useState(0.9);
   const [cliffIntensity, setCliffIntensity] = useState(100);
-  const [isSquareTerrain, setIsSquareTerrain] = useState(false); // Square terrain (no island falloff)
   const [leftPanelMinimized, setLeftPanelMinimized] = useState(false);
   const [rightPanelMinimized, setRightPanelMinimized] = useState(false);
-  
-  // Template modal state - show on mount unless direct test mode
-  const [showTemplateModal, setShowTemplateModal] = useState(!directTestMode);
   
   // Building areas - now multiple
   // Default starter terrain at X: 0, Z: 50, Radius: 45, Height: 2.5
@@ -2374,6 +2350,10 @@ export default function TestWorld() {
   
   // Global height offset for all placed builds
   const [buildHeightOffset, setBuildHeightOffset] = useState(0);
+  
+  // Check if coming from direct test scene link
+  const [searchParams] = useSearchParams();
+  const directTestMode = searchParams.get('direct') === 'true';
   
   // Manual placement mode
   const [manualMode, setManualMode] = useState(false);
@@ -2491,7 +2471,6 @@ export default function TestWorld() {
   // Ocean and Skybox controls
   const [timeOfDay, setTimeOfDay] = useState(0.5); // 0-1, where 0.5 is noon
   const [waveStrength, setWaveStrength] = useState(0.02);
-  const [waveAmplitude, setWaveAmplitude] = useState(15.0); // Controls wave height (affects coastline)
   const [waveSpeed, setWaveSpeed] = useState(1.7);
   const [oceanTransparency, setOceanTransparency] = useState(1.0);
   const [sunIntensity, setSunIntensity] = useState(1.0);
@@ -2499,7 +2478,7 @@ export default function TestWorld() {
   const [oceanSize, setOceanSize] = useState(500);
   const [rippleScale, setRippleScale] = useState(5.0);
   const [fogHeight, setFogHeight] = useState(16);
-  const [bubbleScale, setBubbleScale] = useState(0.4);
+  const [bubbleScale, setBubbleScale] = useState(0.7);
   const [bubbleDensity, setBubbleDensity] = useState(1.5);
   const [bubbleSpeed, setBubbleSpeed] = useState(0.01); // Speed multiplier (0-1, default 0.01 = 1% speed for very slow rolling fog)
   const [manualAssets, setManualAssets] = useState<Array<{
@@ -2613,9 +2592,7 @@ export default function TestWorld() {
           Math.pow(worldZ - area.z, 2)
         );
         
-        // Use 95% of radius for collision to sync with visible area
-        const collisionRadius = area.radius * 0.95;
-        if (distToBuildArea < collisionRadius) {
+        if (distToBuildArea < area.radius) {
           return area.height;
         }
       }
@@ -2725,7 +2702,6 @@ export default function TestWorld() {
     npcs,
     timeOfDay,
     waveStrength,
-    waveAmplitude,
     waveSpeed,
     oceanTransparency,
     sunIntensity,
@@ -2823,82 +2799,6 @@ export default function TestWorld() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []); // Empty deps - handleSave is stable
 
-  // Handle template selection
-  const handleSelectTemplate = (template: WorldTemplate) => {
-    const config = template.config;
-    
-    // Always call all setters in the same order - never conditionally
-    setRoughness(config.roughness);
-    setIslandSize(config.islandSize);
-    setTerrainDetail(config.terrainDetail);
-    setSeed(config.seed);
-    setHeightScale(config.heightScale);
-    setWaterLevel(config.waterLevel);
-    setCliffIntensity(config.cliffIntensity);
-    setTreeAmount(config.treeAmount);
-    setTreeSize(config.treeSize);
-    setGrassAmount(config.grassAmount);
-    setGrassSize(config.grassSize);
-    setTerrainGrassCoverage(config.terrainGrassCoverage);
-    setBuildingGrassFalloff(config.buildingGrassFalloff);
-    setRockAmount(config.rockAmount);
-    setRockSize(config.rockSize);
-    setBushAmount(config.bushAmount);
-    setBushSize(config.bushSize);
-    setTreeHeightOffset(config.treeHeightOffset);
-    setGrassHeightOffset(config.grassHeightOffset);
-    setRockHeightOffset(config.rockHeightOffset);
-    setBushHeightOffset(config.bushHeightOffset);
-    setSlopeAdjustmentIntensity(config.slopeAdjustmentIntensity);
-    setIsSquareTerrain(config.isSquareTerrain ?? false);
-    
-    // Apply fog/ocean defaults - always call all setters, use safe property access
-    const sunIntensity = 'sunIntensity' in config ? config.sunIntensity : 1.0;
-    const waveStrength = 'waveStrength' in config ? config.waveStrength : 0.2;
-    const waveAmplitude = 'waveAmplitude' in config ? config.waveAmplitude : 15.0;
-    const waveSpeed = 'waveSpeed' in config ? config.waveSpeed : 0.05;
-    const oceanTransparency = 'oceanTransparency' in config ? config.oceanTransparency : 0.8;
-    const oceanSize = 'oceanSize' in config ? config.oceanSize : 200;
-    const rippleScale = 'rippleScale' in config ? config.rippleScale : 1.0;
-    const fogHeight = 'fogHeight' in config ? config.fogHeight : 10;
-    const bubbleScale = 'bubbleScale' in config ? config.bubbleScale : 0.4;
-    const bubbleDensity = 'bubbleDensity' in config ? config.bubbleDensity : 1.0;
-    const bubbleSpeed = 'bubbleSpeed' in config ? config.bubbleSpeed : 0.01;
-    
-    setSunIntensity(sunIntensity);
-    setWaveStrength(waveStrength);
-    setWaveAmplitude(waveAmplitude);
-    setWaveSpeed(waveSpeed);
-    setOceanTransparency(oceanTransparency);
-    setOceanSize(oceanSize);
-    setRippleScale(rippleScale);
-    setFogHeight(fogHeight);
-    setBubbleScale(bubbleScale);
-    setBubbleDensity(bubbleDensity);
-    setBubbleSpeed(bubbleSpeed);
-    
-    // Reset building areas and other state
-    setBuildingAreas([{ id: 0, x: 0, z: 50, radius: 45, height: 2.5, minimized: false }]);
-    setNextAreaId(1);
-    setManualAssets([]);
-    setPlacedBuilds([]);
-    setProceduralAssets({ trees: [], rocks: [], grass: [], bushes: [] });
-    // DON'T reset quest markers and NPCs - preserve them!
-    // setQuestMarkers([]);
-    // setNpcs([]);
-    setTimeOfDay(0.5);
-    setEnableDynamicSky(true);
-    console.log(`[WorldLoad] Loaded template: ${template.name}`);
-  };
-  
-  // Handle saved world selection
-  const handleSelectSavedWorld = (worldId: string) => {
-    const config = loadWorldFromLocalStorage(worldId);
-    if (config) {
-      handleLoad(config);
-    }
-  };
-
   // Load world from config
   const handleLoad = (config: any) => {
     try {
@@ -2946,7 +2846,6 @@ export default function TestWorld() {
       setNpcs(updatedNpcs);
       setTimeOfDay(worldState.timeOfDay);
       setWaveStrength(worldState.waveStrength);
-      setWaveAmplitude(worldState.waveAmplitude || 15.0); // Default to 15.0 if not in saved state
       setWaveSpeed(worldState.waveSpeed);
       setOceanTransparency(worldState.oceanTransparency);
       setSunIntensity(worldState.sunIntensity);
@@ -2993,10 +2892,10 @@ export default function TestWorld() {
     
     const autoSaved = loadAutoSavedWorld();
     if (autoSaved) {
-      // Use internal UI instead of browser confirm
-      // For now, auto-load silently or show a toast notification
-      // TODO: Replace with internal UI component
-      handleLoad(autoSaved);
+      const shouldLoad = window.confirm('Found auto-saved world. Load it?');
+      if (shouldLoad) {
+        handleLoad(autoSaved);
+      }
     }
   }, []); // Only on mount
   
@@ -3032,14 +2931,18 @@ export default function TestWorld() {
       }
     }, 10000); // Reduced to 10 second timeout
     
+    // Cleanup
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timer);
+    };
+    
     // Also set a shorter timeout for normal cases
     const normalTimer = setTimeout(() => {
       checkReady();
     }, 2000);
     
-    // Single cleanup function - combine all cleanup logic
     return () => {
-      clearInterval(interval);
       clearTimeout(timer);
       clearTimeout(normalTimer);
     };
@@ -3058,9 +2961,7 @@ export default function TestWorld() {
       let inArea = false;
       for (const area of buildingAreas) {
         const dist = Math.sqrt(Math.pow(marker.position[0] - area.x, 2) + Math.pow(marker.position[2] - area.z, 2));
-        // Use 95% of radius for collision to sync with visible area
-        const collisionRadius = area.radius * 0.95;
-        if (dist <= collisionRadius) {
+        if (dist <= area.radius) {
           inArea = true;
           break;
         }
@@ -3087,9 +2988,7 @@ export default function TestWorld() {
       let inArea = false;
       for (const area of buildingAreas) {
         const dist = Math.sqrt(Math.pow(npc.position[0] - area.x, 2) + Math.pow(npc.position[2] - area.z, 2));
-        // Use 95% of radius for collision to sync with visible area
-        const collisionRadius = area.radius * 0.95;
-        if (dist <= collisionRadius) {
+        if (dist <= area.radius) {
           inArea = true;
           break;
         }
@@ -3924,7 +3823,7 @@ export default function TestWorld() {
             />
           </div>
           
-          {/* Wave Strength - Controls waviness/ripples (doesn't affect coastline much) */}
+          {/* Wave Strength */}
           <div className="mb-2">
             <label className="text-xs text-slate-400 block mb-1">
               Wave Strength: <span className="text-white">{waveStrength.toFixed(2)}</span>
@@ -3937,22 +3836,6 @@ export default function TestWorld() {
               value={waveStrength}
               onChange={(e) => setWaveStrength(Number(e.target.value))}
               className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
-            />
-          </div>
-          
-          {/* Wave Amplitude - Controls wave height (affects coastline) */}
-          <div className="mb-2">
-            <label className="text-xs text-slate-400 block mb-1">
-              Wave Amplitude: <span className="text-white">{waveAmplitude.toFixed(1)}</span>
-            </label>
-            <input
-              type="range"
-              min="5"
-              max="30"
-              step="0.5"
-              value={waveAmplitude}
-              onChange={(e) => setWaveAmplitude(Number(e.target.value))}
-              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
             />
           </div>
           
@@ -4041,9 +3924,9 @@ export default function TestWorld() {
             </label>
             <input
               type="range"
-              min="0.1"
-              max="0.8"
-              step="0.05"
+              min="0.5"
+              max="2.5"
+              step="0.1"
               value={bubbleScale}
               onChange={(e) => setBubbleScale(Number(e.target.value))}
               className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
@@ -4458,7 +4341,6 @@ export default function TestWorld() {
                   heightScale={heightScale}
                   cliffIntensity={cliffIntensity}
                   buildingAreas={buildingAreas}
-                  isSquareTerrain={isSquareTerrain}
                 />
             
             {/* Dynamic Ocean */}
@@ -4466,26 +4348,20 @@ export default function TestWorld() {
               timeOfDay={timeOfDay}
               oceanSize={oceanSize}
               waveStrength={waveStrength}
-              waveAmplitude={waveAmplitude}
               waveSpeed={waveSpeed}
               oceanTransparency={oceanTransparency}
               rippleScale={rippleScale}
               waterLevel={waterLevel}
             />
             
-            {/* Volumetric Fog / Cloud Mesh - Restored donut bubble ring - outside map area */}
-            {fogHeight > 0 && (
-              <VolumetricFog
-                timeOfDay={timeOfDay}
-                fogHeight={fogHeight}
-                bubbleScale={bubbleScale}
-                bubbleDensity={bubbleDensity}
-                bubbleSpeed={bubbleSpeed}
-                terrainRadius={islandSize} // Pass island size so fog appears outside map area
-                isSquareTerrain={isSquareTerrain}
-                terrainSize={200} // Terrain scale is 200
-              />
-            )}
+            {/* Volumetric Fog / Cloud Mesh - Restored donut bubble ring */}
+            <VolumetricFog
+              timeOfDay={timeOfDay}
+              fogHeight={fogHeight}
+              bubbleScale={bubbleScale}
+              bubbleDensity={bubbleDensity}
+              bubbleSpeed={bubbleSpeed}
+            />
             
             {/* Procedural Forest Assets */}
             <Forest
@@ -4568,14 +4444,15 @@ export default function TestWorld() {
 
             {/* Walking NPCs */}
             {npcs.map((npc) => {
-              // Calculate waypoint adjustments - no hooks inside map!
-              // Calculate directly without useMemo since we're inside a map callback
-              const adjustedWaypoints = terrainMeshRef.current 
-                ? npc.waypoints.map(wp => {
-                    const terrainY = getTerrainHeight(wp[0], wp[2]);
-                    return [wp[0], terrainY + 0.0, wp[2]] as [number, number, number];
-                  })
-                : npc.waypoints; // Return original if terrain not ready
+              // Memoize waypoint adjustments to prevent recalculation every frame
+              // Only recalculate when terrain is ready
+              const adjustedWaypoints = useMemo(() => {
+                if (!terrainMeshRef.current) return npc.waypoints; // Return original if terrain not ready
+                return npc.waypoints.map(wp => {
+                  const terrainY = getTerrainHeight(wp[0], wp[2]);
+                  return [wp[0], terrainY + 0.0, wp[2]] as [number, number, number];
+                });
+              }, [npc.waypoints, terrainMeshRef.current]); // Only recalc when terrain mesh changes
               
               // Ensure NPC is positioned on terrain - 0.0 offset = ground level
               const terrainY = getTerrainHeight(npc.position[0], npc.position[2]);
@@ -4747,25 +4624,6 @@ export default function TestWorld() {
           </PhysicsWorldProvider>
         </Canvas>
       </div>
-      
-      {/* World Template Modal */}
-      <WorldTemplateModal
-        isOpen={showTemplateModal}
-        onClose={() => setShowTemplateModal(false)}
-        onSelectTemplate={(template) => {
-          handleSelectTemplate(template);
-          setShowTemplateModal(false);
-        }}
-        onSelectSavedWorld={(worldId) => {
-          handleSelectSavedWorld(worldId);
-          setShowTemplateModal(false);
-        }}
-        savedWorlds={getSavedWorldsMetadata().map(meta => ({
-          id: meta.id,
-          name: meta.name,
-          timestamp: typeof meta.timestamp === 'string' ? parseInt(meta.timestamp) : meta.timestamp
-        }))}
-      />
       
       {/* Dialogue Box - Bottom Speech Box */}
       <DialogueBox

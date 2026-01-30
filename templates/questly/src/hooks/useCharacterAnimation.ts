@@ -92,11 +92,24 @@ export function useCharacterAnimation({
           const modelAnimations: Record<string, THREE.AnimationClip> = {};
           
           if (model.userData.builtInAnimations && Array.isArray(model.userData.builtInAnimations)) {
+            console.log(`[useCharacterAnimation] Found ${model.userData.builtInAnimations.length} built-in animations in model.userData`);
+            const nameCounts: Record<string, number> = {};
             model.userData.builtInAnimations.forEach((clip: THREE.AnimationClip, index: number) => {
-              const animName = clip.name || `animation_${index}`;
+              // Use the clip's name if available, otherwise generate one
+              let animName = clip.name || `animation_${index}`;
+              
+              // Handle duplicate names by appending index
+              if (nameCounts[animName]) {
+                nameCounts[animName]++;
+                animName = `${animName}_${nameCounts[animName]}`;
+              } else {
+                nameCounts[animName] = 1;
+              }
+              
               modelAnimations[animName] = clip;
-              console.log(`  Found built-in animation: ${animName} (${clip.duration.toFixed(2)}s, ${clip.tracks.length} tracks)`);
+              console.log(`  [${index + 1}/${model.userData.builtInAnimations.length}] Found built-in animation: ${animName} (${clip.duration.toFixed(2)}s, ${clip.tracks.length} tracks)`);
             });
+            console.log(`[useCharacterAnimation] Total animations registered: ${Object.keys(modelAnimations).length}`);
           }
           
           if (Object.keys(modelAnimations).length > 0) {

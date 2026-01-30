@@ -1,0 +1,215 @@
+{
+  "packName": "Medieval Village Pack",
+  "format": "GLB",
+  "location": "/Assets/Medieval_Village_Pack/",
+  "publicPath": "templates/questly/public/Assets/Medieval_Village_Pack/",
+  "description": "Medieval village building assets - ready for builder integration",
+  "assets": [
+    {
+      "id": "bag",
+      "name": "Bag",
+      "modelPath": "/Assets/Medieval_Village_Pack/Bag.glb",
+      "category": "props"
+    },
+    {
+      "id": "bag_open",
+      "name": "Bag Open",
+      "modelPath": "/Assets/Medieval_Village_Pack/Bag Open.glb",
+      "category": "props"
+    },
+    {
+      "id": "bags",
+      "name": "Bags",
+      "modelPath": "/Assets/Medieval_Village_Pack/Bags.glb",
+      "category": "props"
+    },
+    {
+      "id": "barrel",
+      "name": "Barrel",
+      "modelPath": "/Assets/Medieval_Village_Pack/Barrel.glb",
+      "category": "props"
+    },
+    {
+      "id": "bell",
+      "name": "Bell",
+      "modelPath": "/Assets/Medieval_Village_Pack/Bell.glb",
+      "category": "props"
+    },
+    {
+      "id": "bell_tower",
+      "name": "Bell Tower",
+      "modelPath": "/Assets/Medieval_Village_Pack/Bell Tower.glb",
+      "category": "buildings"
+    },
+    {
+      "id": "bench",
+      "name": "Bench",
+      "modelPath": "/Assets/Medieval_Village_Pack/Bench.glb",
+      "category": "furniture"
+    },
+    {
+      "id": "blacksmith",
+      "name": "Blacksmith",
+      "modelPath": "/Assets/Medieval_Village_Pack/Blacksmith.glb",
+      "category": "buildings"
+    },
+    {
+      "id": "bonfire",
+      "name": "Bonfire",
+      "modelPath": "/Assets/Medieval_Village_Pack/Bonfire.glb",
+      "category": "props"
+    },
+    {
+      "id": "cart",
+      "name": "Cart",
+      "modelPath": "/Assets/Medieval_Village_Pack/Cart.glb",
+      "category": "props"
+    },
+    {
+      "id": "cauldron",
+      "name": "Cauldron",
+      "modelPath": "/Assets/Medieval_Village_Pack/Cauldron.glb",
+      "category": "props"
+    },
+    {
+      "id": "crate",
+      "name": "Crate",
+      "modelPath": "/Assets/Medieval_Village_Pack/Crate.glb",
+      "category": "props"
+    },
+    {
+      "id": "door_round",
+      "name": "Door Round",
+      "modelPath": "/Assets/Medieval_Village_Pack/Door Round.glb",
+      "category": "structures"
+    },
+    {
+      "id": "door_straight",
+      "name": "Door Straight",
+      "modelPath": "/Assets/Medieval_Village_Pack/Door Straight.glb",
+      "category": "structures"
+    },
+    {
+      "id": "fantasy_barracks",
+      "name": "Fantasy Barracks",
+      "modelPath": "/Assets/Medieval_Village_Pack/Fantasy Barracks.glb",
+      "category": "buildings"
+    },
+    {
+      "id": "fantasy_house",
+      "name": "Fantasy House",
+      "modelPath": "/Assets/Medieval_Village_Pack/Fantasy House.glb",
+      "category": "buildings"
+    },
+    {
+      "id": "fantasy_inn",
+      "name": "Fantasy Inn",
+      "modelPath": "/Assets/Medieval_Village_Pack/Fantasy Inn.glb",
+      "category": "buildings"
+    },
+    {
+      "id": "fantasy_sawmill",
+      "name": "Fantasy Sawmill",
+      "modelPath": "/Assets/Medieval_Village_Pack/Fantasy Sawmill.glb",
+      "category": "buildings"
+    },
+    {
+      "id": "fantasy_stable",
+      "name": "Fantasy Stable",
+      "modelPath": "/Assets/Medieval_Village_Pack/Fantasy Stable.glb",
+      "category": "buildings"
+    },
+    {
+      "id": "fence",
+      "name": "Fence",
+      "modelPath": "/Assets/Medieval_Village_Pack/Fence.glb",
+      "category": "structures"
+    },
+    {
+      "id": "gazebo",
+      "name": "Gazebo",
+      "modelPath": "/Assets/Medieval_Village_Pack/Gazebo.glb",
+      "category": "structures"
+    },
+    {
+      "id": "hay",
+      "name": "Hay",
+      "modelPath": "/Assets/Medieval_Village_Pack/Hay.glb",
+      "category": "props"
+    },
+    {
+      "id": "market_stand",
+      "name": "Market Stand",
+      "modelPath": "/Assets/Medieval_Village_Pack/Market Stand.glb",
+      "category": "structures"
+    },
+    {
+      "id": "mill",
+      "name": "Mill",
+      "modelPath": "/Assets/Medieval_Village_Pack/Mill.glb",
+      "category": "buildings"
+    },
+    {
+      "id": "package",
+      "name": "Package",
+      "modelPath": "/Assets/Medieval_Village_Pack/Package.glb",
+      "category": "props"
+    },
+    {
+      "id": "path_straight",
+      "name": "Path Straight",
+      "modelPath": "/Assets/Medieval_Village_Pack/Path Straight.glb",
+      "category": "structures"
+    },
+    {
+      "id": "rocks",
+      "name": "Rocks",
+      "modelPath": "/Assets/Medieval_Village_Pack/Rocks.glb",
+      "category": "props"
+    },
+    {
+      "id": "round_window",
+      "name": "Round Window",
+      "modelPath": "/Assets/Medieval_Village_Pack/Round Window.glb",
+      "category": "structures"
+    },
+    {
+      "id": "sawmill_saw",
+      "name": "Sawmill Saw",
+      "modelPath": "/Assets/Medieval_Village_Pack/Sawmill Saw.glb",
+      "category": "props"
+    },
+    {
+      "id": "smoke",
+      "name": "Smoke",
+      "modelPath": "/Assets/Medieval_Village_Pack/Smoke.glb",
+      "category": "effects"
+    },
+    {
+      "id": "stairs",
+      "name": "Stairs",
+      "modelPath": "/Assets/Medieval_Village_Pack/Stairs.glb",
+      "category": "structures"
+    },
+    {
+      "id": "well",
+      "name": "Well",
+      "modelPath": "/Assets/Medieval_Village_Pack/Well.glb",
+      "category": "structures"
+    },
+    {
+      "id": "window",
+      "name": "Window",
+      "modelPath": "/Assets/Medieval_Village_Pack/Window.glb",
+      "category": "structures"
+    }
+  ],
+  "categories": {
+    "buildings": 8,
+    "structures": 9,
+    "props": 12,
+    "furniture": 1,
+    "effects": 1
+  },
+  "totalAssets": 39
+}

@@ -6,6 +6,19 @@ import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
 import { cloneGltf } from '../utils/cloneGltf';
 import { useCharacterAnimation } from '../hooks/useCharacterAnimation';
 import { animationManager } from '../systems/animation/AnimationManager';
+import { getWeaponConfig, getShieldConfig } from '../data/weapon-configs';
+
+interface WeaponAdjustments {
+  scale: number;
+  position: [number, number, number];
+  rotation: [number, number, number];
+}
+
+interface ShieldAdjustments {
+  scale: number;
+  position: [number, number, number];
+  rotation: [number, number, number];
+}
 
 interface AnimatedCharacterProps {
   characterPath: string;
@@ -17,6 +30,8 @@ interface AnimatedCharacterProps {
   currentAnimation?: string;
   weaponPath?: string;
   shieldPath?: string;
+  weaponAdjustments?: WeaponAdjustments;
+  shieldAdjustments?: ShieldAdjustments;
   onAnimationsLoaded?: (animations: string[]) => void;
 }
 
@@ -30,6 +45,8 @@ export default function AnimatedCharacter({
   currentAnimation,
   weaponPath,
   shieldPath,
+  weaponAdjustments,
+  shieldAdjustments,
   onAnimationsLoaded,
 }: AnimatedCharacterProps) {
   const groupRef = useRef<THREE.Group>(null);
@@ -86,6 +103,9 @@ export default function AnimatedCharacter({
 
         console.log(`✓ Character model loaded:`, characterPath);
         console.log(`  - Model animations:`, gltf.animations.length);
+        if (gltf.animations.length > 0) {
+          console.log(`  - Animation names:`, gltf.animations.map((a, i) => `${i + 1}. ${a.name || `unnamed_${i}`}`).join(', '));
+        }
         console.log(`  - Asset ID:`, assetId);
 
         const clonedGltf = cloneGltf(gltf);
@@ -167,7 +187,20 @@ export default function AnimatedCharacter({
           const weaponsToRemove = node.children.filter((child: any) => 
             child.userData.isWeapon || child.name.includes('weapon')
           );
-          weaponsToRemove.forEach((weapon: any) => node.remove(weapon));
+          weaponsToRemove.forEach((weapon: any) => {
+            node.remove(weapon);
+            // Dispose of the weapon geometry and materials
+            weapon.traverse((child: any) => {
+              if (child.geometry) child.geometry.dispose();
+              if (child.material) {
+                if (Array.isArray(child.material)) {
+                  child.material.forEach((mat: any) => mat.dispose());
+                } else {
+                  child.material.dispose();
+                }
+              }
+            });
+          });
         }
       });
       weaponLoadedRef.current = null;
@@ -206,27 +239,16 @@ export default function AnimatedCharacter({
           });
 
           if (handBone) {
-            // Adjust weapon positioning based on type
-            const isBow = weaponPath.includes('bow');
-            const isStaff = weaponPath.includes('staff');
+            // Use custom adjustments if provided, otherwise use config defaults
+            const config = weaponAdjustments || getWeaponConfig(weaponPath);
             
-            if (isBow) {
-              weapon.scale.setScalar(0.5);
-              weapon.position.set(0.05, 0.1, 0);
-              weapon.rotation.set(Math.PI, Math.PI, 0); // Rotate bow 180 degrees on X and Y
-            } else if (isStaff) {
-              weapon.scale.setScalar(0.6);
-              weapon.position.set(0.05, 0, 0);
-              weapon.rotation.set(0, 0, Math.PI / 4);
-            } else {
-              weapon.scale.setScalar(0.5);
-              weapon.position.set(0.05, 0, 0);
-              weapon.rotation.set(0, 0, Math.PI / 4);
-            }
+            weapon.scale.setScalar(config.scale);
+            weapon.position.set(...config.position);
+            weapon.rotation.set(...config.rotation);
             
             (handBone as THREE.Object3D).add(weapon);
             weaponLoadedRef.current = weaponPath;
-            console.log(`[AnimatedCharacter] ✓ Weapon attached successfully`);
+            console.log(`[AnimatedCharacter] ✓ Weapon attached successfully with config:`, config);
           } else {
             console.warn(`[AnimatedCharacter] Could not find hand bone for weapon`);
           }
@@ -244,12 +266,25 @@ export default function AnimatedCharacter({
           const weaponsToRemove = node.children.filter((child: any) => 
             child.userData.isWeapon
           );
-          weaponsToRemove.forEach((weapon: any) => node.remove(weapon));
+          weaponsToRemove.forEach((weapon: any) => {
+            node.remove(weapon);
+            // Dispose of the weapon geometry and materials
+            weapon.traverse((child: any) => {
+              if (child.geometry) child.geometry.dispose();
+              if (child.material) {
+                if (Array.isArray(child.material)) {
+                  child.material.forEach((mat: any) => mat.dispose());
+                } else {
+                  child.material.dispose();
+                }
+              }
+            });
+          });
         }
       });
       weaponLoadedRef.current = null;
     }
-  }, [weaponPath, model]);
+  }, [weaponPath, model]); // Removed weaponAdjustments from dependencies to prevent reloading
 
   // Separate effect to handle shield loading/changing (left hand)
   useEffect(() => {
@@ -302,12 +337,16 @@ export default function AnimatedCharacter({
           });
 
           if (leftHandBone) {
-            shield.scale.setScalar(0.5);
-            shield.position.set(-0.05, 0, 0);
-            shield.rotation.set(Math.PI, Math.PI, 0); // Rotate shield 180 degrees on X and Y
+            // Use custom adjustments if provided, otherwise use config defaults
+            const config = shieldAdjustments || getShieldConfig(shieldPath);
+            
+            shield.scale.setScalar(config.scale);
+            shield.position.set(...config.position);
+            shield.rotation.set(...config.rotation);
+            
             (leftHandBone as THREE.Object3D).add(shield);
             shieldLoadedRef.current = shieldPath;
-            console.log(`[AnimatedCharacter] ✓ Shield attached successfully`);
+            console.log(`[AnimatedCharacter] ✓ Shield attached successfully with config:`, config);
           } else {
             console.warn(`[AnimatedCharacter] Could not find left hand bone for shield`);
           }
@@ -330,7 +369,64 @@ export default function AnimatedCharacter({
       });
       shieldLoadedRef.current = null;
     }
-  }, [shieldPath, model]);
+  }, [shieldPath, model, shieldAdjustments]);
+
+  // Real-time update weapon adjustments when sliders change
+  useEffect(() => {
+    if (!model || !weaponPath || !weaponLoadedRef.current || !weaponAdjustments) return;
+    
+    // Remove any duplicate weapons first
+    model.traverse((node: any) => {
+      if (node instanceof THREE.Bone) {
+        const weapons = node.children.filter((child: any) => child.userData.isWeapon);
+        // Keep only the first weapon, remove duplicates
+        if (weapons.length > 1) {
+          for (let i = 1; i < weapons.length; i++) {
+            const weapon = weapons[i];
+            node.remove(weapon);
+            weapon.traverse((child: any) => {
+              if (child.geometry) child.geometry.dispose();
+              if (child.material) {
+                if (Array.isArray(child.material)) {
+                  child.material.forEach((mat: any) => mat.dispose());
+                } else {
+                  child.material.dispose();
+                }
+              }
+            });
+          }
+        }
+      }
+    });
+    
+    // Update the weapon position/rotation/scale
+    model.traverse((node: any) => {
+      if (node instanceof THREE.Bone) {
+        const weapon = node.children.find((child: any) => child.userData.isWeapon);
+        if (weapon) {
+          weapon.scale.setScalar(weaponAdjustments.scale);
+          weapon.position.set(...weaponAdjustments.position);
+          weapon.rotation.set(...weaponAdjustments.rotation);
+        }
+      }
+    });
+  }, [model, weaponPath, weaponAdjustments]);
+
+  // Real-time update shield adjustments when sliders change
+  useEffect(() => {
+    if (!model || !shieldPath || !shieldLoadedRef.current) return;
+    
+    model.traverse((node: any) => {
+      if (node instanceof THREE.Bone) {
+        const shield = node.children.find((child: any) => child.userData.isShield);
+        if (shield && shieldAdjustments) {
+          shield.scale.setScalar(shieldAdjustments.scale);
+          shield.position.set(...shieldAdjustments.position);
+          shield.rotation.set(...shieldAdjustments.rotation);
+        }
+      }
+    });
+  }, [model, shieldPath, shieldAdjustments]);
 
   // Use character animation hook
   const { crossfadeTo, isLoaded: animationsLoaded, hasAnimation } = useCharacterAnimation({
@@ -346,7 +442,10 @@ export default function AnimatedCharacter({
       const animations = animationManager.getAnimations(characterId);
       if (animations) {
         const animationNames = Object.keys(animations);
+        console.log(`[AnimatedCharacter] Notifying parent of ${animationNames.length} animations for ${characterId}:`, animationNames);
         onAnimationsLoaded(animationNames);
+      } else {
+        console.warn(`[AnimatedCharacter] No animations found in animationManager for ${characterId}`);
       }
     }
   }, [animationsLoaded, characterId, onAnimationsLoaded]);
