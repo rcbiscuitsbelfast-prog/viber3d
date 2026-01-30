@@ -634,6 +634,10 @@ export default function CastleBuilder() {
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveBuildName, setSaveBuildName] = useState('');
+
+  // Camera control modes
+  const [panMode, setPanMode] = useState(false);
+  const [zoomMode, setZoomMode] = useState(false);
   const [timeOfDay, setTimeOfDay] = useState(0.5); // 0-1, where 0.5 is noon
   const [sunIntensity, setSunIntensity] = useState(1.0);
   const [toolsSidebarOpen, setToolsSidebarOpen] = useState(false);
@@ -976,6 +980,40 @@ export default function CastleBuilder() {
           </button>
           <h1 className="text-lg font-bold">Castle Builder</h1>
         </div>
+
+        {/* Pan/Zoom Controls */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setPanMode(!panMode);
+              if (!panMode) setZoomMode(false);
+            }}
+            className={`px-2 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              panMode
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            }`}
+            title="Toggle Pan Mode"
+          >
+            ✋ {panMode ? 'ON' : ''}
+          </button>
+
+          <button
+            onClick={() => {
+              setZoomMode(!zoomMode);
+              if (!zoomMode) setPanMode(false);
+            }}
+            className={`px-2 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              zoomMode
+                ? 'bg-green-600 text-white shadow-lg shadow-green-500/50'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            }`}
+            title="Toggle Zoom Mode"
+          >
+            🔍 {zoomMode ? 'ON' : ''}
+          </button>
+        </div>
+
         <button
           onClick={() => navigate('/menu')}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-bold"
@@ -1404,8 +1442,8 @@ export default function CastleBuilder() {
           
           <OrbitControls
             ref={controlsRef}
-            enablePan={!isDraggingAsset && !isRotatingAsset}
-            enableZoom={!isDraggingAsset && !isRotatingAsset}
+            enablePan={panMode && !isDraggingAsset && !isRotatingAsset}
+            enableZoom={zoomMode && !isDraggingAsset && !isRotatingAsset}
             enableRotate={!isDraggingAsset && !isRotatingAsset}
             touches={{
               ONE: 0, // One finger rotates

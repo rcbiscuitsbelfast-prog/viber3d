@@ -2032,6 +2032,7 @@ function DynamicOcean({
       waterColor: { value: new THREE.Color(0.1, 0.3, 0.5) },
       waveStrength: { value: waveStrength },
       waveSpeed: { value: waveSpeed },
+      waveAmplitude: { value: 1.0 }, // Wave height multiplier
       specularStrength: { value: 2.0 },
       transparency: { value: oceanTransparency },
       rippleScale: { value: rippleScale },
@@ -2949,25 +2950,14 @@ export default function TestWorld() {
     }
   };
 
-  // Load auto-saved world on mount (prevent double execution in StrictMode)
+  // Show template modal on mount (user can load saved worlds from there)
   const hasCheckedAutoSave = useRef(false);
   useEffect(() => {
     if (hasCheckedAutoSave.current) return;
     hasCheckedAutoSave.current = true;
 
-    const autoSaved = loadAutoSavedWorld();
-    if (autoSaved) {
-      const shouldLoad = window.confirm('Found auto-saved world. Load it?');
-      if (shouldLoad) {
-        handleLoad(autoSaved);
-      } else {
-        // User declined auto-save, show template modal
-        setTemplateModalOpen(true);
-      }
-    } else {
-      // No auto-saved world, show template modal on first load
-      setTemplateModalOpen(true);
-    }
+    // Always show template modal - user can select template or load saved world
+    setTemplateModalOpen(true);
   }, []); // Only on mount
   
   // Set loading to false once terrain mesh is ready and assets are generated
