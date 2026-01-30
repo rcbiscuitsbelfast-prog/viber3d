@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { cloneGltf } from '../utils/cloneGltf';
+import { getAssetPath } from '../utils/assetPath';
 import { useCharacterAnimation } from '../hooks/useCharacterAnimation';
 import { QuestLabel } from './QuestLabel';
 
@@ -76,8 +77,8 @@ export function WalkingNPC({
     const loadNPC = async () => {
       try {
         const loader = new GLTFLoader();
-        const modelPath = characterModelPath || 
-          '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Knight.glb';
+        const modelPath = getAssetPath(characterModelPath ||
+          '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Knight.glb');
         
         const gltf = await new Promise<GLTF>((resolve, reject) => {
           loader.load(modelPath, resolve, undefined, reject);

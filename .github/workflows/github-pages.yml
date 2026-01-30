@@ -43,8 +43,6 @@ jobs:
       - name: Build questly app for GitHub Pages
         working-directory: templates/questly
         run: pnpm build
-        env:
-          VITE_BASE_PATH: /viber3d/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

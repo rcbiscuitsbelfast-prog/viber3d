@@ -143,7 +143,7 @@ export default defineConfig({
     },
     chunkSizeWarningLimit: 1000, // Increase limit for large 3D libraries
   },
-  base: process.env.VITE_BASE_PATH || '/', // Use env var for GitHub Pages, default to '/' for Firebase
+  base: './', // Use relative paths for GitHub Pages compatibility
   server: {
     port: 3000,
     open: true,

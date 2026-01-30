@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import SplashScreen from './pages/SplashScreen';
 import MainMenu from './pages/MainMenu';
@@ -28,7 +28,7 @@ function App() {
   }, [initialize]);
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <div className="min-h-screen font-sans text-foreground selection:bg-primary/20">
         <Navigation />
         <Routes>
@@ -47,7 +47,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

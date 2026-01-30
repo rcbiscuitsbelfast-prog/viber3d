@@ -10,6 +10,7 @@ import { InstancedGrass } from '../components/InstancedGrass';
 import { Menu, Eraser, Save, Download, PenTool } from 'lucide-react';
 import { useCharacterAnimation } from '../hooks/useCharacterAnimation';
 import { cloneGltf } from '../utils/cloneGltf';
+import { getAssetPath } from '../utils/assetPath';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
@@ -1552,12 +1553,12 @@ export default function CastleBuilder() {
           {/* Render placed tiles during drawing - use CastleAssetModel for selection/rotation */}
           {pathPlacedTiles.map(asset => {
             const modelPathMap: Record<string, string> = {
-              'RockPath_Square_Small_1': '/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Small_1.gltf',
-              'RockPath_Square_Small_2': '/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Small_2.gltf',
-              'RockPath_Square_Thin': '/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Thin.gltf',
-              'RockPath_Square_Wide': '/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Wide.gltf',
+              'RockPath_Square_Small_1': getAssetPath('/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Small_1.gltf'),
+              'RockPath_Square_Small_2': getAssetPath('/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Small_2.gltf'),
+              'RockPath_Square_Thin': getAssetPath('/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Thin.gltf'),
+              'RockPath_Square_Wide': getAssetPath('/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Wide.gltf'),
             };
-            
+
             const modelPath = modelPathMap[asset.type] || modelPathMap['RockPath_Square_Small_1'];
             
             return (
@@ -1607,12 +1608,12 @@ export default function CastleBuilder() {
                   <group key={asset.id}>
                     {mergedTiles.map((tile, index) => {
                       const modelPathMap: Record<string, string> = {
-                        'RockPath_Square_Small_1': '/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Small_1.gltf',
-                        'RockPath_Square_Small_2': '/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Small_2.gltf',
-                        'RockPath_Square_Thin': '/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Thin.gltf',
-                        'RockPath_Square_Wide': '/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Wide.gltf',
+                        'RockPath_Square_Small_1': getAssetPath('/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Small_1.gltf'),
+                        'RockPath_Square_Small_2': getAssetPath('/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Small_2.gltf'),
+                        'RockPath_Square_Thin': getAssetPath('/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Thin.gltf'),
+                        'RockPath_Square_Wide': getAssetPath('/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Wide.gltf'),
                       };
-                      
+
                       const modelPath = modelPathMap[tile.type] || modelPathMap['RockPath_Square_Small_1'];
                       
                       return (
@@ -1627,12 +1628,12 @@ export default function CastleBuilder() {
               
               // Single pebble asset
               const modelPathMap: Record<string, string> = {
-                'RockPath_Square_Small_1': '/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Small_1.gltf',
-                'RockPath_Square_Small_2': '/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Small_2.gltf',
-                'RockPath_Square_Thin': '/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Thin.gltf',
-                'RockPath_Square_Wide': '/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Wide.gltf',
+                'RockPath_Square_Small_1': getAssetPath('/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Small_1.gltf'),
+                'RockPath_Square_Small_2': getAssetPath('/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Small_2.gltf'),
+                'RockPath_Square_Thin': getAssetPath('/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Thin.gltf'),
+                'RockPath_Square_Wide': getAssetPath('/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Wide.gltf'),
               };
-              
+
               const modelPath = modelPathMap[asset.type] || modelPathMap['RockPath_Square_Small_1'];
               
               return (
@@ -1648,7 +1649,7 @@ export default function CastleBuilder() {
             const assetDef = pack?.assets.find(a => a.type === asset.type);
             if (!assetDef) return null;
             
-            const modelPath = `${pack.basePath}${assetDef.modelPath}`;
+            const modelPath = getAssetPath(`${pack.basePath}${assetDef.modelPath}`);
             return (
               <Suspense key={asset.id} fallback={null}>
                 <CastleAssetModel
@@ -2433,14 +2434,14 @@ function PathTileGhost({
   rotation?: number;
 }) {
   const modelPathMap: Record<string, string> = {
-    'RockPath_Square_Small_1': '/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Small_1.gltf',
-    'RockPath_Square_Small_2': '/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Small_2.gltf',
-    'RockPath_Square_Thin': '/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Thin.gltf',
-    'RockPath_Square_Wide': '/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Wide.gltf',
+    'RockPath_Square_Small_1': getAssetPath('/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Small_1.gltf'),
+    'RockPath_Square_Small_2': getAssetPath('/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Small_2.gltf'),
+    'RockPath_Square_Thin': getAssetPath('/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Thin.gltf'),
+    'RockPath_Square_Wide': getAssetPath('/Assets/Stylized Nature MegaKit[Standard]/glTF/RockPath_Square_Wide.gltf'),
   };
-  
+
   const modelPath = modelPathMap[assetType] || modelPathMap['RockPath_Square_Small_1'];
-  
+
   try {
     const { scene } = useGLTF(modelPath);
     
@@ -2501,8 +2502,8 @@ function GhostCastleAsset({
     return null; // Don't render FBX files
   }
   
-  const modelPath = `${pack.basePath}${assetDef.modelPath}`;
-  
+  const modelPath = getAssetPath(`${pack.basePath}${assetDef.modelPath}`);
+
   try {
     const { scene } = useGLTF(modelPath);
     const baseScale = assetDef.defaultScale || 6.0;
@@ -2536,7 +2537,7 @@ function GhostCastleAsset({
 // Player Character Component - Optional, won't crash if model doesn't load
 function PlayerCharacter({ position }: { position: [number, number, number] }) {
   // Use correct path - .glb file from TestWorld
-  const gltf = useGLTF('/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Knight.glb', true);
+  const gltf = useGLTF(getAssetPath('/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Knight.glb'), true);
   const groupRef = useRef<THREE.Group>(null);
   const modelRef = useRef<THREE.Object3D | null>(null);
   

@@ -10,6 +10,15 @@ import { getWeaponConfig, getShieldConfig } from '@/data/weapon-configs';
 import { animationManager } from '@/systems/animation/AnimationManager';
 import * as THREE from 'three';
 
+// Helper to resolve asset paths with base URL for GitHub Pages
+const BASE_URL = import.meta.env.BASE_URL || '/';
+const resolvePath = (path: string) => {
+  if (!path) return path;
+  // Remove leading slash and prepend base URL
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  return `${BASE_URL}${cleanPath}`;
+};
+
 // Camera controller component
 function CameraController({ distance }: { distance: number }) {
   const { camera } = useThree();
@@ -396,15 +405,15 @@ function CharacterPreview({ character }: { character: Character }) {
             <pointLight position={[0, 2, 2]} intensity={0.4} />
 
             <AnimatedCharacter
-              characterPath={character.modelPath}
+              characterPath={resolvePath(character.modelPath)}
               assetId={character.assetId}
               characterId={`dashboard-${character.id}`}
               position={characterPosition}
               scale={character.id === 'soldier' ? characterScale * 0.5 : 1}
               rotation={[0, 0, 0]}
               currentAnimation={currentAnimation}
-              weaponPath={selectedWeapon}
-              shieldPath={selectedShield}
+              weaponPath={selectedWeapon ? resolvePath(selectedWeapon) : undefined}
+              shieldPath={selectedShield ? resolvePath(selectedShield) : undefined}
               weaponAdjustments={selectedWeapon ? {
                 scale: weaponAdjustments.scale,
                 position: [weaponAdjustments.positionX, weaponAdjustments.positionY, weaponAdjustments.positionZ],

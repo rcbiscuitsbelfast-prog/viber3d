@@ -9,6 +9,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useCharacterAnimation } from '../hooks/useCharacterAnimation';
 import { cloneGltf } from '../utils/cloneGltf';
+import { getAssetPath } from '../utils/assetPath';
 import { animationManager } from '../systems/animation/AnimationManager';
 import { usePhysicsWorld } from '../systems/physics/PhysicsWorld';
 import { InstancedForest } from '../components/InstancedForest';
@@ -168,7 +169,7 @@ function CharacterController({
     const loadCharacter = async () => {
       try {
         const loader = new GLTFLoader();
-        const modelPath = characterModelPath || '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Rogue.glb';
+        const modelPath = getAssetPath(characterModelPath || '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Rogue.glb');
         console.log('[CharacterController] Loading character:', modelPath);
         const gltf = await new Promise<GLTF>((resolve, reject) => {
           loader.load(
@@ -646,7 +647,7 @@ function PlacedCastleBuild({
   onUpdate: (updates: Partial<typeof build>) => void;
   onDelete: () => void;
 }) {
-  const basePath = '/Assets/KayKit_Medieval_Hexagon_Pack_1.0_FREE/Assets/gltf/buildings/';
+  const basePath = getAssetPath('/Assets/KayKit_Medieval_Hexagon_Pack_1.0_FREE/Assets/gltf/buildings/');
   const bluePath = `${basePath}blue/`;
   const neutralPath = `${basePath}neutral/`;
   
