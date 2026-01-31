@@ -98,6 +98,12 @@ export function WalkingNPC({
           }
         });
 
+        // Store built-in animations as fallback (ensures animations work if external files fail to load)
+        if (gltf.animations && gltf.animations.length > 0) {
+          npcScene.userData.builtInAnimations = gltf.animations;
+          console.log(`[WalkingNPC] Stored ${gltf.animations.length} built-in animations as fallback`);
+        }
+
         setModel(npcScene);
         setModelLoaded(true);
       } catch (err) {

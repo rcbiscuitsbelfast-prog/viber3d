@@ -203,7 +203,14 @@ function CharacterController({
             child.visible = true;
           }
         });
-        
+
+        // Store built-in animations as fallback (like AnimatedCharacter does)
+        // This ensures animations work even if external animation files fail to load
+        if (gltf.animations && gltf.animations.length > 0) {
+          characterScene.userData.builtInAnimations = gltf.animations;
+          console.log(`[CharacterController] Stored ${gltf.animations.length} built-in animations as fallback`);
+        }
+
         console.log('[CharacterController] Character model ready:', characterScene);
         setModel(characterScene);
         setModelLoaded(true);
