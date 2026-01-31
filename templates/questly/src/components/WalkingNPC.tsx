@@ -48,6 +48,7 @@ export function WalkingNPC({
   const isMovingRef = useRef(false);
   const lastAnimationState = useRef<'idle' | 'walk'>('idle');
   const lastHeightUpdate = useRef(0);
+  const hasInitializedPosition = useRef(false);
 
   // Use external terrain height function if provided, otherwise fallback to raycasting
   const getTerrainHeight = (x: number, z: number): number => {
@@ -145,23 +146,26 @@ export function WalkingNPC({
     }
   }, [animationsLoaded, crossfadeTo, model, id]);
 
-  // Initialize position on terrain - use the passed position prop which already has terrain height
-  // Set initial position when component mounts or terrain becomes available
+  // Initialize position on terrain ONCE - only on first mount
+  // After initialization, useFrame handles all position updates for waypoint following
   useEffect(() => {
-    if (groupRef.current) {
-      // Use the position prop which already has terrain height calculated in parent
-      // But also verify with terrain if available
-      if (terrainMeshRef?.current) {
-        const terrainHeight = getTerrainHeight(position[0], position[2]);
-        // Use the higher of the two (passed position or calculated) to ensure NPC is on terrain
-        const finalY = Math.max(position[1], terrainHeight + 0.0);
-        groupRef.current.position.set(position[0], finalY, position[2]);
+    if (groupRef.current && !hasInitializedPosition.current) {
+      // Set initial position at first waypoint (or passed position if no waypoints)
+      const startPos = waypoints.length > 0 ? waypoints[0] : position;
+
+      if (terrainMeshRef?.current || externalGetTerrainHeight) {
+        const terrainHeight = getTerrainHeight(startPos[0], startPos[2]);
+        const finalY = Math.max(startPos[1], terrainHeight + 0.0);
+        groupRef.current.position.set(startPos[0], finalY, startPos[2]);
+        hasInitializedPosition.current = true;
+        console.log(`[WalkingNPC ${id}] Initialized at waypoint 0: (${startPos[0]}, ${finalY}, ${startPos[2]})`);
       } else {
-        // If terrain not ready, use passed position (which should have correct Y from parent)
-        groupRef.current.position.set(position[0], position[1], position[2]);
+        // If terrain not ready yet, use passed position temporarily
+        groupRef.current.position.set(startPos[0], startPos[1], startPos[2]);
+        // Don't mark as initialized - wait for terrain
       }
     }
-  }, [position, terrainMeshRef?.current, getTerrainHeight]); // Re-run when position changes or terrain becomes available
+  }, [terrainMeshRef?.current, externalGetTerrainHeight, modelLoaded]); // Only depends on terrain availability
 
   // Waypoint following behavior
   useFrame((_state, delta) => {
