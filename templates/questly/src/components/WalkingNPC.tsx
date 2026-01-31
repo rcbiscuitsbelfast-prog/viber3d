@@ -1,9 +1,10 @@
 // Walking NPC Component with Pathfinding
 // NPCs that walk along waypoints using three-pathfinding
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { Line } from '@react-three/drei';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { cloneGltf } from '../utils/cloneGltf';
@@ -312,24 +313,47 @@ export function WalkingNPC({
     return null;
   }
 
+  // Create path points for visualization (close the loop)
+  const pathPoints = useMemo(() => {
+    if (!showPath || waypoints.length < 2) return [];
+    const points = waypoints.map(wp => new THREE.Vector3(wp[0], wp[1] + 0.3, wp[2]));
+    // Close the loop
+    points.push(points[0].clone());
+    return points;
+  }, [waypoints, showPath]);
+
   return (
-    <group 
-      ref={groupRef} 
-      onClick={onClick}
-      onPointerOver={() => {
-        // Optional: highlight on hover
-      }}
-    >
-      <primitive object={model} />
-      
-      {/* NPC Name Label */}
-      <QuestLabel
-        position={[0, 2.5, 0]}
-        text={name}
-        color="#4ade80"
-        fontSize={0.35}
-        offset={0}
-      />
-    </group>
+    <>
+      {/* Path visualization */}
+      {showPath && pathPoints.length > 0 && (
+        <Line
+          points={pathPoints}
+          color={name.includes('Fighter') ? '#ef4444' : '#3b82f6'}
+          lineWidth={3}
+          dashed={true}
+          dashSize={0.5}
+          gapSize={0.3}
+        />
+      )}
+
+      <group
+        ref={groupRef}
+        onClick={onClick}
+        onPointerOver={() => {
+          // Optional: highlight on hover
+        }}
+      >
+        <primitive object={model} />
+
+        {/* NPC Name Label */}
+        <QuestLabel
+          position={[0, 2.5, 0]}
+          text={name}
+          color={name.includes('Fighter') ? '#ef4444' : '#4ade80'}
+          fontSize={0.35}
+          offset={0}
+        />
+      </group>
+    </>
   );
 }

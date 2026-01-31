@@ -2402,26 +2402,52 @@ export default function TestWorld() {
     {
       id: 'guard1',
       name: 'Guard',
-      position: [15, 2.5, 50] as [number, number, number],
+      position: [15, 2.5, 30] as [number, number, number],
       waypoints: [
+        [15, 2.5, 30],
+        [35, 2.5, 30],
+        [35, 2.5, 50],
         [15, 2.5, 50],
-        [20, 2.5, 50],
-        [20, 2.5, 55],
-        [15, 2.5, 55],
       ] as [number, number, number][],
       characterModelPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Knight.glb',
     },
     {
       id: 'merchant1',
       name: 'Merchant',
-      position: [-15, 2.5, 50] as [number, number, number],
+      position: [-15, 2.5, 30] as [number, number, number],
       waypoints: [
+        [-15, 2.5, 30],
+        [-35, 2.5, 30],
+        [-35, 2.5, 50],
         [-15, 2.5, 50],
-        [-10, 2.5, 50],
-        [-10, 2.5, 45],
-        [-15, 2.5, 45],
       ] as [number, number, number][],
       characterModelPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Mage.glb',
+    },
+    {
+      id: 'fighter1',
+      name: 'Rogue Fighter',
+      position: [0, 2.5, 20] as [number, number, number],
+      waypoints: [
+        [0, 2.5, 20],
+        [5, 2.5, 18],
+        [3, 2.5, 15],
+        [-3, 2.5, 15],
+        [-5, 2.5, 18],
+      ] as [number, number, number][],
+      characterModelPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Rogue.glb',
+    },
+    {
+      id: 'fighter2',
+      name: 'Barbarian Fighter',
+      position: [0, 2.5, 10] as [number, number, number],
+      waypoints: [
+        [0, 2.5, 10],
+        [-5, 2.5, 12],
+        [-3, 2.5, 15],
+        [3, 2.5, 15],
+        [5, 2.5, 12],
+      ] as [number, number, number][],
+      characterModelPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Barbarian.glb',
     },
   ]);
   
@@ -4654,13 +4680,13 @@ export default function TestWorld() {
                     position={adjustedPosition}
                     waypoints={adjustedWaypoints}
                     characterModelPath={npc.characterModelPath}
-                    speed={2}
+                    speed={npc.id.includes('fighter') ? 3 : 2}
                     onClick={() => handleNPCClick(npc.id)}
                     terrainMeshRef={terrainMeshRef}
                     getTerrainHeight={getTerrainHeight}
                     isInteracting={interactingWith === `npc-${npc.id}`}
                     playerPosition={characterPositionRef.current}
-                    showPath={false} // Disabled - causing lag
+                    showPath={true}
                   />
                   {/* Floating interaction icon above NPC */}
                   {showFloatingIcons && testMode && (
