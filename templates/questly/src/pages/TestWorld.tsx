@@ -994,8 +994,8 @@ function Rock({
     '/kaykit/Rock_3_A_Color1.gltf', '/kaykit/Rock_3_B_Color1.gltf', '/kaykit/Rock_3_C_Color1.gltf',
     '/kaykit/Rock_3_D_Color1.gltf', '/kaykit/Rock_3_E_Color1.gltf', '/kaykit/Rock_3_F_Color1.gltf',
   ];
-  
-  const { scene } = useGLTF(rockPaths[variant % rockPaths.length]);
+
+  const { scene } = useGLTF(getAssetPath(rockPaths[variant % rockPaths.length]));
   
   return (
     <primitive 
@@ -1030,8 +1030,8 @@ function Bush({
     '/kaykit/Bush_4_E_Color1.gltf',
     '/kaykit/Bush_4_F_Color1.gltf',
   ];
-  
-  const { scene } = useGLTF(bushPaths[variant % bushPaths.length]);
+
+  const { scene } = useGLTF(getAssetPath(bushPaths[variant % bushPaths.length]));
   
   return (
     <primitive 
@@ -1054,13 +1054,13 @@ function PineTree({
   rotation: number;
   scale: number;
 }) {
-  const { scene } = useGLTF('/kaykit/Tree_4_A_Color1.gltf');
-  
+  const { scene } = useGLTF(getAssetPath('/kaykit/Tree_4_A_Color1.gltf'));
+
   return (
-    <primitive 
-      object={scene.clone()} 
-      position={position} 
-      rotation={[0, rotation, 0]} 
+    <primitive
+      object={scene.clone()}
+      position={position}
+      rotation={[0, rotation, 0]}
       scale={scale}
       castShadow
     />
@@ -1068,22 +1068,22 @@ function PineTree({
 }
 
 // Broad Tree Component - KayKit Model (Tree_1 - large deciduous)
-function BroadTree({ 
-  position, 
+function BroadTree({
+  position,
   rotation,
   scale
-}: { 
-  position: [number, number, number]; 
+}: {
+  position: [number, number, number];
   rotation: number;
   scale: number;
 }) {
-  const { scene } = useGLTF('/kaykit/Tree_1_A_Color1.gltf');
-  
+  const { scene } = useGLTF(getAssetPath('/kaykit/Tree_1_A_Color1.gltf'));
+
   return (
-    <primitive 
-      object={scene.clone()} 
-      position={position} 
-      rotation={[0, rotation, 0]} 
+    <primitive
+      object={scene.clone()}
+      position={position}
+      rotation={[0, rotation, 0]}
       scale={scale}
       castShadow
     />
@@ -1091,16 +1091,16 @@ function BroadTree({
 }
 
 // Bushy Tree Component - KayKit Model (Tree_2 - medium deciduous)
-function BushyTree({ 
-  position, 
+function BushyTree({
+  position,
   rotation,
   scale
-}: { 
-  position: [number, number, number]; 
+}: {
+  position: [number, number, number];
   rotation: number;
   scale: number;
 }) {
-  const { scene } = useGLTF('/kaykit/Tree_2_A_Color1.gltf');
+  const { scene } = useGLTF(getAssetPath('/kaykit/Tree_2_A_Color1.gltf'));
   
   return (
     <primitive 
@@ -1131,8 +1131,8 @@ function GrassClump({
     '/kaykit/Grass_1_C_Color1.gltf',
     '/kaykit/Grass_1_D_Color1.gltf',
   ];
-  
-  const { scene } = useGLTF(grassPaths[variant % grassPaths.length]);
+
+  const { scene } = useGLTF(getAssetPath(grassPaths[variant % grassPaths.length]));
   
   return (
     <primitive 
@@ -4475,10 +4475,17 @@ export default function TestWorld() {
                     enablePan={true}
                     enableZoom={true}
                     enableRotate={!panMode && !zoomMode}
+                    maxPolarAngle={Math.PI / 2.1}
+                    minDistance={5}
+                    maxDistance={300}
                     mouseButtons={{
-                      LEFT: panMode ? 2 : (zoomMode ? 1 : 0), // Pan mode: pan, Zoom mode: dolly, Default: rotate
+                      LEFT: panMode ? 2 : (zoomMode ? 1 : 0),
                       MIDDLE: 1,
                       RIGHT: 2,
+                    }}
+                    touches={{
+                      ONE: panMode ? 1 : (zoomMode ? 2 : 0),
+                      TWO: panMode ? 1 : 2,
                     }}
                   />
                 ) : (

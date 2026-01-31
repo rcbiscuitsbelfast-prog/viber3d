@@ -1447,14 +1447,17 @@ export default function CastleBuilder() {
             enablePan={!isDraggingAsset && !isRotatingAsset}
             enableZoom={!isDraggingAsset && !isRotatingAsset}
             enableRotate={!panMode && !zoomMode && !isDraggingAsset && !isRotatingAsset}
+            maxPolarAngle={Math.PI / 2.1}
+            minDistance={5}
+            maxDistance={200}
             touches={{
-              ONE: 0, // One finger rotates
-              TWO: 1, // Two fingers pan/zoom
+              ONE: panMode ? 1 : (zoomMode ? 2 : 0),
+              TWO: panMode ? 1 : 2,
             }}
             mouseButtons={{
-              LEFT: panMode ? 2 : (zoomMode ? 1 : 0), // Pan mode: pan, Zoom mode: dolly, Default: rotate
-              MIDDLE: 1, // Middle mouse button pans
-              RIGHT: 2, // Right mouse button zooms
+              LEFT: panMode ? 2 : (zoomMode ? 1 : 0),
+              MIDDLE: 1,
+              RIGHT: 2,
             }}
           />
           
