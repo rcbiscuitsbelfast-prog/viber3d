@@ -309,11 +309,8 @@ export function WalkingNPC({
     groupRef.current.position.y = finalY;
   });
 
-  if (!modelLoaded || !model) {
-    return null;
-  }
-
   // Create path points for visualization (close the loop)
+  // NOTE: This useMemo MUST be before any early returns to satisfy React's rules of hooks
   const pathPoints = useMemo(() => {
     if (!showPath || waypoints.length < 2) return [];
     const points = waypoints.map(wp => new THREE.Vector3(wp[0], wp[1] + 0.3, wp[2]));
@@ -321,6 +318,10 @@ export function WalkingNPC({
     points.push(points[0].clone());
     return points;
   }, [waypoints, showPath]);
+
+  if (!modelLoaded || !model) {
+    return null;
+  }
 
   return (
     <>
