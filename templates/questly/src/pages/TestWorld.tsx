@@ -2426,28 +2426,26 @@ export default function TestWorld() {
     {
       id: 'fighter1',
       name: 'Rogue Fighter',
-      position: [0, 2.5, 20] as [number, number, number],
+      position: [5, 2.5, 70] as [number, number, number], // Start behind player
       waypoints: [
-        [0, 2.5, 20],
-        [5, 2.5, 18],
-        [3, 2.5, 15],
-        [-3, 2.5, 15],
-        [-5, 2.5, 18],
+        [5, 2.5, 70],  // Start position (behind player)
+        [5, 2.5, 52],  // Walk towards meeting point
       ] as [number, number, number][],
       characterModelPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Rogue.glb',
+      isFighter: true,
+      combatTargetId: 'fighter2',
     },
     {
       id: 'fighter2',
       name: 'Barbarian Fighter',
-      position: [0, 2.5, 10] as [number, number, number],
+      position: [5, 2.5, 35] as [number, number, number], // Start in front of player
       waypoints: [
-        [0, 2.5, 10],
-        [-5, 2.5, 12],
-        [-3, 2.5, 15],
-        [3, 2.5, 15],
-        [5, 2.5, 12],
+        [5, 2.5, 35],  // Start position (in front of player)
+        [5, 2.5, 48],  // Walk towards meeting point
       ] as [number, number, number][],
       characterModelPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Barbarian.glb',
+      isFighter: true,
+      combatTargetId: 'fighter1',
     },
   ]);
   
@@ -4685,6 +4683,8 @@ export default function TestWorld() {
                     isInteracting={interactingWith === `npc-${npc.id}`}
                     playerPosition={characterPositionRef.current}
                     showPath={true}
+                    isFighter={(npc as any).isFighter || false}
+                    combatRange={5}
                   />
                   {/* Floating interaction icon above NPC */}
                   {showFloatingIcons && testMode && (
