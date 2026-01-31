@@ -4,7 +4,7 @@
 import { useRef, useState, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { Line, Sphere } from '@react-three/drei';
+import { Line, Sparkles } from '@react-three/drei';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { cloneGltf } from '../utils/cloneGltf';
@@ -51,26 +51,39 @@ const combatCoordinator = {
     }
   },
 
-  checkCombatRange(id: string, combatRange: number): { inRange: boolean; targetPosition: THREE.Vector3 | null } {
+  checkCombatRange(id: string, combatRange: number, fightingDistance: number): {
+    inLineOfSight: boolean;
+    atFightingDistance: boolean;
+    distance: number;
+    targetPosition: THREE.Vector3 | null
+  } {
     const fighter = this.fighters.get(id);
-    if (!fighter) return { inRange: false, targetPosition: null };
+    if (!fighter) {
+      return { inLineOfSight: false, atFightingDistance: false, distance: Infinity, targetPosition: null };
+    }
 
     // Find opposing fighter
     for (const [otherId, otherFighter] of this.fighters) {
       if (otherId !== id && otherId.includes('fighter')) {
         const distance = fighter.position.distanceTo(otherFighter.position);
-        if (distance < combatRange) {
-          if (!this.combatActive) {
-            this.combatActive = true;
-            this.lastSwapTime = Date.now();
-            console.log(`[Combat] ${id} and ${otherId} engaged!`);
-          }
-          return { inRange: true, targetPosition: otherFighter.position.clone() };
+        const inLineOfSight = distance < combatRange;
+        const atFightingDistance = distance < fightingDistance;
+
+        if (atFightingDistance && !this.combatActive) {
+          this.combatActive = true;
+          this.lastSwapTime = Date.now();
+          console.log(`[Combat] ${id} and ${otherId} ENGAGED! Distance: ${distance.toFixed(2)}`);
         }
-        return { inRange: false, targetPosition: otherFighter.position.clone() };
+
+        return {
+          inLineOfSight,
+          atFightingDistance,
+          distance,
+          targetPosition: otherFighter.position.clone()
+        };
       }
     }
-    return { inRange: false, targetPosition: null };
+    return { inLineOfSight: false, atFightingDistance: false, distance: Infinity, targetPosition: null };
   },
 
   getCombatRole(id: string): 'attack' | 'block' | null {
@@ -108,7 +121,12 @@ interface WalkingNPCProps {
   showPath?: boolean; // Show visible walk path
   // Combat props
   isFighter?: boolean; // Is this NPC a fighter that can engage in combat?
-  combatRange?: number; // Distance to engage in combat (default 5)
+  combatRange?: number; // Line of sight detection range (default 8)
+  fightingDistance?: number; // Distance to stop and fight (default 2)
+  weaponPath?: string; // Path to weapon model
+  shieldPath?: string; // Path to shield model
+  // Collision callback
+  onPositionUpdate?: (id: string, position: THREE.Vector3) => void;
 }
 
 export function WalkingNPC({
@@ -125,7 +143,11 @@ export function WalkingNPC({
   playerPosition,
   showPath = false,
   isFighter = false,
-  combatRange = 5,
+  combatRange = 8,
+  fightingDistance = 2.5,
+  weaponPath,
+  shieldPath,
+  onPositionUpdate,
 }: WalkingNPCProps) {
   const groupRef = useRef<THREE.Group>(null);
   const [model, setModel] = useState<THREE.Object3D | null>(null);
@@ -141,6 +163,12 @@ export function WalkingNPC({
   const [combatTargetPosition, setCombatTargetPosition] = useState<THREE.Vector3 | null>(null);
   const combatPositionRef = useRef(new THREE.Vector3());
   const lastCombatRole = useRef<'attack' | 'block' | null>(null);
+
+  // Combat VFX state
+  const [showSwordTrail, setShowSwordTrail] = useState(false);
+  const [showImpactSparks, setShowImpactSparks] = useState(false);
+  const impactPosition = useRef(new THREE.Vector3());
+  const lastAttackTime = useRef(0);
 
   // Use external terrain height function if provided, otherwise fallback to raycasting
   const getTerrainHeight = (x: number, z: number): number => {
@@ -209,6 +237,138 @@ export function WalkingNPC({
     loadNPC();
   }, [characterModelPath]);
 
+  // Load and attach weapon when model is ready
+  useEffect(() => {
+    if (!model || !weaponPath) return;
+
+    const loadWeapon = async () => {
+      try {
+        const loader = new GLTFLoader();
+        const resolvedPath = getAssetPath(weaponPath);
+
+        const weaponGltf = await new Promise<GLTF>((resolve, reject) => {
+          loader.load(resolvedPath, resolve, undefined, reject);
+        });
+
+        const weapon = weaponGltf.scene.clone();
+        weapon.userData.isWeapon = true;
+        weapon.traverse((child: THREE.Object3D) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+
+        // Helper to detect if bone is right hand (not left)
+        const isRightHandBone = (name: string): boolean => {
+          const n = name.toLowerCase();
+          if (!n.includes('hand')) return false;
+          // Must NOT be left hand
+          if (n.includes('left') || n.endsWith('.l') || n.endsWith('_l') || n.startsWith('l_') || n.startsWith('l.')) return false;
+          if (/\bl\b/.test(n)) return false; // standalone 'l'
+          // Must be right hand
+          if (n.includes('right') || n.endsWith('.r') || n.endsWith('_r') || n.startsWith('r_') || n.startsWith('r.')) return true;
+          if (/\br\b/.test(n)) return true; // standalone 'r'
+          // Check for patterns like "handr" or "rhand"
+          if (n.includes('handr') || n.includes('rhand') || n.includes('hand_r') || n.includes('hand.r')) return true;
+          return false;
+        };
+
+        // Find right hand bone for weapon
+        let handBone: THREE.Bone | null = null;
+        const boneNames: string[] = [];
+        model.traverse((node: THREE.Object3D) => {
+          if (node instanceof THREE.Bone) {
+            boneNames.push(node.name);
+            if (!handBone && isRightHandBone(node.name)) {
+              handBone = node;
+            }
+          }
+        });
+        console.log(`[WalkingNPC ${id}] Available bones:`, boneNames.join(', '));
+
+        if (handBone) {
+          // Default weapon config for fighters
+          weapon.scale.setScalar(1);
+          weapon.position.set(0, 0, 0);
+          weapon.rotation.set(0, 0, 0);
+          (handBone as THREE.Object3D).add(weapon);
+          console.log(`[WalkingNPC ${id}] Weapon attached to ${(handBone as THREE.Bone).name}`);
+        } else {
+          console.warn(`[WalkingNPC ${id}] Could not find hand bone for weapon`);
+        }
+      } catch (err) {
+        console.error(`[WalkingNPC ${id}] Failed to load weapon:`, err);
+      }
+    };
+
+    loadWeapon();
+  }, [model, weaponPath, id]);
+
+  // Load and attach shield when model is ready
+  useEffect(() => {
+    if (!model || !shieldPath) return;
+
+    const loadShield = async () => {
+      try {
+        const loader = new GLTFLoader();
+        const resolvedPath = getAssetPath(shieldPath);
+
+        const shieldGltf = await new Promise<GLTF>((resolve, reject) => {
+          loader.load(resolvedPath, resolve, undefined, reject);
+        });
+
+        const shield = shieldGltf.scene.clone();
+        shield.userData.isShield = true;
+        shield.traverse((child: THREE.Object3D) => {
+          if (child instanceof THREE.Mesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+
+        // Helper to detect if bone is left hand (not right)
+        const isLeftHandBone = (name: string): boolean => {
+          const n = name.toLowerCase();
+          if (!n.includes('hand')) return false;
+          // Must NOT be right hand
+          if (n.includes('right') || n.endsWith('.r') || n.endsWith('_r') || n.startsWith('r_') || n.startsWith('r.')) return false;
+          if (/\br\b/.test(n)) return false; // standalone 'r'
+          // Must be left hand
+          if (n.includes('left') || n.endsWith('.l') || n.endsWith('_l') || n.startsWith('l_') || n.startsWith('l.')) return true;
+          if (/\bl\b/.test(n)) return true; // standalone 'l'
+          // Check for patterns like "handl" or "lhand"
+          if (n.includes('handl') || n.includes('lhand') || n.includes('hand_l') || n.includes('hand.l')) return true;
+          return false;
+        };
+
+        // Find left hand bone for shield
+        let handBone: THREE.Bone | null = null;
+        model.traverse((node: THREE.Object3D) => {
+          if (node instanceof THREE.Bone) {
+            if (!handBone && isLeftHandBone(node.name)) {
+              handBone = node;
+            }
+          }
+        });
+
+        if (handBone) {
+          shield.scale.setScalar(1);
+          shield.position.set(0, 0, 0);
+          shield.rotation.set(0, 0, 0);
+          (handBone as THREE.Object3D).add(shield);
+          console.log(`[WalkingNPC ${id}] Shield attached to ${(handBone as THREE.Bone).name}`);
+        } else {
+          console.warn(`[WalkingNPC ${id}] Could not find left hand bone for shield`);
+        }
+      } catch (err) {
+        console.error(`[WalkingNPC ${id}] Failed to load shield:`, err);
+      }
+    };
+
+    loadShield();
+  }, [model, shieldPath, id]);
+
   // Character animation - use proper asset ID based on model path
   const getAssetId = () => {
     if (characterModelPath?.includes('Mage')) return 'char_mage';
@@ -238,39 +398,42 @@ export function WalkingNPC({
     }
   }, [animationsLoaded, crossfadeTo, model, id]);
 
-  // Register fighter with combat coordinator
-  useEffect(() => {
-    if (isFighter && groupRef.current) {
-      combatCoordinator.register(id, groupRef.current.position);
-      console.log(`[WalkingNPC ${id}] Registered as fighter`);
-
-      return () => {
-        combatCoordinator.unregister(id);
-        console.log(`[WalkingNPC ${id}] Unregistered from combat`);
-      };
-    }
-  }, [isFighter, id]);
-
   // Initialize position on terrain ONCE - only on first mount
   // After initialization, useFrame handles all position updates for waypoint following
+  // ALSO register fighters with combat coordinator after position is set
   useEffect(() => {
-    if (groupRef.current && !hasInitializedPosition.current) {
+    if (groupRef.current && !hasInitializedPosition.current && modelLoaded) {
       // Set initial position at first waypoint (or passed position if no waypoints)
       const startPos = waypoints.length > 0 ? waypoints[0] : position;
 
+      // Try to get terrain height, but initialize anyway even if terrain not ready
+      let finalY = startPos[1];
       if (terrainMeshRef?.current || externalGetTerrainHeight) {
         const terrainHeight = getTerrainHeight(startPos[0], startPos[2]);
-        const finalY = Math.max(startPos[1], terrainHeight + 0.0);
-        groupRef.current.position.set(startPos[0], finalY, startPos[2]);
-        hasInitializedPosition.current = true;
-        console.log(`[WalkingNPC ${id}] Initialized at waypoint 0: (${startPos[0]}, ${finalY}, ${startPos[2]})`);
-      } else {
-        // If terrain not ready yet, use passed position temporarily
-        groupRef.current.position.set(startPos[0], startPos[1], startPos[2]);
-        // Don't mark as initialized - wait for terrain
+        finalY = Math.max(startPos[1], terrainHeight + 0.0);
+      }
+
+      groupRef.current.position.set(startPos[0], finalY, startPos[2]);
+      hasInitializedPosition.current = true;
+      console.log(`[WalkingNPC ${id}] Initialized at (${startPos[0]}, ${finalY}, ${startPos[2]})`);
+
+      // Register fighter with combat coordinator AFTER position is set
+      if (isFighter) {
+        combatCoordinator.register(id, groupRef.current.position);
+        console.log(`[WalkingNPC ${id}] Registered as fighter at position (${startPos[0]}, ${finalY}, ${startPos[2]})`);
       }
     }
-  }, [terrainMeshRef?.current, externalGetTerrainHeight, modelLoaded]); // Only depends on terrain availability
+  }, [terrainMeshRef?.current, externalGetTerrainHeight, modelLoaded, isFighter, id, waypoints, position]);
+
+  // Cleanup fighter registration on unmount
+  useEffect(() => {
+    return () => {
+      if (isFighter) {
+        combatCoordinator.unregister(id);
+        console.log(`[WalkingNPC ${id}] Unregistered from combat`);
+      }
+    };
+  }, [isFighter, id]);
 
   // Waypoint following behavior
   useFrame((_state, delta) => {
@@ -284,19 +447,30 @@ export function WalkingNPC({
 
     const currentPos = groupRef.current.position;
 
+    // Report position update for collision detection (do this early, before any returns)
+    if (onPositionUpdate) {
+      onPositionUpdate(id, currentPos);
+    }
+
     // Update combat coordinator position
     if (isFighter) {
       combatPositionRef.current.copy(currentPos);
       combatCoordinator.updatePosition(id, currentPos);
 
-      // Check if in combat range
-      const { inRange, targetPosition } = combatCoordinator.checkCombatRange(id, combatRange);
+      // Check combat ranges - line of sight (wedge) and fighting distance
+      const { inLineOfSight, atFightingDistance, distance, targetPosition } =
+        combatCoordinator.checkCombatRange(id, combatRange, fightingDistance);
 
-      if (inRange && targetPosition) {
-        // In combat - stop moving and face opponent
+      // Always update target position for wedge visualization
+      if (targetPosition) {
+        setCombatTargetPosition(targetPosition);
+      }
+
+      if (atFightingDistance && targetPosition) {
+        // At fighting distance - stop and fight!
         if (!inCombat) {
           setInCombat(true);
-          setCombatTargetPosition(targetPosition);
+          console.log(`[WalkingNPC ${id}] Now fighting at distance ${distance.toFixed(2)}`);
         }
 
         // Face opponent
@@ -318,6 +492,12 @@ export function WalkingNPC({
         if (combatRole === 'attack' && lastCombatRole.current !== 'attack') {
           lastCombatRole.current = 'attack';
           lastAnimationState.current = 'attack';
+          lastAttackTime.current = Date.now();
+
+          // Show sword trail VFX during attack
+          setShowSwordTrail(true);
+          setTimeout(() => setShowSwordTrail(false), 600); // Trail duration
+
           if (animationsLoaded && crossfadeTo) {
             try {
               crossfadeTo('attackMelee', 0.15);
@@ -328,6 +508,15 @@ export function WalkingNPC({
         } else if (combatRole === 'block' && lastCombatRole.current !== 'block') {
           lastCombatRole.current = 'block';
           lastAnimationState.current = 'block';
+
+          // Show impact sparks VFX when blocking (delayed to sync with incoming attack)
+          impactPosition.current.copy(currentPos);
+          impactPosition.current.y += 1.2; // Shield height
+          setTimeout(() => {
+            setShowImpactSparks(true);
+            setTimeout(() => setShowImpactSparks(false), 400); // Sparks duration
+          }, 300); // Delay to sync with attack animation hitting
+
           if (animationsLoaded && crossfadeTo) {
             try {
               crossfadeTo('blockHit', 0.15);
@@ -350,17 +539,96 @@ export function WalkingNPC({
         const smoothedY = THREE.MathUtils.lerp(currentY, targetY, lerpFactor);
         groupRef.current.position.y = Math.max(smoothedY, targetY);
 
-        return; // Don't continue with waypoint following
-      } else {
-        // Not in combat range yet
+        return; // Don't continue with waypoint following - we're fighting!
+
+      } else if (inLineOfSight && targetPosition) {
+        // In line of sight but not at fighting distance - APPROACH opponent
         if (inCombat) {
           setInCombat(false);
-          setCombatTargetPosition(null);
           lastCombatRole.current = null;
         }
-        // Update target position for line of sight visualization
-        if (targetPosition) {
-          setCombatTargetPosition(targetPosition);
+
+        // Debug: Log approach state periodically
+        if (Math.random() < 0.01) {
+          console.log(`[Combat ${id}] Approaching target, distance: ${distance.toFixed(2)}, fightingDist: ${fightingDistance}`);
+        }
+
+        // Move towards opponent
+        const directionToTarget = new THREE.Vector3()
+          .subVectors(targetPosition, currentPos)
+          .normalize();
+
+        // Face opponent while approaching
+        const targetRotation = Math.atan2(directionToTarget.x, directionToTarget.z);
+        groupRef.current.rotation.y = THREE.MathUtils.lerp(
+          groupRef.current.rotation.y,
+          targetRotation,
+          0.15
+        );
+
+        // Move towards opponent (faster than normal walk)
+        const clampedDelta = Math.min(delta, 0.05);
+        const approachSpeed = speed * 1.5; // Faster approach
+        let newX = currentPos.x + directionToTarget.x * approachSpeed * clampedDelta;
+        let newZ = currentPos.z + directionToTarget.z * approachSpeed * clampedDelta;
+
+        // Check collision with player - fighters should also avoid the player
+        if (playerPosition) {
+          const distToPlayer = Math.sqrt(
+            Math.pow(newX - playerPosition.x, 2) + Math.pow(newZ - playerPosition.z, 2)
+          );
+          const minDistance = 1.0;
+
+          if (distToPlayer < minDistance) {
+            // Too close to player - slide around or stop
+            const currentDistToPlayer = Math.sqrt(
+              Math.pow(currentPos.x - playerPosition.x, 2) + Math.pow(currentPos.z - playerPosition.z, 2)
+            );
+
+            if (currentDistToPlayer < minDistance) {
+              // Already too close, push away
+              const pushDir = new THREE.Vector3(
+                currentPos.x - playerPosition.x,
+                0,
+                currentPos.z - playerPosition.z
+              ).normalize();
+              newX = currentPos.x + pushDir.x * approachSpeed * clampedDelta * 0.5;
+              newZ = currentPos.z + pushDir.z * approachSpeed * clampedDelta * 0.5;
+            } else {
+              // Would walk into player - don't move closer
+              newX = currentPos.x;
+              newZ = currentPos.z;
+            }
+          }
+        }
+
+        const terrainHeight = getTerrainHeight(newX, newZ);
+        const targetY = terrainHeight + 0.0;
+        const currentY = groupRef.current.position.y;
+        const lerpFactor = Math.min(1.0, clampedDelta * 12);
+        const smoothedY = THREE.MathUtils.lerp(currentY, targetY, lerpFactor);
+        const finalY = Math.max(smoothedY, targetY);
+
+        groupRef.current.position.set(newX, finalY, newZ);
+
+        // Play walk animation while approaching
+        if (lastAnimationState.current !== 'walk') {
+          lastAnimationState.current = 'walk';
+          if (animationsLoaded && crossfadeTo) {
+            try {
+              crossfadeTo('walk', 0.2);
+            } catch (err) {
+              console.warn(`[WalkingNPC ${id}] Failed to play walk animation:`, err);
+            }
+          }
+        }
+
+        return; // Don't continue with normal waypoint following
+      } else {
+        // Not in line of sight
+        if (inCombat) {
+          setInCombat(false);
+          lastCombatRole.current = null;
         }
       }
     }
@@ -409,8 +677,17 @@ export function WalkingNPC({
     const distanceToWaypoint = currentPos.distanceTo(currentWaypoint);
     
     if (distanceToWaypoint < 2.5) {
-      // Move to next waypoint (loop around)
-      currentWaypointIndex.current = (currentWaypointIndex.current + 1) % waypoints.length;
+      // Move to next waypoint
+      // Fighters don't loop - they stop at their last waypoint (waiting for combat)
+      if (isFighter) {
+        if (currentWaypointIndex.current < waypoints.length - 1) {
+          currentWaypointIndex.current = currentWaypointIndex.current + 1;
+        }
+        // At last waypoint - stay here and wait for opponent
+      } else {
+        // Non-fighters loop around
+        currentWaypointIndex.current = (currentWaypointIndex.current + 1) % waypoints.length;
+      }
     }
 
     const targetWaypoint = new THREE.Vector3(...waypoints[currentWaypointIndex.current]);
@@ -424,24 +701,54 @@ export function WalkingNPC({
     // Only move if we have a valid direction and distance
     if (distance > 0.01) {
       direction.normalize();
-      
+
       // Move horizontally with clamped delta to prevent large jumps
       const clampedDelta = Math.min(delta, 0.05); // Cap delta at 50ms to prevent frame spikes
-      const newX = currentPos.x + direction.x * speed * clampedDelta;
-      const newZ = currentPos.z + direction.z * speed * clampedDelta;
-      
+      let newX = currentPos.x + direction.x * speed * clampedDelta;
+      let newZ = currentPos.z + direction.z * speed * clampedDelta;
+
+      // Check collision with player - NPCs should not walk through the player
+      if (playerPosition) {
+        const distToPlayer = Math.sqrt(
+          Math.pow(newX - playerPosition.x, 2) + Math.pow(newZ - playerPosition.z, 2)
+        );
+        const minDistance = 1.0; // Minimum distance to maintain from player
+
+        if (distToPlayer < minDistance) {
+          // Too close to player - stop or slide around
+          const currentDistToPlayer = Math.sqrt(
+            Math.pow(currentPos.x - playerPosition.x, 2) + Math.pow(currentPos.z - playerPosition.z, 2)
+          );
+
+          if (currentDistToPlayer < minDistance) {
+            // Already too close, push away from player
+            const pushDir = new THREE.Vector3(
+              currentPos.x - playerPosition.x,
+              0,
+              currentPos.z - playerPosition.z
+            ).normalize();
+            newX = currentPos.x + pushDir.x * speed * clampedDelta * 0.5;
+            newZ = currentPos.z + pushDir.z * speed * clampedDelta * 0.5;
+          } else {
+            // Would walk into player - don't move
+            newX = currentPos.x;
+            newZ = currentPos.z;
+          }
+        }
+      }
+
       // Get terrain height at new position BEFORE moving (prevents walking into hills)
       const terrainHeight = getTerrainHeight(newX, newZ);
-      
+
       // Use delta-based lerp for smooth, frame-rate independent interpolation
       const targetY = terrainHeight + 0.0; // Ground level - 0.0 offset
       const currentY = groupRef.current.position.y;
       const lerpFactor = Math.min(1.0, clampedDelta * 12); // Faster lerp for better responsiveness
       const smoothedY = THREE.MathUtils.lerp(currentY, targetY, lerpFactor);
-      
+
       // Clamp to prevent going under ground - always stay on top
       const finalY = Math.max(smoothedY, targetY);
-      
+
       // Update position with smoothed terrain height
       groupRef.current.position.set(newX, finalY, newZ);
 
@@ -500,7 +807,7 @@ export function WalkingNPC({
   });
 
   // Create path points for visualization (close the loop)
-  // NOTE: This useMemo MUST be before any early returns to satisfy React's rules of hooks
+  // NOTE: ALL useMemo hooks MUST be before any early returns to satisfy React's rules of hooks
   const pathPoints = useMemo(() => {
     if (!showPath || waypoints.length < 2) return [];
     const points = waypoints.map(wp => new THREE.Vector3(wp[0], wp[1] + 0.3, wp[2]));
@@ -509,19 +816,40 @@ export function WalkingNPC({
     return points;
   }, [waypoints, showPath]);
 
+  // Line of sight wedge visualization - a cone/wedge on the ground in front of NPC
+  // MUST be before early return
+  const lineOfSightWedge = useMemo(() => {
+    if (!isFighter || !groupRef.current) return [];
+
+    const pos = groupRef.current.position;
+    const rot = groupRef.current.rotation.y;
+    const range = combatRange;
+    const halfAngle = Math.PI / 6; // 30 degree cone (60 degrees total)
+
+    // Calculate wedge points on the ground
+    const groundY = pos.y + 0.1; // Slightly above ground
+    const leftAngle = rot + halfAngle;
+    const rightAngle = rot - halfAngle;
+
+    const origin = new THREE.Vector3(pos.x, groundY, pos.z);
+    const leftPoint = new THREE.Vector3(
+      pos.x + Math.sin(leftAngle) * range,
+      groundY,
+      pos.z + Math.cos(leftAngle) * range
+    );
+    const rightPoint = new THREE.Vector3(
+      pos.x + Math.sin(rightAngle) * range,
+      groundY,
+      pos.z + Math.cos(rightAngle) * range
+    );
+
+    // Create wedge outline: origin -> left -> right -> origin
+    return [origin, leftPoint, rightPoint, origin];
+  }, [isFighter, combatRange, groupRef.current?.position.x, groupRef.current?.position.z, groupRef.current?.rotation.y]);
+
   if (!modelLoaded || !model) {
     return null;
   }
-
-  // Line of sight visualization points
-  const lineOfSightPoints = useMemo(() => {
-    if (!isFighter || !combatTargetPosition || !groupRef.current) return [];
-    const start = groupRef.current.position.clone();
-    start.y += 1.2; // Eye level
-    const end = combatTargetPosition.clone();
-    end.y += 1.2;
-    return [start, end];
-  }, [isFighter, combatTargetPosition, groupRef.current?.position.x, groupRef.current?.position.z]);
 
   return (
     <>
@@ -537,41 +865,15 @@ export function WalkingNPC({
         />
       )}
 
-      {/* Fighter combat range indicator */}
-      {isFighter && groupRef.current && (
-        <group position={groupRef.current.position}>
-          {/* Combat range sphere */}
-          <Sphere args={[combatRange, 16, 12]} position={[0, 1, 0]}>
-            <meshBasicMaterial
-              color={inCombat ? '#ef4444' : '#fbbf24'}
-              transparent
-              opacity={0.1}
-              wireframe={!inCombat}
-              depthWrite={false}
-            />
-          </Sphere>
-        </group>
-      )}
-
-      {/* Line of sight to target */}
-      {isFighter && lineOfSightPoints.length === 2 && (
+      {/* Line of sight wedge on ground */}
+      {isFighter && lineOfSightWedge.length === 4 && (
         <Line
-          points={lineOfSightPoints}
+          points={lineOfSightWedge}
           color={inCombat ? '#ef4444' : '#fbbf24'}
           lineWidth={inCombat ? 4 : 2}
-          dashed={!inCombat}
-          dashSize={0.3}
-          gapSize={0.2}
+          transparent
+          opacity={inCombat ? 1 : 0.7}
         />
-      )}
-
-      {/* Combat indicator */}
-      {isFighter && inCombat && groupRef.current && (
-        <group position={[groupRef.current.position.x, groupRef.current.position.y + 3.5, groupRef.current.position.z]}>
-          <Sphere args={[0.3, 8, 8]}>
-            <meshBasicMaterial color="#ef4444" />
-          </Sphere>
-        </group>
       )}
 
       <group
@@ -602,7 +904,37 @@ export function WalkingNPC({
             offset={0}
           />
         )}
+
+        {/* Sword swoosh VFX - orange glow trail during attack */}
+        {showSwordTrail && (
+          <Sparkles
+            position={[0.5, 1.2, 0.3]}
+            count={20}
+            scale={1.5}
+            size={3}
+            speed={2}
+            color="#ff6600"
+            opacity={0.8}
+          />
+        )}
       </group>
+
+      {/* Impact sparks VFX - shown at shield position when blocking */}
+      {showImpactSparks && groupRef.current && (
+        <Sparkles
+          position={[
+            impactPosition.current.x,
+            impactPosition.current.y,
+            impactPosition.current.z
+          ]}
+          count={30}
+          scale={1}
+          size={4}
+          speed={3}
+          color="#ffcc00"
+          opacity={1}
+        />
+      )}
     </>
   );
 }

@@ -2877,34 +2877,45 @@ function CastleAssetModel({
       }}
     >
       <primitive object={scene.clone()} />
+      {/* Base circle - ALWAYS visible for easier clicking/tapping on mobile */}
+      <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[1.0, 32]} />
+        <meshStandardMaterial
+          color={isSelected ? "#0055aa" : "#335577"}
+          transparent
+          opacity={isSelected ? 0.8 : 0.3}
+          side={THREE.DoubleSide}
+          emissive={isSelected ? "#0066cc" : "#223344"}
+          emissiveIntensity={isSelected ? 0.6 : 0.2}
+        />
+      </mesh>
       {isSelected && (
         <>
-          {/* Enhanced selection highlight - brighter and color changes when rotating */}
+          {/* Enhanced selection highlight - darker blue color */}
           {/* Ground ring */}
           <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[0.8, 1.2, 64]} />
-            <meshStandardMaterial 
-              color={isRotationActive ? "#00ffff" : (isLastPlaced ? "#00aaff" : "#00ff00")} 
-              transparent 
-              opacity={isRotationActive ? 1.0 : 0.9} 
+            <meshStandardMaterial
+              color={isRotationActive ? "#00ccff" : "#0066cc"}
+              transparent
+              opacity={isRotationActive ? 1.0 : 0.9}
               side={THREE.DoubleSide}
-              emissive={isRotationActive ? "#00ffff" : (isLastPlaced ? "#00aaff" : "#00ff00")}
-              emissiveIntensity={isRotationActive ? 1.0 : 0.7}
+              emissive={isRotationActive ? "#00ccff" : "#0066cc"}
+              emissiveIntensity={isRotationActive ? 1.0 : 0.8}
             />
           </mesh>
           {/* Outer glow ring */}
           <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[1.2, 1.5, 64]} />
-            <meshStandardMaterial 
-              color={isRotationActive ? "#00ffff" : (isLastPlaced ? "#00aaff" : "#00ff00")} 
-              transparent 
-              opacity={isRotationActive ? 0.6 : 0.4} 
+            <meshStandardMaterial
+              color={isRotationActive ? "#00ccff" : "#0088dd"}
+              transparent
+              opacity={isRotationActive ? 0.6 : 0.5}
               side={THREE.DoubleSide}
-              emissive={isRotationActive ? "#00ffff" : (isLastPlaced ? "#00aaff" : "#00ff00")}
-              emissiveIntensity={isRotationActive ? 0.8 : 0.4}
+              emissive={isRotationActive ? "#00ccff" : "#0088dd"}
+              emissiveIntensity={isRotationActive ? 0.8 : 0.5}
             />
           </mesh>
-          {/* Bounding box outline - removed, was causing giant white cube */}
           {/* Rotation ring - always visible when selected */}
           <RotationRing
             position={ringPosition}

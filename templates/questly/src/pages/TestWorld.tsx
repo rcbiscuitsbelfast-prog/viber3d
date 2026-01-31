@@ -1,4 +1,4 @@
-import React, { Suspense, useState, useMemo, useRef, useEffect } from 'react';
+import React, { Suspense, useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useFrame, Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment, Sky, useGLTF } from '@react-three/drei';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -112,8 +112,8 @@ function CameraController({
 
 // Character Controller Component
 type CrossfadeFn = (anim: string, duration?: number) => void;
-function CharacterController({ 
-  startPosition, 
+function CharacterController({
+  startPosition,
   terrainMeshRef,
   manualAssets,
   proceduralAssets,
@@ -125,7 +125,8 @@ function CharacterController({
   rotationRef: externalRotationRef,
   getTerrainHeight,
   characterHeightOffset = 0.9,
-}: { 
+  npcPositions = [],
+}: {
   startPosition: [number, number, number];
   terrainMeshRef: React.RefObject<THREE.Mesh>;
   placedBuilds?: Array<{
@@ -146,6 +147,7 @@ function CharacterController({
   rotationRef?: React.MutableRefObject<number>;
   getTerrainHeight?: (x: number, z: number) => number;
   characterHeightOffset?: number;
+  npcPositions?: Array<{ id: string; position: THREE.Vector3 }>;
 }) {
   const characterRef = useRef<THREE.Group>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -384,7 +386,21 @@ function CharacterController({
         return true;
       }
     }
-    
+
+    // Check NPC collision - prevent walking through NPCs
+    for (const npc of npcPositions) {
+      const npcPos = npc.position;
+      // NPC collision cylinder (radius 0.5, height 1.8)
+      const npcBox = new THREE.Box3(
+        new THREE.Vector3(npcPos.x - 0.5, npcPos.y, npcPos.z - 0.5),
+        new THREE.Vector3(npcPos.x + 0.5, npcPos.y + 1.8, npcPos.z + 0.5)
+      );
+
+      if (characterBox.intersectsBox(npcBox)) {
+        return true;
+      }
+    }
+
     return false;
   };
   
@@ -2426,26 +2442,30 @@ export default function TestWorld() {
     {
       id: 'fighter1',
       name: 'Rogue Fighter',
-      position: [5, 2.5, 70] as [number, number, number], // Start behind player
+      position: [8, 2.5, 60] as [number, number, number], // Start behind player
       waypoints: [
-        [5, 2.5, 70],  // Start position (behind player)
-        [5, 2.5, 52],  // Walk towards meeting point
+        [8, 2.5, 60],  // Start position
+        [8, 2.5, 50],  // Walk towards meeting point (same destination as fighter2)
       ] as [number, number, number][],
       characterModelPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Rogue.glb',
       isFighter: true,
       combatTargetId: 'fighter2',
+      weaponPath: '/Assets/weapons/sword_1handed.gltf',
+      shieldPath: '/Assets/weapons/shield_round.gltf',
     },
     {
       id: 'fighter2',
       name: 'Barbarian Fighter',
-      position: [5, 2.5, 35] as [number, number, number], // Start in front of player
+      position: [8, 2.5, 40] as [number, number, number], // Start in front of player
       waypoints: [
-        [5, 2.5, 35],  // Start position (in front of player)
-        [5, 2.5, 48],  // Walk towards meeting point
+        [8, 2.5, 40],  // Start position
+        [8, 2.5, 50],  // Walk towards meeting point (same destination as fighter1)
       ] as [number, number, number][],
       characterModelPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Barbarian.glb',
       isFighter: true,
       combatTargetId: 'fighter1',
+      weaponPath: '/Assets/weapons/sword_2handed.gltf',
+      shieldPath: '/Assets/weapons/shield_round_barbarian.gltf',
     },
   ]);
   
@@ -2515,7 +2535,23 @@ export default function TestWorld() {
   // Character position/rotation refs for camera controller
   const characterPositionRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 20, 0));
   const characterRotationRef = useRef<number>(0);
-  
+
+  // NPC positions for collision detection
+  const npcPositionsRef = useRef<Map<string, THREE.Vector3>>(new Map());
+  const [npcPositions, setNpcPositions] = useState<Array<{ id: string; position: THREE.Vector3 }>>([]);
+
+  // Callback to update NPC position for collision
+  const handleNpcPositionUpdate = useCallback((npcId: string, position: THREE.Vector3) => {
+    // Store in ref for immediate access
+    if (!npcPositionsRef.current.has(npcId)) {
+      npcPositionsRef.current.set(npcId, position.clone());
+    } else {
+      npcPositionsRef.current.get(npcId)!.copy(position);
+    }
+    // Update state periodically (throttled) for collision system
+    setNpcPositions(Array.from(npcPositionsRef.current.entries()).map(([id, pos]) => ({ id, position: pos })));
+  }, []);
+
   // Build mode camera focus point (center of terrain)
   const buildModeCameraFocus = useRef<THREE.Vector3>(new THREE.Vector3(0, 5, 50));
   
@@ -4627,6 +4663,7 @@ export default function TestWorld() {
                     rotationRef={characterRotationRef}
                       getTerrainHeight={getTerrainHeight}
                       characterHeightOffset={characterHeightOffset}
+                    npcPositions={npcPositions}
                     onAnimationTrigger={(crossfade) => {
                   if (animationTriggerRef.current) {
                       animationTriggerRef.current = crossfade;
@@ -4684,7 +4721,11 @@ export default function TestWorld() {
                     playerPosition={characterPositionRef.current}
                     showPath={true}
                     isFighter={(npc as any).isFighter || false}
-                    combatRange={5}
+                    combatRange={8}
+                    fightingDistance={2.5}
+                    weaponPath={(npc as any).weaponPath}
+                    shieldPath={(npc as any).shieldPath}
+                    onPositionUpdate={handleNpcPositionUpdate}
                   />
                   {/* Floating interaction icon above NPC */}
                   {showFloatingIcons && testMode && (
