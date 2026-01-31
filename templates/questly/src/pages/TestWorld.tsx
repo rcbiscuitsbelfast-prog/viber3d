@@ -4658,16 +4658,14 @@ export default function TestWorld() {
 
             {/* Walking NPCs */}
             {npcs.map((npc) => {
-              // Memoize waypoint adjustments to prevent recalculation every frame
-              // Only recalculate when terrain is ready
-              const adjustedWaypoints = useMemo(() => {
-                if (!terrainMeshRef.current) return npc.waypoints; // Return original if terrain not ready
-                return npc.waypoints.map(wp => {
-                  const terrainY = getTerrainHeight(wp[0], wp[2]);
-                  return [wp[0], terrainY + 0.0, wp[2]] as [number, number, number];
-                });
-              }, [npc.waypoints, terrainMeshRef.current]); // Only recalc when terrain mesh changes
-              
+              // Calculate waypoint adjustments (terrain height)
+              const adjustedWaypoints = terrainMeshRef.current
+                ? npc.waypoints.map(wp => {
+                    const terrainY = getTerrainHeight(wp[0], wp[2]);
+                    return [wp[0], terrainY + 0.0, wp[2]] as [number, number, number];
+                  })
+                : npc.waypoints;
+
               // Ensure NPC is positioned on terrain - 0.0 offset = ground level
               const terrainY = getTerrainHeight(npc.position[0], npc.position[2]);
               const adjustedPosition: [number, number, number] = [npc.position[0], terrainY + 0.0, npc.position[2]];
