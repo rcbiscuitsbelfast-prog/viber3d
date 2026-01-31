@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npm run build:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: Add GitHub Pages deployment with HashRouter and asset path resolution\n\n- Switch from BrowserRouter to HashRouter for GitHub Pages compatibility\n- Add getAssetPath utility for resolving asset paths with base URL\n- Update vite.config.ts to use relative base path \\(''./''\\)\n- Add GitHub Pages workflow for automated deployment\n- Update asset paths in UserDashboard, TestWorld, CastleBuilder, and WalkingNPC\n- Remove auto-save popup in TestWorld\n- Fix waves by adding missing waveAmplitude uniform\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

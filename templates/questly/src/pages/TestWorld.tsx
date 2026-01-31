@@ -4471,6 +4471,7 @@ export default function TestWorld() {
               <>
                 {cameraView === 'third-person' ? (
                   <OrbitControls
+                    key={`controls-${panMode}-${zoomMode}`}
                     enablePan={true}
                     enableZoom={true}
                     enableRotate={!panMode && !zoomMode}

@@ -1442,6 +1442,7 @@ export default function CastleBuilder() {
           <Environment preset="sunset" />
           
           <OrbitControls
+            key={`controls-${panMode}-${zoomMode}`}
             ref={controlsRef}
             enablePan={!isDraggingAsset && !isRotatingAsset}
             enableZoom={!isDraggingAsset && !isRotatingAsset}

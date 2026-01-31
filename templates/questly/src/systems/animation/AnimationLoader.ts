@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { getAssetPath } from '../../utils/assetPath';
 
 /**
  * AnimationLoader - Loads animation clips from GLB files
@@ -38,8 +39,10 @@ export class AnimationLoader {
 
     // Create loading promise
     const loadingPromise = new Promise<THREE.AnimationClip[]>((resolve, reject) => {
+      // Use getAssetPath for GitHub Pages compatibility
+      const resolvedPath = getAssetPath(path);
       this.loader.load(
-        path,
+        resolvedPath,
         (gltf) => {
           const animations = gltf.animations || [];
           
