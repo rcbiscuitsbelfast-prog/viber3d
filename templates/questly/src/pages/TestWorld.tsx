@@ -125,7 +125,7 @@ function CharacterController({
   rotationRef: externalRotationRef,
   getTerrainHeight,
   characterHeightOffset = 0.9,
-  npcPositions = [],
+  npcPositionsRef,
 }: {
   startPosition: [number, number, number];
   terrainMeshRef: React.RefObject<THREE.Mesh>;
@@ -147,7 +147,7 @@ function CharacterController({
   rotationRef?: React.MutableRefObject<number>;
   getTerrainHeight?: (x: number, z: number) => number;
   characterHeightOffset?: number;
-  npcPositions?: Array<{ id: string; position: THREE.Vector3 }>;
+  npcPositionsRef?: React.MutableRefObject<Map<string, THREE.Vector3>>;
 }) {
   const characterRef = useRef<THREE.Group>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -388,16 +388,17 @@ function CharacterController({
     }
 
     // Check NPC collision - prevent walking through NPCs
-    for (const npc of npcPositions) {
-      const npcPos = npc.position;
-      // NPC collision cylinder (radius 0.5, height 1.8)
-      const npcBox = new THREE.Box3(
-        new THREE.Vector3(npcPos.x - 0.5, npcPos.y, npcPos.z - 0.5),
-        new THREE.Vector3(npcPos.x + 0.5, npcPos.y + 1.8, npcPos.z + 0.5)
-      );
+    if (npcPositionsRef?.current) {
+      for (const [, npcPos] of npcPositionsRef.current) {
+        // NPC collision cylinder (radius 0.5, height 1.8)
+        const npcBox = new THREE.Box3(
+          new THREE.Vector3(npcPos.x - 0.5, npcPos.y, npcPos.z - 0.5),
+          new THREE.Vector3(npcPos.x + 0.5, npcPos.y + 1.8, npcPos.z + 0.5)
+        );
 
-      if (characterBox.intersectsBox(npcBox)) {
-        return true;
+        if (characterBox.intersectsBox(npcBox)) {
+          return true;
+        }
       }
     }
 
@@ -2536,20 +2537,17 @@ export default function TestWorld() {
   const characterPositionRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 20, 0));
   const characterRotationRef = useRef<number>(0);
 
-  // NPC positions for collision detection
+  // NPC positions for collision detection - use ref only to avoid re-renders
   const npcPositionsRef = useRef<Map<string, THREE.Vector3>>(new Map());
-  const [npcPositions, setNpcPositions] = useState<Array<{ id: string; position: THREE.Vector3 }>>([]);
 
-  // Callback to update NPC position for collision
+  // Callback to update NPC position for collision (updates ref only, no state)
   const handleNpcPositionUpdate = useCallback((npcId: string, position: THREE.Vector3) => {
-    // Store in ref for immediate access
+    // Store in ref for immediate access - no state update to avoid re-renders
     if (!npcPositionsRef.current.has(npcId)) {
       npcPositionsRef.current.set(npcId, position.clone());
     } else {
       npcPositionsRef.current.get(npcId)!.copy(position);
     }
-    // Update state periodically (throttled) for collision system
-    setNpcPositions(Array.from(npcPositionsRef.current.entries()).map(([id, pos]) => ({ id, position: pos })));
   }, []);
 
   // Build mode camera focus point (center of terrain)
@@ -4663,7 +4661,7 @@ export default function TestWorld() {
                     rotationRef={characterRotationRef}
                       getTerrainHeight={getTerrainHeight}
                       characterHeightOffset={characterHeightOffset}
-                    npcPositions={npcPositions}
+                    npcPositionsRef={npcPositionsRef}
                     onAnimationTrigger={(crossfade) => {
                   if (animationTriggerRef.current) {
                       animationTriggerRef.current = crossfade;
