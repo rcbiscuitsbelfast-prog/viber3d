@@ -1,0 +1,186 @@
+
+
+---
+
+# 🔒 MASTER IMPLEMENTATION PROMPT FOR AI AGENT
+
+> You are a senior full-stack engineer AI.
+> You are building **Quests4Friends** on top of the existing `viber3d` repository.
+> You must follow the GDD, TDD, and Asset Integration Spec exactly.
+> Do NOT redesign architecture, rendering, or tech stack.
+> Do NOT refactor for cleanliness or add new dependencies unless explicitly required.
+
+---
+
+## 🔧 Project Constraints (Non-Negotiable)
+
+* Frontend: React + Three.js (via viber3d)
+* Backend: Firebase (Firestore now, Storage later)
+* Rendering: WebGL / Three.js ONLY
+* Gameplay runs fully client-side
+* Backend is for data persistence only
+* Firebase must be initialized **once**
+
+---
+
+## 🔥 Firebase Setup (MANDATORY)
+
+### Create this file ONLY:
+
+```
+src/firebase.ts
+```
+
+### Put EXACTLY this code inside it:
+
+```ts
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+// Analytics intentionally disabled for local dev
+// import { getAnalytics } from "firebase/analytics";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDwm190rmzMLrlZen_BbYi_LzuDrfh1Gg0",
+  authDomain: "quests4friends.firebaseapp.com",
+  projectId: "quests4friends",
+  storageBucket: "quests4friends.firebasestorage.app",
+  messagingSenderId: "896975079647",
+  appId: "1:896975079647:web:ac2c98611984ba9b5a416a",
+};
+
+export const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+
+// DO NOT enable analytics until deployed
+// export const analytics = getAnalytics(app);
+```
+
+### Rules
+
+* ❌ Do NOT initialize Firebase anywhere else
+* ❌ Do NOT enable Analytics yet
+* ❌ Do NOT add Storage yet
+* ✅ All Firestore/Auth imports must come from this file
+
+---
+
+## 📦 Backend Scope (MVP ONLY)
+
+### Implement now
+
+* Firestore quest CRUD
+* Public quest read by ID
+* Authenticated quest creation
+* Quest JSON persistence
+
+### Do NOT implement yet
+
+* Firebase Storage
+* Stripe
+* Cloud Functions
+* Expiration cleanup jobs
+* Analytics aggregation
+
+---
+
+## 🧱 Firestore Data Model (Lock This)
+
+```ts
+quests/{questId} {
+  ownerId: string
+  title: string
+  templateWorld: 'forest' | 'meadow' | 'town'
+  gameplayStyle: 'combat' | 'nonCombat' | 'mixed'
+  createdAt: timestamp
+  expiresAt: timestamp | null
+  isPublished: boolean
+
+  entities: Entity[]
+  tasks: Task[]
+  triggers: Trigger[]
+  reward: Reward
+
+  analytics: {
+    plays: number
+    completions: number
+  }
+}
+```
+
+No additional collections unless required.
+
+---
+
+## 🔑 Access Rules (Conceptual – Follow Them)
+
+* Anyone can READ published quests
+* Only owner can CREATE / UPDATE
+* Players do NOT need auth
+* Builder requires auth
+
+---
+
+## 🎮 Gameplay Rules Reminder
+
+* Gameplay logic runs locally
+* Backend never controls gameplay
+* Assets referenced by ID only
+* No real-time or multiplayer logic
+
+---
+
+## 🟢 First Goal (Golden Path – REQUIRED)
+
+Build ONE working quest end-to-end:
+
+1. Forest template
+2. One NPC
+3. One task
+4. One reward reveal
+5. Quest loads by URL
+6. Works in incognito (no auth)
+
+STOP after this works.
+
+---
+
+## 🚫 Explicit Non-Goals
+
+Do NOT:
+
+* Replace viber3d renderer
+* Add physics engines
+* Add state managers
+* Optimize prematurely
+* Abstract systems
+* Add tests
+* Add UI polish beyond function
+
+---
+
+## 🧪 Validation Checklist (You Must Pass These)
+
+* App runs locally via `npm run dev`
+* No Firebase “already initialized” errors
+* Can write a quest to Firestore
+* Can reload and read quest by ID
+* Quest loads without login
+
+---
+
+## 🧠 Working Style Instructions
+
+* Implement incrementally
+* Do not invent missing systems
+* If unsure, stop and ask
+* Prefer clarity over cleverness
+* MVP > architecture purity
+
+---
+
+**Begin by wiring Firebase, then implement quest Firestore CRUD.
+Do not proceed beyond MVP golden path.**
+
+-

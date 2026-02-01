@@ -1,4 +1,5 @@
 import { Suspense, useState, useCallback, useEffect, useRef } from 'react';
+import { Text, Text3D } from '@react-three/drei';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Canvas, useThree } from '@react-three/fiber';
@@ -9,6 +10,7 @@ import CustomButton from '@/components/CustomButton';
 import AnimatedCharacter from '@/r3f/AnimatedCharacter';
 import { getWeaponConfig, getShieldConfig } from '@/data/weapon-configs';
 import { animationManager } from '@/systems/animation/AnimationManager';
+import { Font3DText } from '../r3f/Font3DText';
 import * as THREE from 'three';
 
 // Helper to resolve asset paths with base URL for GitHub Pages
@@ -52,6 +54,35 @@ interface AssetPack {
 }
 
 const ASSET_PACKS: AssetPack[] = [
+  {
+    id: 'custom',
+    name: 'Custom',
+    description: 'Your custom assets, including ornate wooden sign and druid.',
+    characters: [
+      {
+        id: 'ornate_wooden_sign',
+        name: 'Ornate Wooden Sign',
+        modelPath: '/Assets/button/ornate+wooden+sign+3d+model.glb',
+        assetId: 'ornate_wooden_sign',
+        pack: 'custom',
+        defaultRotation: [0, Math.PI / 2, 0], // 90 degrees right
+      },
+      {
+        id: 'druid',
+        name: 'Druid',
+        modelPath: '/Assets/button/druid+clean.glb',
+        assetId: 'druid',
+        pack: 'custom',
+      },
+      {
+        id: 'fonts_demo',
+        name: 'Fonts',
+        modelPath: '', // No model, will render 3D text demo
+        assetId: 'fonts_demo',
+        pack: 'custom',
+      },
+    ],
+  },
   {
     id: 'self_contained',
     name: 'Self-Contained Models',
@@ -235,7 +266,51 @@ function CollapsibleMonsterGroups({
 }
 
 // Character Preview Component
-function CharacterPreview({ character }: { character: Character }) {
+function CharacterPreview({ 
+  character,
+  signText3DSize,
+  signText3DHeight,
+  signText3DBevel,
+  signText3DBevelThickness,
+  signText3DBevelSegments,
+  signText3DCurveSegments,
+  signTextPosition,
+  signTextRotation,
+  signText,
+}: { 
+  character: Character;
+  signText3DSize?: number;
+  signText3DHeight?: number;
+  signText3DBevel?: number;
+  signText3DBevelThickness?: number;
+  signText3DBevelSegments?: number;
+  signText3DCurveSegments?: number;
+  signTextPosition?: [number, number, number];
+  signTextRotation?: [number, number, number];
+  signText?: string;
+}) {
+  // 3D text controls (for fonts_demo)
+  // All adjustable options for Three.js TextGeometry
+  const [textDepth, setTextDepth] = useState(0.110); // height (default thickness)
+  const [textBevel, setTextBevel] = useState(0.001); // bevelSize (smaller)
+  const [textBevelThickness, setTextBevelThickness] = useState(0.003); // bevelThickness (smaller)
+  const [textBevelSegments, setTextBevelSegments] = useState(5);
+  const [textBevelOffset, setTextBevelOffset] = useState(0);
+  const [textCurveSegments, setTextCurveSegments] = useState(12);
+  const [textScale, setTextScale] = useState(1.0); // size
+  // Font selection for 3D text demo
+  const fontOptions = [
+    // Only working 3D fonts (.typeface.json) are selectable for 3D text
+    { label: 'Helvetiker Regular (3D)', value: '/Assets/three.js/examples/fonts/helvetiker_regular.typeface.json' },
+    { label: 'Helvetiker Bold (3D)', value: '/Assets/three.js/examples/fonts/helvetiker_bold.typeface.json' },
+    { label: 'Gentilis Regular (3D)', value: '/fonts/gentilis_regular.typeface.json' },
+    // Medieval font is TTF only (2D preview/fallback)
+    { label: 'Medieval (TTF, 2D only)', value: '/fonts/MedievalSharp-Regular.ttf', isTTF: true, disabled: true },
+  ];
+  const defaultFont = fontOptions.find((option) => option.label.startsWith('Gentilis'))?.value ?? fontOptions[0].value;
+  const [selectedFont, setSelectedFont] = useState(defaultFont);
+  // Fallback for font loading errors
+  const [fontError, setFontError] = useState(false);
   const [availableAnimations, setAvailableAnimations] = useState<string[]>([]);
   const [currentAnimation, setCurrentAnimation] = useState<string>('');
   const [isLoaded, setIsLoaded] = useState(false);
@@ -386,6 +461,7 @@ function CharacterPreview({ character }: { character: Character }) {
 
   return (
     <div className="w-full h-full relative flex flex-col">
+
       {/* Canvas - Takes up most of the space */}
       <div className="flex-1 relative" style={{ minHeight: 0 }}>
         <Canvas
@@ -405,28 +481,110 @@ function CharacterPreview({ character }: { character: Character }) {
             <pointLight position={[-5, 5, -5]} intensity={0.6} />
             <pointLight position={[0, 2, 2]} intensity={0.4} />
 
-            <AnimatedCharacter
-              characterPath={resolvePath(character.modelPath)}
-              assetId={character.assetId}
-              characterId={`dashboard-${character.id}`}
-              position={characterPosition}
-              scale={character.id === 'soldier' ? characterScale * 0.5 : 1}
-              rotation={[0, 0, 0]}
-              currentAnimation={currentAnimation}
-              weaponPath={selectedWeapon ? resolvePath(selectedWeapon) : undefined}
-              shieldPath={selectedShield ? resolvePath(selectedShield) : undefined}
-              weaponAdjustments={selectedWeapon ? {
-                scale: weaponAdjustments.scale,
-                position: [weaponAdjustments.positionX, weaponAdjustments.positionY, weaponAdjustments.positionZ],
-                rotation: [weaponAdjustments.rotationX, weaponAdjustments.rotationY, weaponAdjustments.rotationZ],
-              } : undefined}
-              shieldAdjustments={selectedShield ? {
-                scale: shieldAdjustments.scale,
-                position: [shieldAdjustments.positionX, shieldAdjustments.positionY, shieldAdjustments.positionZ],
-                rotation: [shieldAdjustments.rotationX, shieldAdjustments.rotationY, shieldAdjustments.rotationZ],
-              } : undefined}
-              onAnimationsLoaded={handleAnimationsLoaded}
-            />
+            {character.id === 'fonts_demo' ? (
+                <>
+                  {selectedFont.endsWith('.ttf') ? null : (
+                    <Suspense fallback={null}>
+                      <Font3DText
+                        text="Questerly"
+                        position={[0, 0.5, 0.5]}
+                        rotation={[0, 0, 0]}
+                        height={textDepth}
+                        curveSegments={textCurveSegments}
+                        size={textScale}
+                        bevelEnabled={textBevel > 0}
+                        bevelThickness={textBevelThickness}
+                        bevelSize={textBevel}
+                        bevelSegments={textBevelSegments}
+                        fontUrl={selectedFont}
+                      />
+                    </Suspense>
+                  )}
+                </>
+            ) :
+              character.id === 'fonts_demo' && selectedFont.endsWith('.ttf') ? (
+                <>
+                  <div style={{
+                    position: 'fixed',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 100,
+                    background: 'rgba(30,30,30,0.95)',
+                    padding: '2rem 3rem',
+                    borderRadius: '1rem',
+                    boxShadow: '0 4px 32px #0008',
+                    textAlign: 'center',
+                    pointerEvents: 'none',
+                  }}>
+                    <span style={{
+                      fontFamily: 'MedievalSharp, serif',
+                      fontSize: '3rem',
+                      color: '#FFD700',
+                      letterSpacing: '0.1em',
+                      textShadow: '2px 2px 8px #000a',
+                      display: 'block',
+                    }}>
+                      Questerly
+                    </span>
+                    <div className="text-xs text-yellow-400 mt-2">
+                      (2D preview using MedievalSharp TTF font)
+                    </div>
+                  </div>
+                  <style>{`
+                    @font-face {
+                      font-family: 'MedievalSharp';
+                      src: url('/fonts/MedievalSharp-Regular.ttf') format('truetype');
+                      font-weight: normal;
+                      font-style: normal;
+                    }
+                  `}</style>
+                </>
+              ) : null
+            }
+            {character.modelPath && character.modelPath.length > 0 && (
+              <AnimatedCharacter
+                characterPath={resolvePath(character.modelPath)}
+                assetId={character.assetId}
+                characterId={`dashboard-${character.id}`}
+                position={characterPosition}
+                scale={character.id === 'soldier' ? characterScale * 0.5 : character.id === 'ornate_wooden_sign' ? 2 : 1}
+                rotation={character.id === 'ornate_wooden_sign' && character.defaultRotation ? character.defaultRotation : [0, 0, 0]}
+                currentAnimation={currentAnimation}
+                weaponPath={selectedWeapon ? resolvePath(selectedWeapon) : undefined}
+                shieldPath={selectedShield ? resolvePath(selectedShield) : undefined}
+                weaponAdjustments={selectedWeapon ? {
+                  scale: weaponAdjustments.scale,
+                  position: [weaponAdjustments.positionX, weaponAdjustments.positionY, weaponAdjustments.positionZ],
+                  rotation: [weaponAdjustments.rotationX, weaponAdjustments.rotationY, weaponAdjustments.rotationZ],
+                } : undefined}
+                shieldAdjustments={selectedShield ? {
+                  scale: shieldAdjustments.scale,
+                  position: [shieldAdjustments.positionX, shieldAdjustments.positionY, shieldAdjustments.positionZ],
+                  rotation: [shieldAdjustments.rotationX, shieldAdjustments.rotationY, shieldAdjustments.rotationZ],
+                } : undefined}
+                onAnimationsLoaded={handleAnimationsLoaded}
+              />
+            )}
+            {/* Render 3D text overlay on wooden sign for sizing/placement confirmation */}
+            {character.id === 'ornate_wooden_sign' && (
+              <Suspense fallback={null}>
+                <Font3DText
+                  text={signText || 'SIGN'}
+                  position={signTextPosition || [0, 0.5, 0.01]}
+                  color="#FFD700"
+                  size={signText3DSize || 0.8}
+                  height={signText3DHeight || 0.08}
+                  bevelEnabled={true}
+                  bevelSize={signText3DBevel || 0.008}
+                  bevelThickness={signText3DBevelThickness || 0.015}
+                  bevelSegments={signText3DBevelSegments || 3}
+                  curveSegments={signText3DCurveSegments || 12}
+                  fontUrl="/Assets/three.js/examples/fonts/helvetiker_regular.typeface.json"
+                  rotation={signTextRotation || [0, 0, 0]}
+                />
+              </Suspense>
+            )}
 
             <ContactShadows
               position={[0, 0, 0]}
@@ -449,6 +607,99 @@ function CharacterPreview({ character }: { character: Character }) {
           </Suspense>
         </Canvas>
 
+        {/* 3D Text Controls (only for Fonts demo) - OUTSIDE Canvas */}
+        {character.id === 'fonts_demo' && (
+          <div className="absolute right-4 top-4 flex flex-col gap-2 bg-slate-900/90 backdrop-blur border border-slate-700 rounded-lg p-3 w-80 max-h-[80vh] overflow-y-auto z-10">
+            <div className="text-xs text-slate-300 font-bold uppercase mb-2">3D Text Controls</div>
+            <label className="text-xs text-slate-400">Font:</label>
+            <select
+              className="w-full mb-2 bg-slate-800 text-slate-200 rounded px-2 py-1"
+              value={selectedFont}
+              onChange={e => setSelectedFont(e.target.value)}
+            >
+              {fontOptions.map(opt => (
+                <option key={opt.value} value={opt.value} disabled={opt.disabled}>{opt.label}</option>
+              ))}
+            </select>
+            {selectedFont.endsWith('.ttf') && (
+              <div className="text-xs text-yellow-400 mb-2">
+                <b>Medieval font is not available in 3D</b> (Three.js TextGeometry requires .typeface.json).<br />
+                Only Helvetiker Regular/Bold are available for 3D text. Use the sign for 2D medieval font preview.
+              </div>
+            )}
+            <label className="text-xs text-slate-400">Thickness (Height): {textDepth.toFixed(3)}</label>
+            <input
+              type="range"
+              min="0.01"
+              max="1.0"
+              step="0.01"
+              value={textDepth}
+              onChange={e => setTextDepth(Number(e.target.value))}
+              className="w-full mb-2"
+            />
+            <label className="text-xs text-slate-400">Bevel Size: {textBevel.toFixed(3)}</label>
+            <input
+              type="range"
+              min="0"
+              max="0.01"
+              step="0.001"
+              value={textBevel}
+              onChange={e => setTextBevel(Number(e.target.value))}
+              className="w-full mb-2"
+            />
+            <label className="text-xs text-slate-400">Bevel Thickness: {textBevelThickness.toFixed(3)}</label>
+            <input
+              type="range"
+              min="0.001"
+              max="0.03"
+              step="0.001"
+              value={textBevelThickness}
+              onChange={e => setTextBevelThickness(Number(e.target.value))}
+              className="w-full mb-2"
+            />
+            <label className="text-xs text-slate-400">Bevel Segments: {textBevelSegments}</label>
+            <input
+              type="range"
+              min="1"
+              max="15"
+              step="1"
+              value={textBevelSegments}
+              onChange={e => setTextBevelSegments(Number(e.target.value))}
+              className="w-full mb-2"
+            />
+            <label className="text-xs text-slate-400">Bevel Offset: {textBevelOffset.toFixed(3)}</label>
+            <input
+              type="range"
+              min="-0.05"
+              max="0.05"
+              step="0.001"
+              value={textBevelOffset}
+              onChange={e => setTextBevelOffset(Number(e.target.value))}
+              className="w-full mb-2"
+            />
+            <label className="text-xs text-slate-400">Curve Segments: {textCurveSegments}</label>
+            <input
+              type="range"
+              min="1"
+              max="24"
+              step="1"
+              value={textCurveSegments}
+              onChange={e => setTextCurveSegments(Number(e.target.value))}
+              className="w-full mb-2"
+            />
+            <label className="text-xs text-slate-400">Scale (Size): {textScale.toFixed(2)}</label>
+            <input
+              type="range"
+              min="0.01"
+              max="1.0"
+              step="0.01"
+              value={textScale}
+              onChange={e => setTextScale(Number(e.target.value))}
+              className="w-full mb-2"
+            />
+          </div>
+        )}
+
         {/* Zoom Control - Right side */}
         <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col items-center gap-3 bg-slate-900/90 backdrop-blur border border-slate-700 rounded-lg p-3">
           <button
@@ -465,8 +716,8 @@ function CharacterPreview({ character }: { character: Character }) {
             step="0.5"
             value={cameraDistance}
             onChange={(e) => setCameraDistance(Number(e.target.value))}
-            className="w-32 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer [writing-mode:bt-lr] [-webkit-appearance:slider-vertical]"
-            style={{ writingMode: 'bt-lr' }}
+            className="w-32 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+            style={{ writingMode: 'vertical-lr', direction: 'rtl' }}
             title="Zoom"
           />
           <button
@@ -706,7 +957,8 @@ function CharacterPreview({ character }: { character: Character }) {
           </div>
         )}
 
-        {!isLoaded && (
+        {/* Only show loading overlay for non-fonts models */}
+        {!isLoaded && character.id !== 'fonts_demo' && (
           <div className="absolute inset-0 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
             <div className="text-white font-bold text-lg animate-pulse">Loading {character.name}...</div>
           </div>
@@ -1056,6 +1308,17 @@ export default function UserDashboard() {
   const user = useAuthStore((state) => state.user);
   const [selectedPack, setSelectedPack] = useState<AssetPack>(ASSET_PACKS[0]);
   const [selectedCharacter, setSelectedCharacter] = useState<Character>(ASSET_PACKS[0].characters[0]);
+  
+  // Sign 3D text parameters
+  const [signText, setSignText] = useState('Questerly');
+  const [signText3DSize, setSignText3DSize] = useState(0.80);
+  const [signText3DHeight, setSignText3DHeight] = useState(0.420);
+  const [signText3DBevel, setSignText3DBevel] = useState(0.024);
+  const [signText3DBevelThickness, setSignText3DBevelThickness] = useState(0.050);
+  const [signText3DBevelSegments, setSignText3DBevelSegments] = useState(3);
+  const [signText3DCurveSegments, setSignText3DCurveSegments] = useState(3);
+  const [signTextPosition, setSignTextPosition] = useState<[number, number, number]>([0, 1.90, 0.20]);
+  const [signTextRotation, setSignTextRotation] = useState<[number, number, number]>([0, 0, 0]);
 
   const handlePackChange = (pack: AssetPack) => {
     setSelectedPack(pack);
@@ -1095,6 +1358,12 @@ export default function UserDashboard() {
               variant="primary"
             >
               🏰 Builder
+            </CustomButton>
+            <CustomButton
+              onClick={() => navigate('/three-text')}
+              variant="primary"
+            >
+              🔤 Three-text
             </CustomButton>
           </div>
         </motion.div>
@@ -1166,6 +1435,196 @@ export default function UserDashboard() {
           );
         })()}
 
+        {/* Sign 3D Text Controls - Only for ornate_wooden_sign */}
+        {selectedCharacter.id === 'ornate_wooden_sign' && (
+          <div className="mb-8 bg-slate-800 rounded-xl border border-slate-700 p-6">
+            <h3 className="text-lg font-semibold mb-4 text-slate-300">Sign 3D Text Settings</h3>
+            
+            {/* Text Input */}
+            <div className="mb-4">
+              <label className="block text-sm text-slate-400 mb-2">Sign Text</label>
+              <input
+                type="text"
+                placeholder="Enter text for the sign"
+                value={signText}
+                onChange={(e) => setSignText(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            {/* 3D Text Parameters Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Size */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">Size: {signText3DSize.toFixed(2)}</label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="3"
+                  step="0.1"
+                  value={signText3DSize}
+                  onChange={(e) => setSignText3DSize(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Height (Depth) */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">Height (Depth): {signText3DHeight.toFixed(3)}</label>
+                <input
+                  type="range"
+                  min="0.01"
+                  max="0.5"
+                  step="0.01"
+                  value={signText3DHeight}
+                  onChange={(e) => setSignText3DHeight(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Bevel Size */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">Bevel Size: {signText3DBevel.toFixed(3)}</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="0.05"
+                  step="0.001"
+                  value={signText3DBevel}
+                  onChange={(e) => setSignText3DBevel(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Bevel Thickness */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">Bevel Thickness: {signText3DBevelThickness.toFixed(3)}</label>
+                <input
+                  type="range"
+                  min="0.001"
+                  max="0.05"
+                  step="0.001"
+                  value={signText3DBevelThickness}
+                  onChange={(e) => setSignText3DBevelThickness(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Bevel Segments */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">Bevel Segments: {signText3DBevelSegments}</label>
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  step="1"
+                  value={signText3DBevelSegments}
+                  onChange={(e) => setSignText3DBevelSegments(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Curve Segments */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">Curve Segments: {signText3DCurveSegments}</label>
+                <input
+                  type="range"
+                  min="1"
+                  max="24"
+                  step="1"
+                  value={signText3DCurveSegments}
+                  onChange={(e) => setSignText3DCurveSegments(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Position X */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">Position X: {signTextPosition[0].toFixed(2)}</label>
+                <input
+                  type="range"
+                  min="-1"
+                  max="1"
+                  step="0.01"
+                  value={signTextPosition[0]}
+                  onChange={(e) => setSignTextPosition([Number(e.target.value), signTextPosition[1], signTextPosition[2]])}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Position Y */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">Position Y: {signTextPosition[1].toFixed(2)}</label>
+                <input
+                  type="range"
+                  min="-1"
+                  max="2"
+                  step="0.01"
+                  value={signTextPosition[1]}
+                  onChange={(e) => setSignTextPosition([signTextPosition[0], Number(e.target.value), signTextPosition[2]])}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Position Z */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">Position Z: {signTextPosition[2].toFixed(2)}</label>
+                <input
+                  type="range"
+                  min="-0.5"
+                  max="0.5"
+                  step="0.01"
+                  value={signTextPosition[2]}
+                  onChange={(e) => setSignTextPosition([signTextPosition[0], signTextPosition[1], Number(e.target.value)])}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Rotation X */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">Rotation X: {(signTextRotation[0] * 180 / Math.PI).toFixed(1)}°</label>
+                <input
+                  type="range"
+                  min={-Math.PI}
+                  max={Math.PI}
+                  step="0.01"
+                  value={signTextRotation[0]}
+                  onChange={(e) => setSignTextRotation([Number(e.target.value), signTextRotation[1], signTextRotation[2]])}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Rotation Y */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">Rotation Y: {(signTextRotation[1] * 180 / Math.PI).toFixed(1)}°</label>
+                <input
+                  type="range"
+                  min={-Math.PI}
+                  max={Math.PI}
+                  step="0.01"
+                  value={signTextRotation[1]}
+                  onChange={(e) => setSignTextRotation([signTextRotation[0], Number(e.target.value), signTextRotation[2]])}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Rotation Z */}
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">Rotation Z: {(signTextRotation[2] * 180 / Math.PI).toFixed(1)}°</label>
+                <input
+                  type="range"
+                  min={-Math.PI}
+                  max={Math.PI}
+                  step="0.01"
+                  value={signTextRotation[2]}
+                  onChange={(e) => setSignTextRotation([signTextRotation[0], signTextRotation[1], Number(e.target.value)])}
+                  className="w-full"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Main Preview Area */}
         {(() => {
           const allCharacters = selectedPack.subGroups 
@@ -1181,7 +1640,18 @@ export default function UserDashboard() {
             className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden"
           >
             <div className="aspect-video">
-              <CharacterPreview character={selectedCharacter} />
+              <CharacterPreview 
+                character={selectedCharacter}
+                signText={signText}
+                signText3DSize={signText3DSize}
+                signText3DHeight={signText3DHeight}
+                signText3DBevel={signText3DBevel}
+                signText3DBevelThickness={signText3DBevelThickness}
+                signText3DBevelSegments={signText3DBevelSegments}
+                signText3DCurveSegments={signText3DCurveSegments}
+                signTextPosition={signTextPosition}
+                signTextRotation={signTextRotation}
+              />
             </div>
 
             {/* Character Info Bar */}

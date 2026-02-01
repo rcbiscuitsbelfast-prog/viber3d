@@ -1,0 +1,107 @@
+## 1️⃣ (This Matters More Than Code)
+
+### Rule #1: Names must describe _intent_, not implementation
+
+Avoid:
+
+- “Prefab”
+    
+- “Procedural”
+    
+- “NPC Path Nodes”
+    
+- “Line of Sight”
+    
+
+Use:
+
+- playful, story-first language
+    
+- verbs over nouns
+    
+- concepts kids can repeat
+    
+
+---
+
+### Core World Building Blocks (Recommended Names)
+
+|Internal Concept|User-Facing Name|Why|
+|---|---|---|
+|World / Scene|**Island**|Feels complete & magical|
+|Biome|**Area**|Simple, flexible|
+|Map Template|**Starting World**|Inviting|
+|Procedural Fill|**Auto-Fill**|Clear + friendly|
+|Prefab Town|**Ready-Made Place**|Non-technical|
+|Custom Build|**Build Your Own**|Empowering|
+|Quest Flow|**Story Path**|Narrative framing|
+
+So the UI says:
+
+> “Choose an Island”  
+> “Pick an Area”  
+> “Auto-Fill the world”
+
+Not:
+
+> “Generate procedural terrain”
+
+---
+
+### Buildings & Locations
+
+|Internal|User-Facing|
+|---|---|
+|Town|**Village**|
+|Castle|**Castle**|
+|House|**Home**|
+|Dungeon|**Cave** or **Ruins**|
+|Interior|**Inside View**|
+
+Avoid “modules” or “structures”.
+
+---
+
+### Characters & Enemies
+
+|Internal|User-Facing|
+|---|---|
+|NPC|**Villager** / **Character**|
+|Enemy|**Creature**|
+|Boss|**Big Bad** (this is _gold_)|
+|AI Path|**Walking Route**|
+|Patrol|**Guarding**|
+|Line of Sight|**What They Can See**|
+
+Example:
+
+> “This creature guards the gate”  
+> “The Big Bad is called…”
+
+---
+
+### Dialogue & Audio
+
+|Internal|User-Facing|
+|---|---|
+|Dialogue Line|**Speech Bubble**|
+|Voice Pack|**Voice Style**|
+|Audio Trigger|**When They Speak**|
+
+Keep it story-centric.
+
+---
+
+### Puzzles & Rewards
+
+|Internal|User-Facing|
+|---|---|
+|Slider Puzzle|**Picture Puzzle**|
+|Puzzle Asset|**Puzzle Image**|
+|Completion Trigger|**Winning Moment**|
+|Reward|**Surprise**|
+|Announcement|**Final Message**|
+
+That framing keeps it light and emotional.
+
+-

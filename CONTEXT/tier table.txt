@@ -1,0 +1,96 @@
+# 🧙‍♂️ Questerly — Full Player Tier & Capability Matrix (Authoritative)
+
+|Capability|Free (No Login)|Free Account|Creator Pass (£5/mo)|Pro Creator (£12–15/mo)|Own a World (£15 one-off)|
+|---|---|---|---|---|---|
+|**Worlds allowed**|Unlimited (temporary)|2|5|20|**1 (permanent)**|
+|**World expiry**|~5 days or ~5 plays|~10 days or ~50 plays|~30 days|Never|**Never**|
+|**Plays per world**|Very limited|Limited|High (~500)|Unlimited|**Unlimited**|
+|**Concurrent players per world**|5–10|5–10|20–30|**100**|**50**|
+|**High-Traffic Mode (add-on)**|❌|❌|Optional|Optional|Optional|
+|**Max concurrent w/ High-Traffic**|—|—|100–250|250–1000+|250–500|
+|**Templates (ready-made quests)**|✅|✅|✅|✅|✅|
+|**Build from scratch**|✅|✅|✅|✅|✅|
+|**Island selection**|✅|✅|✅|✅|✅|
+|**Area selection (forest, etc.)**|✅|✅|✅|✅|✅|
+|**Auto-fill world (procedural)**|✅|✅|✅|✅|✅|
+|**Ready-made villages / castles**|✅|✅|✅|✅|✅|
+|**Custom homes / buildings**|❌|❌|✅|✅|✅|
+|**NPC auto-placement**|✅|✅|✅|✅|✅|
+|**Manual NPC placement**|❌|❌|✅|✅|✅|
+|**NPC walking routes**|❌|❌|❌|✅|❌|
+|**Dialogue lines**|✅|✅|✅|✅|✅|
+|**Voice styles**|Basic|Basic|More|All|More|
+|**Enemy types**|Basic|Basic|More|All|More|
+|**Name the Big Bad**|✅|✅|✅|✅|✅|
+|**Manual enemy placement**|❌|❌|❌|✅|❌|
+|**Enemy vision (“what they can see”)**|❌|❌|❌|✅|❌|
+|**Weapon / behavior tuning**|❌|❌|❌|✅|❌|
+|**Puzzle quests (slider, etc.)**|✅|✅|✅|✅|✅|
+|**Custom puzzle images**|✅|✅|✅|✅|✅|
+|**Final reward / announcement**|✅|✅|✅|✅|✅|
+|**Reveal effects & polish**|Basic|Basic|Better|Full|Better|
+|**Multiple areas per quest**|❌|❌|❌|✅|❌|
+|**Private / unlisted quests**|❌|❌|❌|✅|❌|
+|**Collaboration (multi-creator)**|❌|❌|❌|✅|❌|
+|**Analytics**|❌|Basic|Better|Full|Basic|
+|**Storage cap (per world)**|Very low|Low|Medium|High|**Medium (fixed ~100MB)**|
+|**Storage expansion add-ons**|❌|❌|❌|❌|Optional (£5+)|
+|**Custom asset uploads**|❌|❌|❌|✅|❌ (future add-on)|
+|**Monetisation tools (future)**|❌|❌|❌|✅|❌|
+
+---
+
+## 🧠 How This System Reads (Important)
+
+- **Free users** → instant creativity, zero friction
+    
+- **Creator Pass** → more freedom, more expression
+    
+- **Pro Creator** → full control + scale
+    
+- **Own a World** → emotional ownership + permanence
+    
+- **High-Traffic Mode** → infrastructure, not status
+    
+
+Nothing feels punitive.  
+Everything scales with **server cost**.
+
+---
+
+## 🔑 Concurrency Philosophy (Locked In)
+
+- Total plays ≠ problem
+    
+- **Simultaneous plays = real cost**
+    
+- Queueing is normal, expected, fair
+    
+- High-Traffic Mode is framed as _capacity_, not privilege
+    
+
+This protects you from:
+
+- viral streamers
+    
+- classroom spikes
+    
+- coordinated raids
+    
+- accidental outages
+    
+
+---
+
+## 🚦Operational Notes (For You / AI Agents)
+
+- Concurrency limits enforced per-world
+    
+- Graceful queue message when full
+    
+- Optional temporary boosts (event-based)
+    
+- Pro worlds get priority scaling
+    
+- Owned worlds are capped but reliable
+    

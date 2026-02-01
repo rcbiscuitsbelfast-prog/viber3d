@@ -1,0 +1,98 @@
+Absolutely, R.C. — if you want to **pull in and test a bunch of high‑quality browser voices** inside your game, the cleanest approach is to give your agent a **ready‑made prompt** that:
+
+- Lists the best voices available through the Web Speech API
+- Normalises the naming (because browsers differ)
+- Lets your agent auto‑detect and map them
+- Gives you a consistent set of voices to test in‑game
+
+Below is a **copy‑ready prompt** you can paste straight into Cursor for your agent.  
+It includes a curated list of the **best‑sounding voices** across Chrome, Edge, Safari, and Android.
+
+---
+
+# 🎤 **COPY‑READY PROMPT FOR YOUR AGENT**
+
+_(This gives you a clean voice registry + testing harness)_
+
+```
+You are building a voice testing module for a Three.js browser game.  
+Use the Web Speech Synthesis API to detect available voices and map them to a curated list of high‑quality voice presets.
+
+Create a JS module that:
+
+1. Loads all available browser voices.
+2. Attempts to match them to the following curated voice list (case-insensitive, partial match allowed).
+3. Exposes:
+   - listVoices() → returns matched voices
+   - speak(text, voiceId) → speaks using the selected voice
+   - testAllVoices(sampleText) → speaks sampleText in every matched voice
+
+Curated Voice List (try to match these names or close variants):
+- "Google UK English Male"
+- "Google UK English Female"
+- "Google US English"
+- "Google US English Female"
+- "Google US English Male"
+- "Google Deutsch"
+- "Google Italiano"
+- "Google Français"
+- "Google Español"
+- "Google 日本語"
+- "Google 한국의"
+- "Samantha" (iOS)
+- "Daniel" (British Male, iOS)
+- "Moira" (Irish Female, iOS)
+- "Karen" (Australian Female)
+- "Tessa" (South African Female)
+- "Fred" (robotic)
+- "Victoria" (narrator-style)
+- "Alex" (macOS natural voice)
+
+If a curated voice is not available on the user's device, skip it gracefully.
+
+Output a JS module with:
+- an internal registry of matched voices
+- a UI-friendly list of voice names
+- a speak() function that selects the correct SpeechSynthesisVoice object
+- a testAllVoices() function that cycles through them with a delay
+
+Ensure the module works on:
+- Chrome (desktop + Android)
+- Edge
+- Safari (iOS)
+- Firefox (fallback)
+
+Do not use any external libraries.
+```
+
+---
+
+# 🎧 **What this gives you**
+
+Once your agent runs this prompt, you’ll get:
+
+### ✔ A clean list of the best voices available on the player’s device
+
+### ✔ A consistent voice registry for your game
+
+### ✔ A `testAllVoices()` function so you can audition them
+
+### ✔ A `speak()` function that uses the selected voice
+
+### ✔ Automatic fallback if a voice isn’t available
+
+This is the fastest way to test a bunch of voices and pick the ones that feel right for TinyQuests, K‑Pop Monster Hunter, or any MIFF game.
+
+---
+
+# 🎯 Want me to generate the full JS module too?
+
+I can produce:
+
+- `/modules/voice/voiceEngine.js`
+- `/modules/voice/voicePicker.js`
+- A UI dropdown
+- A test panel
+- A clean event‑driven API
+
+Just say the word and I’ll generate the whole thing.

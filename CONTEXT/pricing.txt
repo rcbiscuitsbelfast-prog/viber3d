@@ -1,0 +1,202 @@
+# 🧭 Questerly — Pricing (Single Screen)
+
+### Header
+
+**Make quests. Share them. Keep what you love.**
+
+_Subheading:_  
+Start free. Upgrade only when you want more time, more worlds, or to keep one forever.
+
+---
+
+## 🆓 Free (Play & Share)
+7
+**£0**
+
+- Make and share quests instantly
+    
+- Great for quick jokes, surprises, and demos
+    
+- Quests are temporary
+    
+- No login required
+    
+
+**Best for:** trying Questerly, sharing something fast
+
+[ **Start Free** ]
+
+---
+
+## ⭐ Creator Pass
+
+**£5 / month**
+
+- Save up to **5 quests**
+    
+- More characters, surprises, and assets
+    
+- Quests last longer and can be played more
+    
+- Basic stats (plays & completions)
+    
+
+**Best for:** people who like building and sharing often
+
+[ **Upgrade** ]
+
+---
+
+## 🚀 Pro Creator
+
+**£12 / month**
+
+- Save up to **20 quests**
+    
+- Unlimited plays
+    
+- Quests never expire
+    
+- Upload your own assets
+    
+- Private quests & collaboration tools
+    
+
+**Best for:** serious creators, streamers, groups
+
+[ **Go Pro** ]
+
+---
+
+## 🏠 Own a Quest Forever
+
+**£15 one-time**
+
+- One quest, yours forever
+    
+- Unlimited plays
+    
+- Never expires
+    
+- Edit and update anytime
+    
+
+**Best for:** teachers, families, special projects, or your “main world”
+
+[ **Own a Quest** ]
+
+---
+
+### Footer (Very Important)
+
+> You only pay if you want to keep your quests longer or build more.  
+> Everything you make is yours.
+
+---
+
+## 🧠 Why This Screen Works
+
+### 1️⃣ No tables, no math
+
+People don’t want to compare 12 variables.  
+They want to recognize themselves in a tier.
+
+---
+
+### 2️⃣ Emotional framing > feature lists
+
+Each tier answers:
+
+> “Who is this for?”
+
+Not:
+
+> “What do I get per dollar?”
+
+---
+
+### 3️⃣ Ownership stands alone
+
+“Own a Quest Forever” being separate is _brilliant_ because:
+
+- It doesn’t feel like a downgrade
+    
+- It avoids subscription fatigue
+    
+- It feels like buying a thing, not renting access
+    
+
+---
+
+### 4️⃣ Free doesn’t feel bad
+
+You’re not shaming free users.  
+You’re inviting them to upgrade _when they care_.
+
+That builds trust.
+
+---
+
+## ⚠️ What NOT to Put on This Screen
+
+Avoid:
+
+- Play counts
+    
+- Day limits
+    
+- Storage MB
+    
+- Technical terms
+    
+- “No ads” (unless true)
+    
+
+Those belong in tooltips or FAQs — not the main decision moment.
+
+---
+
+## 🧩 Optional Micro-Details (Hover / Info Icon)
+
+If needed later:
+
+- “Temporary” → shows exact limits
+    
+- “Lasts longer” → explains expiry
+    
+- “More assets” → shows examples
+    
+
+But only on demand.
+
+---
+
+## 🏁 Final Recommendation
+
+Ship **exactly this** as v1.
+
+You can always:
+
+- adjust numbers later
+    
+- add a yearly discount
+    
+- experiment with pricing
+    
+
+But the **structure** is right.
+
+---
+
+If you want next, I can:
+
+- Write the **FAQ copy** that supports this screen
+    
+- Design the **upgrade moments inside the builder**
+    
+- Help you A/B test “Creator Pass” wording
+    
+- Adapt this for **Questerly Kids** safely
+    
+
+This is clean, confident, and very shippable.

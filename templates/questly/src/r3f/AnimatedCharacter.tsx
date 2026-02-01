@@ -27,6 +27,8 @@ interface AnimatedCharacterProps {
   scale?: number;
   position?: [number, number, number];
   rotation?: [number, number, number];
+  autoScale?: boolean;
+  targetSize?: number;
   currentAnimation?: string;
   weaponPath?: string;
   shieldPath?: string;
@@ -42,6 +44,8 @@ export default function AnimatedCharacter({
   scale = 1,
   position = [0, 0, 0],
   rotation = [0, 0, 0],
+  autoScale = true,
+  targetSize = 4,
   currentAnimation,
   weaponPath,
   shieldPath,
@@ -143,9 +147,8 @@ export default function AnimatedCharacter({
         const box = new THREE.Box3().setFromObject(characterScene);
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
-        const targetSize = 4; // Target size in world units (doubled from 2)
-        const autoScale = maxDim > 0 ? targetSize / maxDim : 1;
-        const finalScale = scale * autoScale;
+        const autoScaleFactor = maxDim > 0 ? targetSize / maxDim : 1;
+        const finalScale = autoScale ? scale * autoScaleFactor : scale;
         
         characterScene.scale.setScalar(finalScale);
         
@@ -173,7 +176,7 @@ export default function AnimatedCharacter({
     };
 
     loadCharacter();
-  }, [characterPath, scale, rotation, characterId]);
+  }, [characterPath, scale, rotation, characterId, autoScale, targetSize]);
 
   // Separate effect to handle weapon loading/changing
   useEffect(() => {

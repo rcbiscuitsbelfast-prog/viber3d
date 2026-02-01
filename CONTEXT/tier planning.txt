@@ -1,0 +1,128 @@
+## 3️⃣ Tier Planning (This Is Where You’re Spot-On)
+
+Your tier ideas are **exactly right**, they just need clean boundaries.
+
+### The Key Rule for Tiers
+
+👉 **Free = story decisions**  
+👉 **Paid = spatial & behavioral control**
+
+That’s the magic line.
+
+---
+
+## Tier Breakdown (Refined)
+
+### 🆓 Free / Basic
+
+**Focus:** storytelling, names, vibes
+
+They can:
+
+- Use templates or scratch
+    
+- Choose Island & Area
+    
+- Auto-Fill world
+    
+- Choose ready-made Villages / Castles
+    
+- Characters auto-placed
+    
+- Add dialogue + voices
+    
+- Name creatures & Big Bad
+    
+- Choose puzzle image
+    
+- Set final surprise
+    
+
+They _cannot_:
+
+- Move characters manually
+    
+- Edit walking routes
+    
+- Place enemies freely
+    
+- Customize buildings deeply
+    
+- Change weapon behavior
+    
+
+This still feels powerful.
+
+---
+
+### ⭐ Creator Pass
+
+**Focus:** customization & expression
+
+Adds:
+
+- Higher asset limits
+    
+- Custom homes / buildings
+    
+- Choose where characters stand
+    
+- Simple walking routes
+    
+- Choose enemy types
+    
+- Adjust difficulty (slow / normal / silly)
+    
+- Bigger worlds
+    
+
+Still safe. Still friendly.
+
+---
+
+### 🚀 Pro Creator
+
+**Focus:** systems & control
+
+Adds:
+
+- Fully custom towns
+    
+- NPC walking paths
+    
+- Creature vision cones (“What they can see”)
+    
+- Weapon types
+    
+- Boss behavior tweaks
+    
+- Multi-area quests
+    
+- Private quests
+    
+
+This is where advanced creators live.
+
+---
+
+## Why This Works So Well
+
+- Kids can make something cool in minutes
+    
+- No one feels blocked early
+    
+- Paid tiers feel like **creative superpowers**
+    
+- System complexity scales naturally
+    
+- Your engine stays sane
+    
+
+Most importantly:
+
+> **The UI never lies about what the system is doing**
+
+That builds trust.
+
+---
+

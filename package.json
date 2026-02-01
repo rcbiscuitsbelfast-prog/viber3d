@@ -47,7 +47,9 @@
     "instructa"
   ],
   "devDependencies": {
+    "three-text": "^0.7.0",
     "@types/node": "^22.13.10",
+    "@types/three": "^0.182.0",
     "tsx": "^4.7.0",
     "typescript": "^5.8.2"
   },
@@ -59,6 +61,8 @@
     "overrides": {}
   },
   "dependencies": {
-    "three-mesh-bvh": "^0.8.0"
+    "three": "^0.182.0",
+    "three-mesh-bvh": "^0.8.0",
+    "three-stdlib": "^2.36.1"
   }
 }

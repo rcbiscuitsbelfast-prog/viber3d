@@ -2453,6 +2453,9 @@ export default function TestWorld() {
       combatTargetId: 'fighter2',
       weaponPath: '/Assets/weapons/sword_1handed.gltf',
       shieldPath: '/Assets/weapons/shield_round.gltf',
+      maxHp: 100,
+      showHealthBar: true,
+      showHitbox: true,
     },
     {
       id: 'fighter2',
@@ -2467,6 +2470,46 @@ export default function TestWorld() {
       combatTargetId: 'fighter1',
       weaponPath: '/Assets/weapons/sword_2handed.gltf',
       shieldPath: '/Assets/weapons/shield_round_barbarian.gltf',
+      maxHp: 100,
+      showHealthBar: true,
+      showHitbox: true,
+    },
+    {
+      id: 'steve',
+      name: 'Steve the Invincible',
+      position: [15, 2.5, 55] as [number, number, number], // Start away from combat
+      waypoints: [
+        [15, 2.5, 55],  // Start
+        [20, 2.5, 60],  // Roam
+        [25, 2.5, 55],  // Roam
+        [20, 2.5, 50],  // Roam back
+      ] as [number, number, number][],
+      characterModelPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Barbarian.glb',
+      isFighter: true,
+      combatTargetId: 'blob1',
+      weaponPath: '/Assets/weapons/sword_2handed.gltf',
+      shieldPath: '/Assets/weapons/shield_round_barbarian.gltf',
+      maxHp: 100,
+      invincible: true, // Unlimited health - Steve always wins!
+      showHealthBar: true,
+      showHitbox: true,
+    },
+    {
+      id: 'blob1',
+      name: 'KayKit Skeleton',
+      position: [30, 2.5, 55] as [number, number, number], // Start near Steve's patrol
+      waypoints: [
+        [30, 2.5, 55],  // Start
+        [25, 2.5, 60],  // Move towards center
+      ] as [number, number, number][],
+      characterModelPath: '/Assets/KayKit_Skeletons_1.1_FREE/characters/gltf/Skeleton_Warrior.glb',
+      isFighter: true,
+      combatTargetId: 'steve',
+      weaponPath: '/Assets/weapons/sword_1handed.gltf',
+      shieldPath: '/Assets/weapons/shield_round.gltf',
+      maxHp: 80,
+      showHealthBar: true,
+      showHitbox: true,
     },
   ]);
   
@@ -2630,7 +2673,7 @@ export default function TestWorld() {
   
   // Shared terrain height function - samples from actual terrain mesh geometry (matches rendered terrain)
   const getTerrainHeight = (worldX: number, worldZ: number) => {
-    const scale = 200;
+    const scale = isSquareTerrain ? (islandSize * 2) : 200;
     
     // First try to sample from actual terrain mesh geometry (most accurate - matches what's rendered)
     if (terrainMeshRef.current?.geometry) {
@@ -4711,7 +4754,7 @@ export default function TestWorld() {
                     position={adjustedPosition}
                     waypoints={adjustedWaypoints}
                     characterModelPath={npc.characterModelPath}
-                    speed={npc.id.includes('fighter') ? 3 : 2}
+                    speed={npc.id.includes('fighter') || npc.id.includes('steve') || npc.id.includes('blob') ? 3 : 2}
                     onClick={() => handleNPCClick(npc.id)}
                     terrainMeshRef={terrainMeshRef}
                     getTerrainHeight={getTerrainHeight}
@@ -4719,10 +4762,15 @@ export default function TestWorld() {
                     playerPosition={characterPositionRef.current}
                     showPath={true}
                     isFighter={(npc as any).isFighter || false}
+                    combatTargetId={(npc as any).combatTargetId}
                     combatRange={8}
                     fightingDistance={2.5}
                     weaponPath={(npc as any).weaponPath}
                     shieldPath={(npc as any).shieldPath}
+                    maxHp={(npc as any).maxHp}
+                    invincible={(npc as any).invincible || false}
+                    showHealthBar={(npc as any).showHealthBar || false}
+                    showHitbox={(npc as any).showHitbox || false}
                     onPositionUpdate={handleNpcPositionUpdate}
                   />
                   {/* Floating interaction icon above NPC */}

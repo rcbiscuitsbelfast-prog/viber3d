@@ -1,0 +1,294 @@
+
+# 🌟 **TINYQUESTS / MINIQUESTS — FULL UI GRAND PLAN**
+A mobile‑first, medieval‑fantasy, nature‑infused interface for building and sharing tiny adventures.
+
+---
+
+# 🧭 **1. Core UI Principles**
+- **Mobile-first** (portrait primary, landscape supported)
+- **Medieval fantasy aesthetic** (wood, vines, stone, parchment)
+- **Friendly, whimsical tone**
+- **Soft animations** (fade, slide, scale)
+- **Modular components** (cards, panels, buttons)
+- **Custom PNGs for key visuals** (logo, frames, buttons)
+- **AI-generated art used as static assets**, animated in-engine
+
+---
+
+# 🎬 **2. Splash Screen**
+### Elements:
+- Animated sign (your MP4)
+- Soft nature background (fields, trees, warm light)
+- “Start” button (wooden plank)
+- Optional ambient particles (floating leaves, dust motes)
+
+### Flow:
+1. Video plays
+2. Fade-in Start button
+3. Tap → route logic:
+   - If opened via quest link → **Open Quest**
+   - If new player → **Main Menu**
+
+---
+
+# 🏰 **3. Main Menu**
+### Layout:
+- Top: **Custom PNG sign** (TinyQuests / MiniQuests)
+- Middle: **Vertical wooden buttons**
+  - Create New Quest
+  - Play Quests
+  - Credits
+- Top-right: **Settings cog**
+- Bottom: **Coming Soon** wooden panel
+
+### Animations:
+- Buttons slide up
+- Sign gently bobs or glows
+
+---
+
+# 🧩 **4. Create New Quest → Guided Builder Flow**
+Each step uses **card-based selection** with custom PNG frames.
+
+## **Step 1: Quest Type**
+Two large cards:
+- **Combat Quest**
+  - “Defeat enemies and a big boss”
+- **Non-Combat Quest**
+  - “Puzzles, collecting, foraging, exploration”
+
+Below them:
+- **Experimental Modes (Coming Soon)**  
+  - Disabled card with lock icon
+
+---
+
+## **Step 2: World Type**
+Three cards:
+- **Open World**
+- **Platformer**
+- **Multi-Level**
+
+Each card includes:
+- Title
+- Description
+- Image placeholder
+- Wooden/stone frame PNG
+
+---
+
+## **Step 3: Template Selection**
+Filtered by previous choices.
+
+### Template Card Structure:
+- Template name
+- Short description
+- Image preview
+- Tags (Combat / Non-Combat, World Type)
+- Wooden frame PNG
+- Premium templates have a lock icon
+
+Grid or scroll list depending on orientation.
+
+---
+
+# 🎨 **5. Customisation Hub (Entry Screen)**
+This is the transition into the live world editor.
+
+### Elements:
+- Preview of the chosen template
+- Button: **Enter World Editor**
+- Short description of what you can customise
+
+---
+
+# 🛠️ **6. World Editor (Live Customisation UI)**
+This is the heart of TinyQuests.
+
+## **Layout (Responsive)**
+### Portrait:
+- World canvas: center
+- Asset bar: bottom (scrollable horizontal)
+
+### Landscape:
+- World canvas: right
+- Asset bar: left (scrollable vertical)
+
+---
+
+## **Asset Bar Sections (in order)**
+Each section uses a stylised PNG frame:
+
+### **1. Assets / Objects**
+- Trees  
+- Rocks  
+- Buildings  
+- Props  
+- Treasure chests  
+- Environmental items  
+
+### **2. NPCs**
+- Friendly NPCs  
+- Quest givers  
+- Merchants  
+- Enemies (if combat)  
+
+### **3. Audio & Triggers**
+- Narration spots  
+- Ambient zones  
+- Player death sound  
+- Quest completion sound  
+- Hidden reveal triggers  
+
+### **4. Boss & Rewards (Combat only)**
+- Boss selector  
+- Boss name input  
+- Reward selector  
+
+---
+
+## **Monetisation Hooks (Integrated into Asset Bar)**
+- Premium assets greyed out with lock icon  
+- “More NPCs — Subscribe to unlock”  
+- “Premium Bosses”  
+- “Extra audio slots”  
+- “Create your own template world”  
+
+No backend logic — just UI.
+
+---
+
+## **Interactions**
+- Tap asset → highlight + tooltip  
+- Drag asset → drop into world canvas  
+- Tap placed asset → open mini-panel:
+  - Move  
+  - Delete  
+  - Edit (dialogue, path, behaviour)  
+
+---
+
+# 🎁 **7. Completion Screen**
+### Elements:
+- Wooden panel with:
+  - **Play Quest**
+  - **Save Quest**
+  - **Send Quest**
+- Below Send Quest:
+  - “Send to up to 5 friends for free. Upgrade to send more.”
+
+### Optional:
+- Confetti or sparkles  
+- Reward preview  
+
+---
+
+# 🧭 **8. Coming Soon Page**
+Accessible from:
+- Main Menu  
+- Quest Type page  
+
+### Layout:
+Scrollable list of genre cards:
+- Zombies  
+- Pirates  
+- Shoot ’Em Up  
+- Sci-Fi  
+- Mystery  
+- Cyberpunk  
+- Cartoon Chaos  
+
+Each card:
+- Title  
+- Fun tagline  
+- Description  
+- Image placeholder  
+- Lock icon  
+
+---
+
+# ⚙️ **9. Settings Menu**
+Simple, clean, parchment-style panel:
+- Sound on/off  
+- Music on/off  
+- Notifications  
+- Language  
+- Account  
+
+---
+
+# 🧱 **10. Reusable UI Components**
+### **Buttons**
+- Wooden plank PNG  
+- Hover/press states (darken, depress)
+
+### **Cards**
+- Wooden or stone frame PNG  
+- Glow on hover  
+- Lock overlay for premium
+
+### **Panels**
+- Parchment texture  
+- Rounded corners  
+- Soft shadow
+
+### **Modals**
+- Stone border  
+- Dimmed background  
+- Slide-up animation
+
+### **Tabs**
+- Wooden tabs with vine accents
+
+---
+
+# 🌿 **11. Visual Style Guide**
+### Colours:
+- Warm browns  
+- Forest greens  
+- Soft golds  
+- Parchment beige  
+
+### Textures:
+- Wood grain  
+- Stone  
+- Vines  
+- Moss  
+- Scroll paper  
+
+### Fonts:
+- Medieval serif for titles  
+- Clean readable sans-serif for body text  
+
+---
+
+# 🎬 **12. Animation Style**
+- Fade-in for screens  
+- Slide-up for buttons  
+- Scale-in for cards  
+- Gentle bobbing for the logo  
+- Parallax background layers  
+- Glow pulses for interactive elements  
+
+---
+
+# 🧠 **13. Asset Strategy**
+Use AI to generate:
+- Logo PNG  
+- Button PNGs  
+- Card frames  
+- Parchment panels  
+- Asset bar frames  
+- Backgrounds  
+- Icons (lock, premium, NPC, audio, boss)
+
+Use Replit to:
+- Build layout  
+- Position assets  
+- Add transitions  
+- Handle responsiveness  
+
+Use your engine to:
+- Animate  
+- Add interactivity  
+- Overlay text  
