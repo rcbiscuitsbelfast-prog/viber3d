@@ -11,16 +11,23 @@ export default function SignCanvas() {
   });
 
   // Portrait mode adjustable values
-  const [portraitScale, setPortraitScale] = useState(2.2);
+  const [portraitScale, setPortraitScale] = useState(2.80);
   const [portraitSignX, setPortraitSignX] = useState(0.0);
-  const [portraitSignY, setPortraitSignY] = useState(0.35);
+  const [portraitSignY, setPortraitSignY] = useState(-2.210);
   const [portraitSignZ, setPortraitSignZ] = useState(-0.02);
   const [portraitTextX, setPortraitTextX] = useState(0.0);
-  const [portraitTextY, setPortraitTextY] = useState(0.44);
+  const [portraitTextY, setPortraitTextY] = useState(0.49);
   const [portraitTextZ, setPortraitTextZ] = useState(-0.18);
-  const [portraitTextSize, setPortraitTextSize] = useState(0.09);
+  const [portraitTextSize, setPortraitTextSize] = useState(0.105);
   const [portraitCameraZ, setPortraitCameraZ] = useState(4.2);
   const [portraitCameraFov, setPortraitCameraFov] = useState(60);
+
+  // Landscape cloud controls
+  const [landscapeCloudY, setLandscapeCloudY] = useState(5.0);
+  const [landscapeCloudZ, setLandscapeCloudZ] = useState(-22.5);
+  const [landscapeCloudScale, setLandscapeCloudScale] = useState(4.4);
+  const [landscapeCloudOpacity, setLandscapeCloudOpacity] = useState(1.0);
+  const [landscapeCloudSpeed, setLandscapeCloudSpeed] = useState(0.44);
 
   useEffect(() => {
     const handleResize = () => {
@@ -50,6 +57,12 @@ export default function SignCanvas() {
         bevelSize: 0.003,
         cameraPos: [0, 0, portraitCameraZ] as [number, number, number],
         cameraFov: portraitCameraFov,
+        cloudsEnabled: false,
+        cloudsY: 1.2,
+        cloudsZ: -12,
+        cloudsScale: 5.0,
+        cloudsOpacity: 0.6,
+        cloudsSpeed: 0.2,
       };
     } else {
       // LANDSCAPE VERSION - Optimized for wide screens
@@ -62,9 +75,33 @@ export default function SignCanvas() {
         bevelSize: 0.003,
         cameraPos: [0, 0, 3.5] as [number, number, number],
         cameraFov: 50,
+        cloudsEnabled: true,
+        cloudsY: landscapeCloudY,
+        cloudsZ: landscapeCloudZ,
+        cloudsScale: landscapeCloudScale,
+        cloudsOpacity: landscapeCloudOpacity,
+        cloudsSpeed: landscapeCloudSpeed,
       };
     }
-  }, [viewport.width, viewport.height, portraitScale, portraitSignX, portraitSignY, portraitSignZ, portraitTextX, portraitTextY, portraitTextZ, portraitTextSize, portraitCameraZ, portraitCameraFov]);
+  }, [
+    viewport.width,
+    viewport.height,
+    portraitScale,
+    portraitSignX,
+    portraitSignY,
+    portraitSignZ,
+    portraitTextX,
+    portraitTextY,
+    portraitTextZ,
+    portraitTextSize,
+    portraitCameraZ,
+    portraitCameraFov,
+    landscapeCloudY,
+    landscapeCloudZ,
+    landscapeCloudScale,
+    landscapeCloudOpacity,
+    landscapeCloudSpeed,
+  ]);
 
   return (
     <>
@@ -75,30 +112,65 @@ export default function SignCanvas() {
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3, duration: 1 }}
       >
-        <Canvas
-          key={config.mode}
-          camera={{ position: config.cameraPos, fov: config.cameraFov, near: 0.1, far: 1000 }}
-          gl={{
-            antialias: true,
-            alpha: true,
-            transparent: true,
-            powerPreference: 'high-performance',
-          }}
-          style={{ background: 'transparent' }}
-        >
-          {/* Actual sign scene with adjustable props */}
-          <SplashSignScene 
-            scale={config.scale}
-            signPos={config.signPos}
-            textPos={config.textPos}
-            textSize={config.textSize}
-            bevelSize={config.bevelSize}
-            lightIntensity={2.0}
-          />
-        </Canvas>
+        {config.mode === 'portrait' && (
+          <Canvas
+            key="portrait"
+            camera={{ position: config.cameraPos, fov: config.cameraFov, near: 0.1, far: 1000 }}
+            gl={{
+              antialias: true,
+              alpha: true,
+              transparent: true,
+              powerPreference: 'high-performance',
+            }}
+            style={{ background: 'transparent' }}
+          >
+            <SplashSignScene 
+              scale={config.scale}
+              signPos={config.signPos}
+              textPos={config.textPos}
+              textSize={config.textSize}
+              bevelSize={config.bevelSize}
+              lightIntensity={2.0}
+              cloudsEnabled={config.cloudsEnabled}
+              cloudsY={config.cloudsY}
+              cloudsZ={config.cloudsZ}
+              cloudsScale={config.cloudsScale}
+              cloudsOpacity={config.cloudsOpacity}
+              cloudsSpeed={config.cloudsSpeed}
+            />
+          </Canvas>
+        )}
+        {config.mode === 'landscape' && (
+          <Canvas
+            key="landscape"
+            camera={{ position: config.cameraPos, fov: config.cameraFov, near: 0.1, far: 1000 }}
+            gl={{
+              antialias: true,
+              alpha: true,
+              transparent: true,
+              powerPreference: 'high-performance',
+            }}
+            style={{ background: 'transparent' }}
+          >
+            <SplashSignScene 
+              scale={config.scale}
+              signPos={config.signPos}
+              textPos={config.textPos}
+              textSize={config.textSize}
+              bevelSize={config.bevelSize}
+              lightIntensity={2.0}
+              cloudsEnabled={config.cloudsEnabled}
+              cloudsY={config.cloudsY}
+              cloudsZ={config.cloudsZ}
+              cloudsScale={config.cloudsScale}
+              cloudsOpacity={config.cloudsOpacity}
+              cloudsSpeed={config.cloudsSpeed}
+            />
+          </Canvas>
+        )}
       </motion.div>
 
-      {/* Debug sliders - only show in portrait mode */}
+      {/* Portrait sliders - only show in portrait mode */}
       {config.mode === 'portrait' && (
         <div className="fixed top-4 right-4 bg-black/80 text-white p-4 rounded-lg pointer-events-auto z-50 max-h-[90vh] overflow-y-auto text-xs">
           <h3 className="font-bold mb-3 text-sm">Portrait Mode Debug</h3>
@@ -117,7 +189,7 @@ export default function SignCanvas() {
               </div>
               <div>
                 <label className="block">Y: {portraitSignY.toFixed(3)}</label>
-                <input type="range" min="-0.5" max="1" step="0.01" value={portraitSignY} onChange={(e) => setPortraitSignY(Number(e.target.value))} className="w-full" />
+                <input type="range" min="-3" max="0" step="0.01" value={portraitSignY} onChange={(e) => setPortraitSignY(Number(e.target.value))} className="w-full" />
               </div>
               <div>
                 <label className="block">Z: {portraitSignZ.toFixed(3)}</label>
@@ -133,7 +205,7 @@ export default function SignCanvas() {
               </div>
               <div>
                 <label className="block">Y: {portraitTextY.toFixed(3)}</label>
-                <input type="range" min="-0.5" max="1" step="0.01" value={portraitTextY} onChange={(e) => setPortraitTextY(Number(e.target.value))} className="w-full" />
+                <input type="range" min="-2" max="10" step="0.01" value={portraitTextY} onChange={(e) => setPortraitTextY(Number(e.target.value))} className="w-full" />
               </div>
               <div>
                 <label className="block">Z: {portraitTextZ.toFixed(3)}</label>
@@ -159,22 +231,35 @@ export default function SignCanvas() {
                 <input type="range" min="30" max="90" step="1" value={portraitCameraFov} onChange={(e) => setPortraitCameraFov(Number(e.target.value))} className="w-full" />
               </div>
             </div>
+          </div>
+        </div>
+      )}
 
-            <div className="border-t border-white/20 pt-2 mt-2">
-              <button 
-                onClick={() => {
-                  console.log(`Portrait Config:
-scale: ${portraitScale},
-signPos: [${portraitSignX}, ${portraitSignY}, ${portraitSignZ}],
-textPos: [${portraitTextX}, ${portraitTextY}, ${portraitTextZ}],
-textSize: ${portraitTextSize},
-cameraZ: ${portraitCameraZ},
-cameraFov: ${portraitCameraFov}`);
-                }}
-                className="w-full bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded"
-              >
-                Log Values to Console
-              </button>
+      {/* Cloud sliders - only show in landscape mode */}
+      {config.mode === 'landscape' && (
+        <div className="fixed top-4 right-4 bg-black/80 text-white p-4 rounded-lg pointer-events-auto z-50 max-h-[90vh] overflow-y-auto text-xs">
+          <h3 className="font-bold mb-3 text-sm">Landscape Clouds</h3>
+
+          <div className="space-y-2">
+            <div>
+              <label className="block">Cloud Y: {landscapeCloudY.toFixed(2)}</label>
+              <input type="range" min="-2" max="5" step="0.05" value={landscapeCloudY} onChange={(e) => setLandscapeCloudY(Number(e.target.value))} className="w-full" />
+            </div>
+            <div>
+              <label className="block">Cloud Z: {landscapeCloudZ.toFixed(1)}</label>
+              <input type="range" min="-30" max="-5" step="0.5" value={landscapeCloudZ} onChange={(e) => setLandscapeCloudZ(Number(e.target.value))} className="w-full" />
+            </div>
+            <div>
+              <label className="block">Cloud Scale: {landscapeCloudScale.toFixed(2)}</label>
+              <input type="range" min="1" max="12" step="0.1" value={landscapeCloudScale} onChange={(e) => setLandscapeCloudScale(Number(e.target.value))} className="w-full" />
+            </div>
+            <div>
+              <label className="block">Cloud Opacity: {landscapeCloudOpacity.toFixed(2)}</label>
+              <input type="range" min="0" max="1" step="0.01" value={landscapeCloudOpacity} onChange={(e) => setLandscapeCloudOpacity(Number(e.target.value))} className="w-full" />
+            </div>
+            <div>
+              <label className="block">Cloud Speed: {landscapeCloudSpeed.toFixed(2)}</label>
+              <input type="range" min="0" max="1" step="0.01" value={landscapeCloudSpeed} onChange={(e) => setLandscapeCloudSpeed(Number(e.target.value))} className="w-full" />
             </div>
           </div>
         </div>
