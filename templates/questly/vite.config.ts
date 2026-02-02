@@ -70,7 +70,7 @@ function copyRecursiveSync(src: string, dest: string) {
   ];
   
   // Only copy these file types (actual assets)
-  const allowedExtensions = ['.glb', '.gltf', '.bin', '.png', '.jpg', '.jpeg', '.webp'];
+  const allowedExtensions = ['.glb', '.gltf', '.bin', '.png', '.jpg', '.jpeg', '.webp', '.json'];
   
   for (const entry of entries) {
     const entryName = entry.name;
