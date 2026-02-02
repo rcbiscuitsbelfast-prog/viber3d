@@ -14,6 +14,14 @@ function copyAssetsPlugin() {
       const rootAssetsPath = path.resolve(__dirname, '../../Assets');
       const publicAssetsPath = path.resolve(__dirname, './public/Assets');
       
+      // Copy .nojekyll to public folder for GitHub Pages
+      const nojekyllSource = path.resolve(__dirname, '../../.nojekyll');
+      const nojekyllDest = path.resolve(__dirname, './public/.nojekyll');
+      if (existsSync(nojekyllSource)) {
+        copyFileSync(nojekyllSource, nojekyllDest);
+        console.log('[Vite] Copied .nojekyll to public folder for GitHub Pages');
+      }
+      
       // Only copy asset folders that are actually referenced in the code
       const assetFoldersToCopy = [
         'KayKit_Adventurers_2.0_FREE',
