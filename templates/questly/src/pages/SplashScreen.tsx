@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import R3FCanvas from '@/r3f/R3FCanvas';
@@ -16,7 +16,8 @@ function SplashScene({
   innerFogHeight,
   innerBubbleScale,
   innerBubbleDensity,
-  innerBubbleSpeed
+  innerBubbleSpeed,
+  onLoaded
 }: {
   fogHeight: number; 
   bubbleScale: number; 
@@ -27,6 +28,7 @@ function SplashScene({
   innerBubbleScale: number;
   innerBubbleDensity: number;
   innerBubbleSpeed: number;
+  onLoaded: () => void;
 }) {
   return (
     <r3f.In>
@@ -42,6 +44,7 @@ function SplashScene({
         innerBubbleScale={innerBubbleScale}
         innerBubbleDensity={innerBubbleDensity}
         innerBubbleSpeed={innerBubbleSpeed}
+        onLoaded={onLoaded}
       />
     </r3f.In>
   );
@@ -51,6 +54,11 @@ export default function SplashScreen() {
   const navigate = useNavigate();
   const [showCanvas, setShowCanvas] = useState(true);
   
+  // Loading states
+  const [islandLoaded, setIslandLoaded] = useState(false);
+  const [islandVisible, setIslandVisible] = useState(false);
+  const [buttonVisible, setButtonVisible] = useState(false);
+  
   // Island fog controls
   const [fogHeight, setFogHeight] = useState(5.0);
   const [bubbleScale, setBubbleScale] = useState(1.0);
@@ -58,9 +66,21 @@ export default function SplashScreen() {
   const [bubbleSpeed, setBubbleSpeed] = useState(0.2);
   const [innerFogRadius, setInnerFogRadius] = useState(37.5);
   const [innerFogHeight, setInnerFogHeight] = useState(0.0);
-  const [innerBubbleScale, setInnerBubbleScale] = useState(0.8);
+  const [innerBubbleScale, setInnerBubbleScale] = useState(0.70);
   const [innerBubbleDensity, setInnerBubbleDensity] = useState(2.3);
   const [innerBubbleSpeed, setInnerBubbleSpeed] = useState(0.15);
+
+  // When island loads, show island and button
+  useEffect(() => {
+    if (islandLoaded) {
+      setIslandVisible(true);
+      setTimeout(() => setButtonVisible(true), 300);
+    }
+  }, [islandLoaded]);
+
+  const handleIslandLoaded = () => {
+    setIslandLoaded(true);
+  };
 
   const handleStart = () => {
     setShowCanvas(false);
@@ -71,20 +91,33 @@ export default function SplashScreen() {
     <>
       {/* Island Canvas - rotating background (z-10) */}
       {showCanvas && <R3FCanvas />}
-      <SplashScene 
-        fogHeight={fogHeight}
-        bubbleScale={bubbleScale}
-        bubbleDensity={bubbleDensity}
-        bubbleSpeed={bubbleSpeed}
-        innerFogRadius={innerFogRadius}
-        innerFogHeight={innerFogHeight}
-        innerBubbleScale={innerBubbleScale}
-        innerBubbleDensity={innerBubbleDensity}
-        innerBubbleSpeed={innerBubbleSpeed}
-      />
+      {/* Island Canvas - rotating background (z-10) */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: islandVisible ? 1 : 0 }}
+        transition={{ duration: 0.8 }}
+      >
+        <SplashScene 
+          fogHeight={fogHeight}
+          bubbleScale={bubbleScale}
+          bubbleDensity={bubbleDensity}
+          bubbleSpeed={bubbleSpeed}
+          innerFogRadius={innerFogRadius}
+          innerFogHeight={innerFogHeight}
+          innerBubbleScale={innerBubbleScale}
+          innerBubbleDensity={innerBubbleDensity}
+          innerBubbleSpeed={innerBubbleSpeed}
+          onLoaded={handleIslandLoaded}
+        />
+      </motion.div>
 
       {/* Sign Canvas - fixed foreground (z-15) overlays on top */}
-      <SignCanvas />
+      <motion.div
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <SignCanvas />
+      </motion.div>
       
       {/* UI Content on Top */}
       <div className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden text-white px-4 z-20 pointer-events-auto">
@@ -98,18 +131,18 @@ export default function SplashScreen() {
             onClick={handleStart}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{
-              opacity: 1,
-              scale: [1, 1.05, 1],
-              filter: [
+              opacity: buttonVisible ? 1 : 0,
+              scale: buttonVisible ? [1, 1.05, 1] : 0.95,
+              filter: buttonVisible ? [
                 'drop-shadow(0 0 8px rgba(255,215,0,0.6))',
                 'drop-shadow(0 0 16px rgba(255,215,0,0.95))',
                 'drop-shadow(0 0 8px rgba(255,215,0,0.6))'
-              ]
+              ] : 'drop-shadow(0 0 0px rgba(255,215,0,0))'
             }}
             transition={{
-              opacity: { delay: 1.2, duration: 0.6 },
-              scale: { duration: 1.4, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' },
-              filter: { duration: 1.4, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' }
+              opacity: { duration: 0.6 },
+              scale: { duration: 1.4, repeat: buttonVisible ? Infinity : 0, repeatType: 'reverse', ease: 'easeInOut' },
+              filter: { duration: 1.4, repeat: buttonVisible ? Infinity : 0, repeatType: 'reverse', ease: 'easeInOut' }
             }}
             className="font-display text-base sm:text-lg md:text-xl text-[#FFD700] drop-shadow-[0_0_12px_rgba(255,215,0,0.8)] tracking-wide"
           >
@@ -126,58 +159,6 @@ export default function SplashScreen() {
         >
           Powered by Three.js & React Three Fiber
         </motion.p>
-      </div>
-
-      {/* Island Fog Debug Sliders */}
-      <div className="fixed top-4 left-4 bg-black/80 text-white p-4 rounded-lg pointer-events-auto z-50 max-h-[90vh] overflow-y-auto text-xs">
-        <h3 className="font-bold mb-3 text-sm">Island Fog</h3>
-        
-        <div className="space-y-2">
-          <div>
-            <label className="block">Fog Height: {fogHeight.toFixed(2)}</label>
-            <input type="range" min="0" max="15" step="0.1" value={fogHeight} onChange={(e) => setFogHeight(Number(e.target.value))} className="w-full" />
-          </div>
-          
-          <div>
-            <label className="block">Bubble Scale: {bubbleScale.toFixed(2)}</label>
-            <input type="range" min="0.5" max="2.5" step="0.1" value={bubbleScale} onChange={(e) => setBubbleScale(Number(e.target.value))} className="w-full" />
-          </div>
-
-          <div>
-            <label className="block">Bubble Density: {bubbleDensity.toFixed(2)}</label>
-            <input type="range" min="0.5" max="3.0" step="0.1" value={bubbleDensity} onChange={(e) => setBubbleDensity(Number(e.target.value))} className="w-full" />
-          </div>
-
-          <div>
-            <label className="block">Bubble Speed: {bubbleSpeed.toFixed(2)}</label>
-            <input type="range" min="0" max="1" step="0.05" value={bubbleSpeed} onChange={(e) => setBubbleSpeed(Number(e.target.value))} className="w-full" />
-          </div>
-
-          <div className="border-t border-white/20 pt-2 mt-2">
-            <label className="block">Inner Fog Radius: {innerFogRadius.toFixed(1)}</label>
-            <input type="range" min="5" max="50" step="0.5" value={innerFogRadius} onChange={(e) => setInnerFogRadius(Number(e.target.value))} className="w-full" />
-          </div>
-
-          <div className="border-t border-white/20 pt-2 mt-2">
-            <label className="block">Inner Fog Height: {innerFogHeight.toFixed(2)}</label>
-            <input type="range" min="0" max="15" step="0.1" value={innerFogHeight} onChange={(e) => setInnerFogHeight(Number(e.target.value))} className="w-full" />
-          </div>
-
-          <div>
-            <label className="block">Inner Bubble Scale: {innerBubbleScale.toFixed(2)}</label>
-            <input type="range" min="0.5" max="2.5" step="0.1" value={innerBubbleScale} onChange={(e) => setInnerBubbleScale(Number(e.target.value))} className="w-full" />
-          </div>
-
-          <div>
-            <label className="block">Inner Bubble Density: {innerBubbleDensity.toFixed(2)}</label>
-            <input type="range" min="0.5" max="3.0" step="0.1" value={innerBubbleDensity} onChange={(e) => setInnerBubbleDensity(Number(e.target.value))} className="w-full" />
-          </div>
-
-          <div>
-            <label className="block">Inner Bubble Speed: {innerBubbleSpeed.toFixed(2)}</label>
-            <input type="range" min="0" max="1" step="0.05" value={innerBubbleSpeed} onChange={(e) => setInnerBubbleSpeed(Number(e.target.value))} className="w-full" />
-          </div>
-        </div>
       </div>
     </>
   );

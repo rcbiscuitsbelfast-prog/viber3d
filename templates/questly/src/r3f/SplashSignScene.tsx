@@ -6,6 +6,23 @@ import AnimatedCharacter from './AnimatedCharacter';
 import { Font3DText } from './Font3DText';
 import { resolveAssetPath } from '@/lib/paths';
 
+// Simple group wrapper - no fade animations
+function FadeGroup({ 
+  opacity, 
+  position = [0, 0, 0],
+  children 
+}: { 
+  opacity: number; 
+  position?: [number, number, number];
+  children: React.ReactNode;
+}) {
+  return (
+    <group position={position} visible={opacity > 0}>
+      {children}
+    </group>
+  );
+}
+
 interface SplashSignSceneProps {
   scale?: number;
   signPos?: [number, number, number];
@@ -36,8 +53,8 @@ export function SplashSignScene({
       {/* Sign and Text */}
       <Suspense fallback={null}>
         <group scale={scale} rotation={dragRotation}>
-          {/* Ornate Wooden Sign - loads FIRST to appear FIRST */}
-          <group scale={1} position={signPos}>
+          {/* Ornate Wooden Sign */}
+          <group position={signPos}>
             <AnimatedCharacter
               characterPath={resolveAssetPath('/Assets/button/ornate+wooden+sign+3d+model.glb')}
               assetId="ornate_wooden_sign"
@@ -49,7 +66,7 @@ export function SplashSignScene({
             />
           </group>
 
-          {/* 3D Text - Questerly - Gold color, no texture - loads SECOND to appear SECOND */}
+          {/* 3D Text - Questerly */}
           <Font3DText
             text="Questerly"
             position={textPos}

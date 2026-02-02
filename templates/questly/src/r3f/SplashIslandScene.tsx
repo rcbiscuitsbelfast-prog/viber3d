@@ -27,6 +27,7 @@ interface SplashIslandSceneProps {
   innerBubbleScale?: number;
   innerBubbleDensity?: number;
   innerBubbleSpeed?: number;
+  onLoaded?: () => void;
 }
 
 export function SplashIslandScene({ 
@@ -38,12 +39,14 @@ export function SplashIslandScene({
   bubbleSpeed = 0.2,
   innerFogRadius = 30.0,
   innerFogHeight = 4.0,
-  innerBubbleScale = 0.9,
+  innerBubbleScale = 0.70,
   innerBubbleDensity = 1.0,
-  innerBubbleSpeed = 0.15
+  innerBubbleSpeed = 0.15,
+  onLoaded
 }: SplashIslandSceneProps) {
   const islandRef = useRef<THREE.Group>(null);
   const [autoRotate, setAutoRotate] = useState(true);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Match World Builder island template defaults
   const roughness = 26;
@@ -128,6 +131,17 @@ export function SplashIslandScene({
     window.addEventListener('pointerdown', handlePointerDown, { passive: true });
     return () => window.removeEventListener('pointerdown', handlePointerDown);
   }, []);
+
+  // Track when island is loaded (after assets are rendered)
+  useEffect(() => {
+    if (onLoaded) {
+      // Wait for next frame to ensure all assets are rendered
+      const timer = setTimeout(() => {
+        onLoaded();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [onLoaded]);
 
   const makeSeededRandom = (seedOffset: number) => {
     let seedRandom = seed + seedOffset;

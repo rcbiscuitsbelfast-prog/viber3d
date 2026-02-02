@@ -82,7 +82,7 @@ export default function SignCanvas() {
       // PORTRAIT/MOBILE VERSION - Using landscape proven values, scaled down for mobile
       return {
         mode: 'portrait',
-        scale: 2.7,
+        scale: 2.2,
         signPos: [0.01, 0.21, -0.02] as [number, number, number],
         textPos: [0.0, 0.3, -0.18] as [number, number, number],
         textSize: 0.10,
