@@ -40,7 +40,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build questly app for GitHub Pages
         working-directory: templates/questly

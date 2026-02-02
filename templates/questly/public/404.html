@@ -5,16 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Questly - Game Builder</title>
     <script>
-      // GitHub Pages SPA redirect - redirects 404s to index.html
-      // This handles direct URL access to routes
-      var pathSegmentsToKeep = 1; // Keep /viber3d/ segment
-      var l = window.location;
-      var redirectPath = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
-        l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/#' +
-        l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
-        (l.search ? '?' + l.search.slice(1).replace(/&/g, '~and~') : '') +
-        l.hash;
-      window.location.replace(redirectPath);
+      // GitHub Pages SPA redirect for HashRouter
+      // Redirects 404s to index.html with hash routing
+      (function() {
+        var l = window.location;
+        var basePath = '/viber3d/';
+        var currentPath = l.pathname;
+        
+        // If we're at the base path or root, redirect to index.html
+        if (currentPath === basePath || currentPath === basePath.slice(0, -1) || currentPath === '/') {
+          window.location.replace(basePath + 'index.html' + (l.hash || '') + (l.search || ''));
+        } else {
+          // Extract the path after /viber3d/ and convert to hash route
+          var pathAfterBase = currentPath.replace(basePath, '').replace(/^\/+/, '').replace(/\/+$/, '');
+          
+          // If path doesn't start with base, try to find it
+          if (!currentPath.startsWith(basePath)) {
+            var pathParts = currentPath.split('/').filter(function(p) { return p; });
+            var baseIndex = pathParts.indexOf('viber3d');
+            if (baseIndex >= 0 && baseIndex < pathParts.length - 1) {
+              pathAfterBase = pathParts.slice(baseIndex + 1).join('/');
+            }
+          }
+          
+          var hashRoute = pathAfterBase ? '#' + pathAfterBase : '';
+          var redirectUrl = basePath + 'index.html' + hashRoute + (l.search || '') + (l.hash || '');
+          window.location.replace(redirectUrl);
+        }
+      })();
     </script>
   </head>
   <body>
