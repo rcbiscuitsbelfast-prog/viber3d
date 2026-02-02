@@ -14,6 +14,9 @@ export default function SignCanvas() {
   const dragRotationRef = useRef<[number, number, number]>([0, 0, 0]);
   const dragStart = useRef<{ x: number; y: number } | null>(null);
   const dragBase = useRef<[number, number, number]>([0, 0, 0]);
+  
+  // Portrait scale adjustment
+  const [portraitScale, setPortraitScale] = useState(2.2);
 
 
   useEffect(() => {
@@ -82,7 +85,7 @@ export default function SignCanvas() {
       // PORTRAIT/MOBILE VERSION - Using landscape proven values, scaled down for mobile
       return {
         mode: 'portrait',
-        scale: 2.2,
+        scale: portraitScale,
         signPos: [0.01, 0.21, -0.02] as [number, number, number],
         textPos: [0.0, 0.3, -0.18] as [number, number, number],
         textSize: 0.10,
@@ -106,6 +109,7 @@ export default function SignCanvas() {
   }, [
     viewport.width,
     viewport.height,
+    portraitScale,
   ]);
 
   return (
@@ -164,6 +168,53 @@ export default function SignCanvas() {
           </Canvas>
         )}
       </motion.div>
+      
+      {/* Portrait Scale Slider - Mobile Friendly */}
+      {config.mode === 'portrait' && (
+        <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-sm border-t border-white/20 p-4 pointer-events-auto z-50 safe-area-inset-bottom">
+          <div className="max-w-md mx-auto">
+            <label className="block text-white text-sm font-medium mb-2 text-center">
+              Sign Scale: {portraitScale.toFixed(2)}
+            </label>
+            <input
+              type="range"
+              min="1.0"
+              max="4.0"
+              step="0.1"
+              value={portraitScale}
+              onChange={(e) => setPortraitScale(Number(e.target.value))}
+              className="w-full h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer touch-none"
+              style={{
+                WebkitAppearance: 'none',
+                appearance: 'none',
+                background: 'linear-gradient(to right, #FFD700 0%, #FFD700 ' + ((portraitScale - 1.0) / 3.0 * 100) + '%, #4B5563 ' + ((portraitScale - 1.0) / 3.0 * 100) + '%, #4B5563 100%)',
+              }}
+            />
+            <style>{`
+              input[type="range"]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 24px;
+                height: 24px;
+                background: #FFD700;
+                border-radius: 50%;
+                cursor: pointer;
+                border: 2px solid #fff;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+              }
+              input[type="range"]::-moz-range-thumb {
+                width: 24px;
+                height: 24px;
+                background: #FFD700;
+                border-radius: 50%;
+                cursor: pointer;
+                border: 2px solid #fff;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+              }
+            `}</style>
+          </div>
+        </div>
+      )}
     </>
   );
 }
