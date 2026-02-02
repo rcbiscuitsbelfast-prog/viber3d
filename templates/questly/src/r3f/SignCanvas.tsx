@@ -1,4 +1,5 @@
 // Separate canvas for sign and text only - overlays on top with fixed camera
+// Uses deterministic geometry-based positioning with unified scale computation
 import { Canvas } from '@react-three/fiber';
 import { SplashSignScene } from './SplashSignScene';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -15,9 +16,26 @@ export default function SignCanvas() {
   const dragStart = useRef<{ x: number; y: number } | null>(null);
   const dragBase = useRef<[number, number, number]>([0, 0, 0]);
   
-  // Portrait scale adjustment
-  const [portraitScale, setPortraitScale] = useState(2.2);
+  // Debug mode for tuning (enabled via URL param ?debug=true)
+  const [debugMode, setDebugMode] = useState(false);
+  const [debugScale, setDebugScale] = useState(3.0);
+  const [signOffsetY, setSignOffsetY] = useState(0.300);
+  const [textOffsetZ, setTextOffsetZ] = useState(0.030);
 
+  useEffect(() => {
+    // Check for debug mode in URL
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const isDebug = params.get('debug') === 'true';
+      setDebugMode(isDebug);
+      
+      // Load debug values from localStorage only if in debug mode
+      if (isDebug) {
+        const storedScale = window.localStorage.getItem('questly:debugScale');
+        if (storedScale) setDebugScale(Number(storedScale));
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const handleResize = () => {
@@ -28,6 +46,13 @@ export default function SignCanvas() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Save debug values to localStorage when they change
+  useEffect(() => {
+    if (debugMode && typeof window !== 'undefined') {
+      window.localStorage.setItem('questly:debugScale', String(debugScale));
+    }
+  }, [debugMode, debugScale]);
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
@@ -74,43 +99,36 @@ export default function SignCanvas() {
     };
   }, []);
 
+  // Unified scale computation based on viewport aspect ratio
   const config = useMemo(() => {
-    const isPortrait = viewport.height > viewport.width;
-    const isSmall = viewport.width < 768;
+    const aspectRatio = viewport.width / viewport.height;
     
-    // Use portrait mode if: actual portrait orientation OR small width
-    const usePortraitMode = isPortrait || isSmall;
-    
-    if (usePortraitMode) {
-      // PORTRAIT/MOBILE VERSION - Using landscape proven values, scaled down for mobile
-      return {
-        mode: 'portrait',
-        scale: portraitScale,
-        signPos: [0.01, 0.21, -0.02] as [number, number, number],
-        textPos: [0.0, 0.3, -0.18] as [number, number, number],
-        textSize: 0.10,
-        bevelSize: 0.003,
-        cameraPos: [0, 0, 3.5] as [number, number, number],
-        cameraFov: 50,
-      };
+    // Base scale: 3.0 for landscape (aspect > 1.2)
+    // Scale down smoothly for portrait/narrow viewports
+    let computedScale: number;
+    if (aspectRatio > 1.2) {
+      // Landscape mode
+      computedScale = 3.0;
+    } else if (aspectRatio > 0.8) {
+      // Transitional (square-ish)
+      computedScale = 2.5;
     } else {
-      // LANDSCAPE VERSION - Optimized for wide screens
-      return {
-        mode: 'landscape',
-        scale: 3.0,
-        signPos: [0.01, 0.21, -0.02] as [number, number, number],
-        textPos: [0.0, 0.3, -0.18] as [number, number, number],
-        textSize: 0.11,
-        bevelSize: 0.003,
-        cameraPos: [0, 0, 3.5] as [number, number, number],
-        cameraFov: 50,
-      };
+      // Portrait mode - scale down more for very tall viewports
+      computedScale = Math.max(1.5, 2.0 - (0.8 - aspectRatio) * 0.8);
     }
-  }, [
-    viewport.width,
-    viewport.height,
-    portraitScale,
-  ]);
+
+    // Use debug scale if in debug mode
+    const finalScale = debugMode ? debugScale : computedScale;
+
+    return {
+      scale: finalScale,
+      signOffsetY,
+      textOffsetZ,
+      cameraPos: [0, 0, 3.5] as [number, number, number],
+      cameraFov: 50,
+      aspectRatio,
+    };
+  }, [viewport.width, viewport.height, debugMode, debugScale, signOffsetY, textOffsetZ]);
 
   return (
     <>
@@ -121,98 +139,98 @@ export default function SignCanvas() {
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3, duration: 1 }}
       >
-        {config.mode === 'portrait' && (
-          <Canvas
-            key="portrait"
-            camera={{ position: config.cameraPos, fov: config.cameraFov, near: 0.1, far: 1000 }}
-            gl={{
-              antialias: true,
-              alpha: true,
-              transparent: true,
-              powerPreference: 'high-performance',
-            }}
-            style={{ background: 'transparent' }}
-          >
-            <SplashSignScene 
-              scale={config.scale}
-              signPos={config.signPos}
-              textPos={config.textPos}
-              textSize={config.textSize}
-              bevelSize={config.bevelSize}
-              lightIntensity={2.0}
-              dragRotation={dragRotation}
-            />
-          </Canvas>
-        )}
-        {config.mode === 'landscape' && (
-          <Canvas
-            key="landscape"
-            camera={{ position: config.cameraPos, fov: config.cameraFov, near: 0.1, far: 1000 }}
-            gl={{
-              antialias: true,
-              alpha: true,
-              transparent: true,
-              powerPreference: 'high-performance',
-            }}
-            style={{ background: 'transparent' }}
-          >
-            <SplashSignScene 
-              scale={config.scale}
-              signPos={config.signPos}
-              textPos={config.textPos}
-              textSize={config.textSize}
-              bevelSize={config.bevelSize}
-              lightIntensity={2.0}
-              dragRotation={dragRotation}
-            />
-          </Canvas>
-        )}
+        <Canvas
+          camera={{ position: config.cameraPos, fov: config.cameraFov, near: 0.1, far: 1000 }}
+          gl={{
+            antialias: true,
+            alpha: true,
+            transparent: true,
+            powerPreference: 'high-performance',
+          }}
+          style={{ background: 'transparent' }}
+        >
+          <SplashSignScene 
+            scale={config.scale}
+            signOffsetY={config.signOffsetY}
+            textOffsetZ={config.textOffsetZ}
+            lightIntensity={2.0}
+            dragRotation={dragRotation}
+          />
+        </Canvas>
       </motion.div>
       
-      {/* Portrait Scale Slider - Mobile Friendly */}
-      {config.mode === 'portrait' && (
-        <div className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-sm border-t border-white/20 p-4 pointer-events-auto z-50 safe-area-inset-bottom">
-          <div className="max-w-md mx-auto">
-            <label className="block text-white text-sm font-medium mb-2 text-center">
-              Sign Scale: {portraitScale.toFixed(2)}
-            </label>
-            <input
-              type="range"
-              min="1.0"
-              max="4.0"
-              step="0.1"
-              value={portraitScale}
-              onChange={(e) => setPortraitScale(Number(e.target.value))}
-              className="w-full h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer touch-none"
-              style={{
-                WebkitAppearance: 'none',
-                appearance: 'none',
-                background: 'linear-gradient(to right, #FFD700 0%, #FFD700 ' + ((portraitScale - 1.0) / 3.0 * 100) + '%, #4B5563 ' + ((portraitScale - 1.0) / 3.0 * 100) + '%, #4B5563 100%)',
-              }}
-            />
-            <style>{`
-              input[type="range"]::-webkit-slider-thumb {
-                -webkit-appearance: none;
-                appearance: none;
-                width: 24px;
-                height: 24px;
-                background: #FFD700;
-                border-radius: 50%;
-                cursor: pointer;
-                border: 2px solid #fff;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-              }
-              input[type="range"]::-moz-range-thumb {
-                width: 24px;
-                height: 24px;
-                background: #FFD700;
-                border-radius: 50%;
-                cursor: pointer;
-                border: 2px solid #fff;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-              }
-            `}</style>
+      {/* Debug Controls - Only shown when ?debug=true */}
+      {debugMode && (
+        <div className="fixed bottom-4 right-4 bg-black/90 text-white p-4 rounded-lg pointer-events-auto z-40 text-xs max-w-xs border-2 border-yellow-500">
+          <h3 className="font-bold mb-3 text-sm text-yellow-400">🐛 Debug Mode</h3>
+          
+          <div className="space-y-3">
+            <div>
+              <label className="block mb-1 font-medium">Scale Override: {debugScale.toFixed(2)}</label>
+              <input 
+                type="range" 
+                min="1.0" 
+                max="5.0" 
+                step="0.1" 
+                value={debugScale} 
+                onChange={(e) => setDebugScale(Number(e.target.value))} 
+                className="w-full" 
+              />
+              <div className="text-[10px] text-gray-400 mt-1">
+                Auto: {config.aspectRatio > 1.2 ? '3.0 (landscape)' : config.aspectRatio > 0.8 ? '2.5 (square)' : '~2.0 (portrait)'}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-[10px]"
+                onClick={() => {
+                  setDebugScale(3.0);
+                }}
+              >
+                Reset to defaults
+              </button>
+            </div>
+            
+            <div className="border-t border-white/20 pt-2 mt-2 font-mono text-[10px] bg-black/50 p-2 rounded">
+              <div className="text-yellow-400 mb-1">Current Values:</div>
+              <div>Scale: {debugScale.toFixed(2)}</div>
+              <div>Sign Offset: {signOffsetY.toFixed(3)}</div>
+              <div>Aspect: {config.aspectRatio.toFixed(2)}</div>
+              <div className="text-[9px] text-gray-400 mt-1">Saved to localStorage</div>
+            </div>
+
+            <div className="border-t border-yellow-500/30 pt-2 text-[10px] text-yellow-300">
+              <div className="font-bold mb-1">Geometry-based positioning:</div>
+              <div className="text-gray-300">✓ Sign pivot normalized</div>
+              <div className="text-gray-300">✓ Text anchored to sign bounds</div>
+              <div className="text-gray-300">✓ Unified scale computation</div>
+            </div>
           </div>
+          
+          <style>{`
+            input[type="range"]::-webkit-slider-thumb {
+              -webkit-appearance: none;
+              appearance: none;
+              width: 20px;
+              height: 20px;
+              background: #EAB308;
+              border-radius: 50%;
+              cursor: pointer;
+              border: 2px solid #fff;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            }
+            input[type="range"]::-moz-range-thumb {
+              width: 20px;
+              height: 20px;
+              background: #EAB308;
+              border-radius: 50%;
+              cursor: pointer;
+              border: 2px solid #fff;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            }
+          `}</style>
         </div>
       )}
     </>
