@@ -4,7 +4,7 @@
 // Asset counts, terrain parameters, and water color match the builder for visual consistency.
 // Note: This is purely visual - no physics, collisions, or dynamic generation for fast loading.
 
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
@@ -13,13 +13,37 @@ import { InstancedForest } from '@/components/InstancedForest';
 import { InstancedGrass } from '@/components/InstancedGrass';
 import { InstancedRocks } from '@/components/InstancedRocks';
 import { InstancedBushes } from '@/components/InstancedBushes';
+import { VolumetricFog } from '@/components/VolumetricFog';
 
 interface SplashIslandSceneProps {
   enableControls?: boolean;
+  fogEnabled?: boolean;
+  fogHeight?: number;
+  bubbleScale?: number;
+  bubbleDensity?: number;
+  bubbleSpeed?: number;
+  innerFogRadius?: number;
+  innerFogHeight?: number;
+  innerBubbleScale?: number;
+  innerBubbleDensity?: number;
+  innerBubbleSpeed?: number;
 }
 
-export function SplashIslandScene({ enableControls = true }: SplashIslandSceneProps) {
+export function SplashIslandScene({ 
+  enableControls = true,
+  fogEnabled = true,
+  fogHeight = 5.0,
+  bubbleScale = 1.0,
+  bubbleDensity = 1.0,
+  bubbleSpeed = 0.2,
+  innerFogRadius = 30.0,
+  innerFogHeight = 4.0,
+  innerBubbleScale = 0.9,
+  innerBubbleDensity = 1.0,
+  innerBubbleSpeed = 0.15
+}: SplashIslandSceneProps) {
   const islandRef = useRef<THREE.Group>(null);
+  const [autoRotate, setAutoRotate] = useState(true);
 
   // Match World Builder island template defaults
   const roughness = 26;
@@ -85,12 +109,20 @@ export function SplashIslandScene({ enableControls = true }: SplashIslandScenePr
     return geom;
   }, [terrainData, terrainDetail, terrainScale]);
 
-  // Auto-rotate when not being dragged (visual rotation only)
+  // Auto-rotate until user interacts
   useFrame((_, delta) => {
-    if (islandRef.current) {
+    if (islandRef.current && autoRotate) {
       islandRef.current.rotation.y += delta * 0.05;
     }
   });
+
+  useEffect(() => {
+    const handlePointerDown = () => {
+      setAutoRotate(false);
+    };
+    window.addEventListener('pointerdown', handlePointerDown, { passive: true });
+    return () => window.removeEventListener('pointerdown', handlePointerDown);
+  }, []);
 
   const makeSeededRandom = (seedOffset: number) => {
     let seedRandom = seed + seedOffset;
@@ -368,7 +400,7 @@ export function SplashIslandScene({ enableControls = true }: SplashIslandScenePr
           enablePan={false}
           minPolarAngle={Math.PI / 4}
           maxPolarAngle={Math.PI / 2.5}
-          autoRotate={true}
+          autoRotate={autoRotate}
           autoRotateSpeed={2}
           rotateSpeed={0.5}
           dampingFactor={0.05}
@@ -425,6 +457,25 @@ export function SplashIslandScene({ enableControls = true }: SplashIslandScenePr
           side={THREE.BackSide}
         />
       </mesh>
+
+      {/* Volumetric Fog - Bubble fog effect around island */}
+      {fogEnabled && (
+        <VolumetricFog
+          timeOfDay={0.5}
+          fogHeight={fogHeight}
+          bubbleScale={bubbleScale}
+          bubbleDensity={bubbleDensity}
+          bubbleSpeed={bubbleSpeed}
+          terrainSize={200}
+          terrainRadius={islandSize}
+          isSquareTerrain={false}
+          innerFogRadius={innerFogRadius}
+          innerFogHeight={innerFogHeight}
+          innerBubbleScale={innerBubbleScale}
+          innerBubbleDensity={innerBubbleDensity}
+          innerBubbleSpeed={innerBubbleSpeed}
+        />
+      )}
     </>
   );
 }

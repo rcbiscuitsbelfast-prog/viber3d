@@ -78,7 +78,12 @@ export function VolumetricFog({
   bubbleSpeed,
   terrainSize,
   terrainRadius,
-  isSquareTerrain
+  isSquareTerrain,
+  innerFogRadius,
+  innerFogHeight,
+  innerBubbleScale,
+  innerBubbleDensity,
+  innerBubbleSpeed
 }: {
   timeOfDay: number;
   fogHeight: number;
@@ -88,13 +93,23 @@ export function VolumetricFog({
   terrainSize: number;
   terrainRadius: number;
   isSquareTerrain: boolean;
+  innerFogRadius: number;
+  innerFogHeight: number;
+  innerBubbleScale: number;
+  innerBubbleDensity: number;
+  innerBubbleSpeed: number;
 }) {
   const groupRef = useRef<THREE.Group>(null);
+  const innerGroupRef = useRef<THREE.Group>(null);
 
   // Clamp and remap slider values for stability
   const safeScale = Math.max(0.1, Math.min(bubbleScale, 2)); // 0.1x to 2x
   const safeDensity = Math.max(0.1, Math.min(bubbleDensity, 3)); // 0.1x to 3x
   const safeSpeed = Math.max(0, Math.min(bubbleSpeed, 1)); // 0 (stopped) to 1 (max)
+
+  const safeInnerScale = Math.max(0.1, Math.min(innerBubbleScale, 2));
+  const safeInnerDensity = Math.max(0.1, Math.min(innerBubbleDensity, 3));
+  const safeInnerSpeed = Math.max(0, Math.min(innerBubbleSpeed, 1));
 
   // For circular terrain: torus geometry (donut shape) - positioned at island edge
   const islandRadius = terrainRadius || 30;
@@ -160,11 +175,14 @@ export function VolumetricFog({
 
   // Very slow rotation animation for rolling fog effect - use delta time
   useFrame((state, delta) => {
-    if (groupRef.current) {
-      if (safeSpeed === 0) return;
-      const clampedDelta = Math.min(Math.max(delta, 0), 0.1);
+    const clampedDelta = Math.min(Math.max(delta, 0), 0.1);
+    if (groupRef.current && safeSpeed > 0) {
       const rotationDelta = clampedDelta * 0.001 * safeSpeed;
       groupRef.current.rotation.y += rotationDelta;
+    }
+    if (innerGroupRef.current && safeInnerSpeed > 0) {
+      const rotationDelta = clampedDelta * 0.0012 * safeInnerSpeed;
+      innerGroupRef.current.rotation.y -= rotationDelta;
     }
   });
 
@@ -192,6 +210,7 @@ export function VolumetricFog({
   // ALWAYS use square perimeter fog for both templates
   // Position fog at land-water transition (actual world-space dimensions)
   const squareSize = terrainSize; // Use terrainSize for both (200 for island, 400 for forest)
+  const innerSquareSize = Math.max(10, Math.min(squareSize - 10, innerFogRadius * 2));
 
   // Helper to position bubbles along square perimeter
   const getSquarePerimeterPosition = (index: number, total: number, size: number, variation: number = 0) => {
@@ -233,6 +252,30 @@ export function VolumetricFog({
           </mesh>
         );
       })}
+
+      {/* Inner fog ring - adjustable radius */}
+      <group ref={innerGroupRef}>
+        {innerSquareSize > 10 && Array.from({ length: Math.floor(16 * safeInnerDensity) }).map((_, i) => {
+          const totalBubbles = Math.floor(16 * safeInnerDensity);
+          const pos = getSquarePerimeterPosition(i, totalBubbles, innerSquareSize, Math.sin(i * 2.1) * 1.2);
+          const y = innerFogHeight + (Math.sin(i * 2.9) * 2 * safeInnerScale) - 0.5;
+          const bubbleSize = (10 + Math.sin(i * 4.1) * 6) * safeInnerScale;
+
+          return (
+            <mesh key={`fog-inner-${i}`} position={[pos.x, y, pos.z]} renderOrder={9}>
+              <sphereGeometry args={[bubbleSize, 12, 12]} />
+              <meshBasicMaterial
+                map={cloudTexture}
+                color={fogColor}
+                transparent
+                opacity={0.5}
+                side={THREE.DoubleSide}
+                depthWrite={false}
+              />
+            </mesh>
+          );
+        })}
+      </group>
     </group>
   );
 }
