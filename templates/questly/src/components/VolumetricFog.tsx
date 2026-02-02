@@ -47,7 +47,10 @@ export function VolumetricFog({
   const safeSpeed = Math.max(0, Math.min(bubbleSpeed, 1));
 
   const safeInnerScale = Math.max(0.1, Math.min(innerBubbleScale, 2));
-  conMemoize fog bounds
+  const safeInnerDensity = Math.max(0.1, Math.min(innerBubbleDensity, 3));
+  const safeInnerSpeed = Math.max(0, Math.min(innerBubbleSpeed, 1));
+
+  // Memoize fog bounds
   const fogBounds = useMemo(() => {
     if (isSquareTerrain) {
       const halfSize = terrainSize / 2;
@@ -105,10 +108,7 @@ export function VolumetricFog({
     
     // Store reference to prevent garbage collection
     textureRef.current = texture;
-    .CanvasTexture(canvas);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(6, 3);
+    
     return texture;
   }, []);
 
@@ -125,7 +125,52 @@ export function VolumetricFog({
         innerGroupVisible: innerGroupRef.current?.visible,
         safeSpeed,
         safeInnerSpeed,
-     Get fog color based on time of day
+        childCount: groupRef.current?.children.length || 0,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    }, 10000); // Log every 10 seconds
+    
+    return () => {
+      if (debugLogIntervalRef.current) {
+        clearInterval(debugLogIntervalRef.current);
+      }
+    };
+  }, [safeSpeed, safeInnerSpeed]);
+
+  // FIX: Validate and refresh materials when texture or parameters change
+  useEffect(() => {
+    if (cloudTexture && groupRef.current) {
+      groupRef.current.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material) {
+          const material = child.material as any;
+          if (material.map !== cloudTexture) {
+            material.map = cloudTexture;
+            material.needsUpdate = true;
+            console.log('[VolumetricFog] Refreshed material with new texture');
+          }
+        }
+      });
+    }
+  }, [cloudTexture]);
+
+  // Animation loop - very slow rotation
+  useFrame((state, delta) => {
+    lastRenderTimeRef.current = Date.now();
+    
+    const clampedDelta = Math.min(Math.max(delta, 0), 0.1);
+    
+    if (groupRef.current && safeSpeed > 0) {
+      const rotationDelta = clampedDelta * 0.001 * safeSpeed;
+      groupRef.current.rotation.y += rotationDelta;
+    }
+    
+    if (innerGroupRef.current && safeInnerSpeed > 0) {
+      const rotationDelta = clampedDelta * 0.0012 * safeInnerSpeed;
+      innerGroupRef.current.rotation.y -= rotationDelta;
+    }
+  });
+
+  // Get fog color based on time of day
   const getFogColor = (time: number) => {
     if (time >= 0.25 && time <= 0.75) {
       if (time < 0.35) {
@@ -159,17 +204,13 @@ export function VolumetricFog({
       case 1: return { x: size / 2, z: size / 2 - (position - size) };
       case 2: return { x: size / 2 - (position - size * 2), z: -size / 2 };
       case 3: return { x: -size / 2, z: -size / 2 + (position - size * 3) };
-    
-    if (innerGroupRef.current && safeInnerSpeed > 0) {
-      const rotationDelta = clampedDelta * 0.0012 * safeInnerSpeed;
-      innerGroupRef.current.rotation.y -= rotationDelta;
+      default: return { x: 0, z: 0 };
     }
-  });
+  };
 
-  // Smooth fog color transition from day to night
-  const getFogColor = (time: number) => {
-    if (time >= 0.25 && time <= 0.75) {
-      if (Outer fog ring */}
+  return (
+    <group ref={groupRef}>
+      {/* Outer fog ring */}
       {Array.from({ length: innerCount + outerCount }).map((_, i) => {
         const totalBubbles = innerCount + outerCount;
         const pos = getSquarePerimeterPosition(i, totalBubbles, squareSize, Math.sin(i * 2.3) * 2);
@@ -186,58 +227,13 @@ export function VolumetricFog({
               opacity={0.6}
               side={THREE.DoubleSide}
               depthWrite={false}
-              depthTest={tru
-  // ALWAYS use square perimeter fog for both templates
-  // Position fog at land-water transition (actual world-space dimensions)
-  const squareSize = terrainSize; // Use terrainSize for both (200 for island, 400 for forest)
-  const innerSquareSize = Math.max(10, Math.min(squareSize - 10, innerFogRadius * 2));
-
-  // Helper to position bubbles along square perimeter
-  const getSquarePerimeterPosition = (index: number, total: number, size: number, variation: number = 0) => {
-    const perimeter = size * 4;
-    const position = (index / total) * perimeter + variation;
-    const edge = Math.floor(position / size) % 4;
-    const edgePos = (position % size) - size / 2;
-
-    switch(edge) {
-      case 0: return { x: edgePos, z: size / 2 }; // Top edge
-      case 1: return { x: size / 2, z: size / 2 - (position - size) }; // Right edge
-      case 2: return { x: size / 2 - (position - size * 2), z: -size / 2 }; // Bottom edge
-      case 3: return { x: -size / 2, z: -size / 2 + (position - size * 3) }; // Left edge
-      default: return { x: 0, z: 0 };
-    }
-  };
-
-  return (
-    <group ref={groupRef}>
-      {/* No torus meshes - square perimeter fog only */}
-      {/* Static square perimeter fog bubbles */}
-      {Array.from({ length: innerCount + outerCount }).map((_, i) => {
-        const totalBubbles = innerCount + outerCount;
-        const pos = getSquarePerimeterPosition(i, totalBubbles, squareSize, Math.sin(i * 2.3) * 2);
-        const y = fogHeight + (Math.sin(i * 3.7) * 3 * safeScale) + 1;
-        const bubbleSize = (15 + Math.sin(i * 5.1) * 10) * safeScale;
-
-        return (
-          <mesh key={`fog-${i}`} position={[pos.x, y, pos.z]} renderOrder={10}>
-            <sphereGeometry args={[bubbleSize, 12, 12]} />
-            <meshBasicMaterial
-              map={cloudTexture}
-              color={fogColor}
-              transparent
-              opacity={0.6}
-              side={THREE.DoubleSide}
-              depthWrite={false}
+              depthTest={true}
             />
           </mesh>
         );
       })}
 
-      {/* Inner fog ring - adjustable radius */}
-      <group ref={innerGroupRef}>
-        {innerSquareSize > 10 && Array.from({ length: Math.floor(16 * safeInnerDensity) }).map((_, i) => {
-          const totalBubbles = Math.floor(16 * safeInnerDensity);
-          const pos = get*/}
+      {/* Inner fog ring */}
       <group ref={innerGroupRef}>
         {innerSquareSize > 10 && Array.from({ length: Math.floor(16 * safeInnerDensity) }).map((_, i) => {
           const totalBubbles = Math.floor(16 * safeInnerDensity);
@@ -255,7 +251,11 @@ export function VolumetricFog({
                 opacity={0.5}
                 side={THREE.DoubleSide}
                 depthWrite={false}
-                depthTest={tru
+                depthTest={true}
+              />
+            </mesh>
+          );
+        })}
       </group>
     </group>
   );

@@ -6,7 +6,7 @@ export default function R3FCanvas() {
   const canvasRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div ref={canvasRef} className="fixed inset-0 z-10">
+    <div ref={canvasRef} className="r3f-canvas fixed inset-0 z-10">
       <Canvas
         shadows
         camera={{ position: [0, 8, 24], fov: 50, near: 0.1, far: 1000 }}

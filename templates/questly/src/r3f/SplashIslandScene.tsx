@@ -117,8 +117,13 @@ export function SplashIslandScene({
   });
 
   useEffect(() => {
-    const handlePointerDown = () => {
-      setAutoRotate(false);
+    const handlePointerDown = (e: PointerEvent) => {
+      // Only stop auto-rotate if clicking on the canvas (island), not on overlays
+      const target = e.target as HTMLElement;
+      // Check if the target is a canvas element or inside the R3FCanvas container
+      if (target.tagName === 'CANVAS' || (target.closest('.r3f-canvas'))) {
+        setAutoRotate(false);
+      }
     };
     window.addEventListener('pointerdown', handlePointerDown, { passive: true });
     return () => window.removeEventListener('pointerdown', handlePointerDown);
