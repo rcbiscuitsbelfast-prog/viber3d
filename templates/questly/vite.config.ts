@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { copyFileSync, existsSync, mkdirSync } from 'fs';
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
 import { readdirSync } from 'fs';
 import { join } from 'path';
 
@@ -14,12 +14,18 @@ function copyAssetsPlugin() {
       const rootAssetsPath = path.resolve(__dirname, '../../Assets');
       const publicAssetsPath = path.resolve(__dirname, './public/Assets');
       
-      // Copy .nojekyll to public folder for GitHub Pages
+      // Copy .nojekyll to public folder for GitHub Pages (will be copied to dist automatically)
       const nojekyllSource = path.resolve(__dirname, '../../.nojekyll');
       const nojekyllDest = path.resolve(__dirname, './public/.nojekyll');
       if (existsSync(nojekyllSource)) {
         copyFileSync(nojekyllSource, nojekyllDest);
         console.log('[Vite] Copied .nojekyll to public folder for GitHub Pages');
+      } else {
+        // Create empty .nojekyll if it doesn't exist
+        if (!existsSync(nojekyllDest)) {
+          writeFileSync(nojekyllDest, '');
+          console.log('[Vite] Created .nojekyll in public folder for GitHub Pages');
+        }
       }
       
       // Only copy asset folders that are actually referenced in the code
