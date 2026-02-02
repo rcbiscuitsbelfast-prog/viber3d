@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { create3DText } from './create3DText';
+import { resolveAssetPath } from '@/lib/paths';
 
 
 
@@ -45,7 +46,7 @@ export function Font3DText(props: {
     size = 1.2,
     bevelEnabled = false,
     rotation = [0, 0, 0],
-    fontUrl = '/fonts/gentilis_regular.typeface.json',
+    fontUrl = resolveAssetPath('/fonts/gentilis_regular.typeface.json'),
     textureUrl,
     bumpMapUrl,
     roughnessMapUrl,

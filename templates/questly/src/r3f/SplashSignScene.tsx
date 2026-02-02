@@ -4,6 +4,7 @@
 import { Suspense } from 'react';
 import AnimatedCharacter from './AnimatedCharacter';
 import { Font3DText } from './Font3DText';
+import { resolveAssetPath } from '@/lib/paths';
 
 interface SplashSignSceneProps {
   scale?: number;
@@ -38,7 +39,7 @@ export function SplashSignScene({
           {/* Ornate Wooden Sign - loads FIRST to appear FIRST */}
           <group scale={1} position={signPos}>
             <AnimatedCharacter
-              characterPath="/Assets/button/ornate+wooden+sign+3d+model.glb"
+              characterPath={resolveAssetPath('/Assets/button/ornate+wooden+sign+3d+model.glb')}
               assetId="ornate_wooden_sign"
               characterId="splash-ornate-sign"
               scale={1}
@@ -60,7 +61,7 @@ export function SplashSignScene({
             bevelThickness={0.050}
             bevelSegments={3}
             curveSegments={3}
-            fontUrl="/fonts/gentilis_regular.typeface.json"
+            fontUrl={resolveAssetPath('/fonts/gentilis_regular.typeface.json')}
             materialType="standard"
             edgeColor="#B8860B"
             outlineEnabled={false}
