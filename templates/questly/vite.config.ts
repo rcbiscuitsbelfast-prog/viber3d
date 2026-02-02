@@ -143,7 +143,7 @@ export default defineConfig({
     },
     chunkSizeWarningLimit: 1000, // Increase limit for large 3D libraries
   },
-  base: './', // Use relative paths for GitHub Pages compatibility
+  base: '/viber3d/', // GitHub Pages project repository path
   server: {
     port: 3000,
     open: true,
