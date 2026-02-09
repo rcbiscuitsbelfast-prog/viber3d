@@ -101,6 +101,7 @@ export function exportWorldConfig(state: WorldState): WorldConfig {
     npcs: state.npcs,
     timeOfDay: state.timeOfDay,
     waveStrength: state.waveStrength,
+    waveAmplitude: state.waveAmplitude,
     waveSpeed: state.waveSpeed,
     oceanTransparency: state.oceanTransparency,
     sunIntensity: state.sunIntensity,

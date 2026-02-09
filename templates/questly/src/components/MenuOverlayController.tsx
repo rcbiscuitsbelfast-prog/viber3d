@@ -21,7 +21,7 @@ type SpeechPayload = {
 const getChatOptions = (path: string) => {
   if (path === '/settings') {
     return [
-      'What are Avatar Settings?',
+      'What are Dru Settings?',
       'How do I control audio?',
       'What is Head Only Mode?',
     ];
@@ -48,9 +48,9 @@ const getChatOptions = (path: string) => {
 const getChatResponses = (path: string): { [key: string]: string } => {
   if (path === '/settings') {
     return {
-      'What are Avatar Settings?': 'Avatar Settings let you control your helper avatar. You can show or hide it, toggle speech bubbles, and choose between full avatar or head-only mode to save screen space.',
+      'What are Avatar Settings?': 'Dru Settings let you control Dru (the helper wizard). You can show or hide him, toggle speech bubbles, adjust his size, and choose between full avatar or head-only mode to save screen space.',
       'How do I control audio?': 'Use the Audio section to toggle background music on or off. Simply click the toggle switch next to "Background Music" to change the setting.',
-      'What is Head Only Mode?': 'Head Only Mode shows just the avatar\'s head without the body. This saves screen space while still giving you access to help, chat, and jokes.',
+      'What is Head Only Mode?': 'Head Only Mode shows just Dru\'s head without the body. This saves screen space while still giving you access to help, chat, and jokes.',
     };
   } else if (path === '/have-your-say') {
     return {
@@ -78,6 +78,7 @@ const jokePool = [
   'The druid loves trees because they always "branch out." 🌳',
 ];
 
+// MenuOverlayController - Controls Dru (the helper wizard) on-screen presence
 export default function MenuOverlayController() {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false); // Start hidden
@@ -91,6 +92,9 @@ export default function MenuOverlayController() {
   const [bubbleScale] = useState(1);
   const talkTimeoutRef = useRef<number | null>(null);
   const { avatar: avatarSettings } = useAvatarSettings();
+  
+  // Dru's scale - controls entire on-screen presence size
+  const druScale = avatarSettings.druScale ?? 1.0;
   
   // Head height offset for head-only mode
   // Default: -104px to position head directly above toggle button
@@ -242,7 +246,7 @@ export default function MenuOverlayController() {
                   y: 50
                 }}
                 animate={{ 
-                  scale: 1, 
+                  scale: druScale, // Apply Dru's scale to entire container
                   rotate: 0, 
                   opacity: 1,
                   y: 0
@@ -265,12 +269,21 @@ export default function MenuOverlayController() {
                   // In head-only mode, position directly above toggle button
                   alignItems: avatarSettings.headOnlyMode ? 'flex-end' : 'center',
                   justifyContent: avatarSettings.headOnlyMode ? 'flex-end' : 'center',
-                  marginBottom: avatarSettings.headOnlyMode ? `${headHeightOffset}px` : '0px',
+                  // In head-only mode, adjust marginBottom to keep bottom of head fixed when scaling
+                  // The container scales from 'bottom right', so we need to compensate for scale changes
+                  // At scale 1.0: marginBottom = -104px (headHeightOffset)
+                  // At scale 0.7: we need the bottom of head to stay at same position
+                  // Since container scales from bottom-right, the marginBottom needs to account for scale
+                  marginBottom: avatarSettings.headOnlyMode 
+                    ? `${headHeightOffset / druScale}px` 
+                    : '0px',
                   order: avatarSettings.headOnlyMode ? -1 : 0,
                   gap: avatarSettings.headOnlyMode ? '0px' : '12px',
+                  // Scale from bottom-right corner - this keeps the bottom-right fixed
+                  transformOrigin: 'bottom right',
                 }}
               >
-                {/* Speech Bubble - Directly Above Avatar */}
+                {/* Speech Bubble - Directly Above Dru */}
                 {avatarSettings.showSpeechBubble && (
                   <SpeechBubbleController
                     key={speech?.id}
@@ -281,7 +294,7 @@ export default function MenuOverlayController() {
                     style={{
                       bottom: `${bubbleOffsetY}px`,
                       left: `${bubbleOffsetX}px`,
-                      transform: `scale(${bubbleScale})`,
+                      transform: `scale(${bubbleScale * druScale})`, // Apply Dru's scale to speech bubble
                       transformOrigin: 'bottom left',
                       zIndex: 111,
                     }}
@@ -301,7 +314,8 @@ export default function MenuOverlayController() {
                     style={{ 
                       top: `${headCenterY}px`,
                       left: '50%',
-                      transform: 'translateX(-50%)',
+                      transform: `translateX(-50%) scale(${druScale})`, // Apply Dru's scale to menu buttons
+                      transformOrigin: 'center',
                       width: '200px',
                       height: '200px',
                     }}
@@ -354,7 +368,8 @@ export default function MenuOverlayController() {
                   style={{ 
                     top: '-280px',
                     left: '50%',
-                    transform: 'translateX(-50%)',
+                    transform: `translateX(-50%) scale(${druScale})`, // Apply Dru's scale to chat menu
+                    transformOrigin: 'center',
                     maxWidth: 'calc(100vw - 2rem)',
                   }}
                 >
@@ -376,13 +391,16 @@ export default function MenuOverlayController() {
               )}
 
 
-                {/* Avatar */}
+                {/* Dru's Avatar - The helper wizard */}
                 <div 
                   className="relative"
                   style={{
                     // In head-only mode, align head to right (above toggle button)
                     alignSelf: avatarSettings.headOnlyMode ? 'flex-end' : 'center',
                     marginBottom: avatarSettings.headOnlyMode ? '0px' : '0px',
+                    // In head-only mode, ensure the bottom of the head stays fixed when scaling
+                    // The container already scales from 'bottom right', so the head's bottom-right stays fixed
+                    transformOrigin: avatarSettings.headOnlyMode ? 'bottom right' : 'center',
                   }}
                 >
                   <AvatarController2D

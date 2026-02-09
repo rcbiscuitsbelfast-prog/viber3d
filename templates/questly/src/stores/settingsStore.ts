@@ -6,6 +6,7 @@ interface AvatarSettings {
   headOnlyMode: boolean;
   avatarVisible: boolean;
   avatarScale: number; // Scale of the avatar in 3D scene (0.5 - 2.0, default 1.0)
+  druScale: number; // Scale of Dru (the helper wizard) on-screen presence (0.1 - 1.0, default 1.0)
 }
 
 interface AppSettings {
@@ -20,6 +21,7 @@ const defaultSettings: AppSettings = {
     headOnlyMode: false,
     avatarVisible: true,
     avatarScale: 1.0,
+    druScale: 0.7, // Dru's default scale (70% size)
   },
 };
 

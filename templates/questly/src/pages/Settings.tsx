@@ -57,11 +57,11 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* Avatar Settings */}
+          {/* Dru Settings - Controls for Dru, the helper wizard */}
           <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700" data-help-id="avatar-settings">
             <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
               <User className="w-5 h-5" />
-              Avatar Settings
+              Dru Settings
             </h2>
             <div className="space-y-4">
               {/* Avatar Visibility */}
@@ -132,7 +132,36 @@ export default function Settings() {
                 </button>
               </label>
 
-              {/* Avatar Scale */}
+              {/* Dru Scale - Controls the size of Dru's entire on-screen presence */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-300">
+                    Dru Size
+                    <span className="block text-xs text-slate-400 mt-1">
+                      Adjust size of Dru (the helper wizard) on screen
+                    </span>
+                  </span>
+                  <span className="text-slate-300 text-sm font-mono">
+                    {(avatar.druScale ?? 1.0).toFixed(1)}x
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="1.0"
+                  step="0.1"
+                  value={avatar.druScale ?? 1.0}
+                  onChange={(e) => updateAvatar({ druScale: parseFloat(e.target.value) })}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                />
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>0.1x</span>
+                  <span>0.5x</span>
+                  <span>1.0x</span>
+                </div>
+              </div>
+
+              {/* Avatar Scale - Controls 3D character scale in play mode */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-300">

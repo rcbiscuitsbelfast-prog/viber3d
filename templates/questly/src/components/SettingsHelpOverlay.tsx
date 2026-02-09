@@ -16,8 +16,8 @@ const HELP_ELEMENTS: HelpElement[] = [
   },
   { 
     id: 'avatar-settings', 
-    label: 'Avatar Settings', 
-    description: 'Customize your avatar helper. Control visibility, speech bubbles, and choose between full avatar or head-only mode to save screen space.' 
+    label: 'Dru Settings', 
+    description: 'Customize Dru (the helper wizard). Control visibility, speech bubbles, size, and choose between full avatar or head-only mode to save screen space.' 
   },
   { 
     id: 'other-settings', 

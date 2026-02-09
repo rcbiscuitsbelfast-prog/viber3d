@@ -125,6 +125,7 @@ function CharacterController({
   rotationRef: externalRotationRef,
   getTerrainHeight,
   characterHeightOffset = 0.9,
+  avatarScale = 1.0,
   npcPositionsRef,
 }: {
   startPosition: [number, number, number];
@@ -147,6 +148,7 @@ function CharacterController({
   rotationRef?: React.MutableRefObject<number>;
   getTerrainHeight?: (x: number, z: number) => number;
   characterHeightOffset?: number;
+  avatarScale?: number;
   npcPositionsRef?: React.MutableRefObject<Map<string, THREE.Vector3>>;
 }) {
   const characterRef = useRef<THREE.Group>(null);
@@ -193,7 +195,8 @@ function CharacterController({
         const characterScene = clonedGltf.scene;
         
         // Set scale - KayKit models are typically 1 unit = 1 meter
-        characterScene.scale.setScalar(1);
+        // Apply avatar scale from slider
+        characterScene.scale.setScalar(avatarScale);
         characterScene.position.set(0, 0, 0);
         characterScene.visible = true;
         
@@ -224,7 +227,14 @@ function CharacterController({
     };
 
     loadCharacter();
-  }, [characterModelPath]);
+  }, [characterModelPath, avatarScale]);
+
+  // Update scale when avatarScale prop changes
+  useEffect(() => {
+    if (model) {
+      model.scale.setScalar(avatarScale);
+    }
+  }, [model, avatarScale]);
 
   // Character animation hook
   const { crossfadeTo, isLoaded: animationsLoaded } = useCharacterAnimation({
@@ -1970,6 +1980,7 @@ function DynamicOcean({
   waterLevel,
   timeOfDay,
   waveStrength,
+  waveAmplitude,
   waveSpeed,
   oceanTransparency,
   oceanSize,
@@ -1978,6 +1989,7 @@ function DynamicOcean({
   waterLevel: number;
   timeOfDay: number;
   waveStrength: number;
+  waveAmplitude: number;
   waveSpeed: number;
   oceanTransparency: number;
   oceanSize: number;
@@ -1989,6 +2001,7 @@ function DynamicOcean({
   useEffect(() => {
     if (materialRef.current && materialRef.current.uniforms) {
       materialRef.current.uniforms.waveStrength.value = waveStrength;
+      materialRef.current.uniforms.waveAmplitude.value = waveAmplitude;
       materialRef.current.uniforms.waveSpeed.value = waveSpeed;
       materialRef.current.uniforms.transparency.value = oceanTransparency;
       materialRef.current.uniforms.rippleScale.value = rippleScale;
@@ -2033,7 +2046,7 @@ function DynamicOcean({
       ).normalize();
       materialRef.current.uniforms.sunDirection.value = sunDir;
     }
-  }, [timeOfDay, waveStrength, waveSpeed, oceanTransparency, rippleScale]);
+  }, [timeOfDay, waveStrength, waveAmplitude, waveSpeed, oceanTransparency, rippleScale]);
   
   // Update time uniform every frame - critical for wave animation
   useFrame((state) => {
@@ -2057,7 +2070,7 @@ function DynamicOcean({
       waterColor: { value: new THREE.Color(0.1, 0.3, 0.5) },
       waveStrength: { value: waveStrength },
       waveSpeed: { value: waveSpeed },
-      waveAmplitude: { value: 1.0 }, // Wave height multiplier
+      waveAmplitude: { value: waveAmplitude }, // Wave height multiplier
       specularStrength: { value: 2.0 },
       transparency: { value: oceanTransparency },
       rippleScale: { value: rippleScale },
@@ -2152,6 +2165,8 @@ function EraseIndicator({
 // Ground Click Handler Component for Manual Placement
 function GroundClickHandler({
   selectedAssetType,
+  selectedBuildingAsset,
+  selectedBuildingPack,
   eraseMode,
   eraseBrushSize,
   manualAssets,
@@ -2160,6 +2175,8 @@ function GroundClickHandler({
   getTerrainHeight,
 }: {
   selectedAssetType: 'tree' | 'rock' | 'grass' | 'bush' | null;
+  selectedBuildingAsset: string | null;
+  selectedBuildingPack: string;
   eraseMode: boolean;
   eraseBrushSize: number;
   manualAssets: Array<any>;
@@ -2175,7 +2192,7 @@ function GroundClickHandler({
   }, [manualAssets]);
 
   useEffect(() => {
-    if (!selectedAssetType && !eraseMode) return;
+    if (!selectedAssetType && !selectedBuildingAsset && !eraseMode) return;
 
     const handleClick = (event: MouseEvent) => {
       // Ignore clicks on UI elements
@@ -2228,6 +2245,26 @@ function GroundClickHandler({
             }
             assetsToErase.forEach((id) => onEraseAsset(id));
           }
+        } else if (selectedBuildingAsset) {
+          // Place building
+          const [packId, buildingType] = selectedBuildingAsset.split(':');
+          const pack = BUILDING_ASSET_PACKS.find(p => p.id === packId);
+          if (pack) {
+            const assetDef = pack.assets.find(a => a.type === buildingType);
+            if (assetDef) {
+              const terrainY = getTerrainHeight(point.x, point.z);
+              const buildingData = {
+                id: `building-${Date.now()}-${Math.random()}`,
+                packId,
+                assetType: buildingType,
+                position: [point.x, terrainY, point.z] as [number, number, number],
+                rotation: 0,
+                scale: assetDef.defaultScale || 6.0,
+              };
+              // Add to placedBuilds instead of manualAssets
+              onPlaceAsset({ ...buildingData, type: 'building' });
+            }
+          }
         } else if (selectedAssetType) {
           // Place new asset
           let terrainY = getTerrainHeight(point.x, point.z);
@@ -2269,7 +2306,7 @@ function GroundClickHandler({
 
     window.addEventListener('click', handleClick);
     return () => window.removeEventListener('click', handleClick);
-  }, [selectedAssetType, eraseMode, eraseBrushSize, onPlaceAsset, onEraseAsset, camera, raycaster, pointer, scene, getTerrainHeight]);
+  }, [selectedAssetType, selectedBuildingAsset, selectedBuildingPack, eraseMode, eraseBrushSize, onPlaceAsset, onEraseAsset, camera, raycaster, pointer, scene, getTerrainHeight]);
 
   return null;
 }
@@ -2416,26 +2453,86 @@ export default function TestWorld() {
   ]);
   
   // NPCs with waypoints - will be positioned on building area once terrain is ready
-  const [npcs, setNpcs] = useState([
-    {
-      id: 'guard1',
-      name: 'Guard',
-      position: [15, 2.5, 30] as [number, number, number],
-      waypoints: [
-        [15, 2.5, 30],
-        [35, 2.5, 30],
-        [35, 2.5, 50],
-        [15, 2.5, 50],
-      ] as [number, number, number][],
-      characterModelPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Knight.glb',
-    },
-    {
-      id: 'merchant1',
-      name: 'Merchant',
-      position: [-15, 2.5, 30] as [number, number, number],
-      waypoints: [
-        [-15, 2.5, 30],
-        [-35, 2.5, 30],
+  // Helper function to constrain NPCs to building areas
+  const constrainNpcsToBuildingAreas = useCallback((npcsToConstrain: typeof npcs, areas: BuildingArea[]) => {
+    if (!areas || areas.length === 0) return npcsToConstrain;
+    
+    const primaryArea = areas[0];
+    
+    return npcsToConstrain.map(npc => {
+      // Check if NPC is within any building area
+      let inArea = false;
+      for (const area of areas) {
+        const dist = Math.sqrt(Math.pow(npc.position[0] - area.x, 2) + Math.pow(npc.position[2] - area.z, 2));
+        if (dist <= area.radius) {
+          inArea = true;
+          break;
+        }
+      }
+      
+      // If not in area, move to primary building area
+      if (!inArea) {
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.random() * primaryArea.radius * 0.3;
+        const x = primaryArea.x + Math.cos(angle) * distance;
+        const z = primaryArea.z + Math.sin(angle) * distance;
+        const y = getTerrainHeight(x, z);
+        
+        // Generate waypoints within area
+        const waypoints: [number, number, number][] = [[x, y, z]];
+        for (let i = 0; i < 3; i++) {
+          const wpAngle = Math.random() * Math.PI * 2;
+          const wpDistance = Math.random() * primaryArea.radius * 0.4;
+          const wpX = primaryArea.x + Math.cos(wpAngle) * wpDistance;
+          const wpZ = primaryArea.z + Math.sin(wpAngle) * wpDistance;
+          const wpY = getTerrainHeight(wpX, wpZ);
+          waypoints.push([wpX, wpY, wpZ]);
+        }
+        
+        return {
+          ...npc,
+          position: [x, y, z] as [number, number, number],
+          waypoints
+        };
+      }
+      
+      // Update Y position and waypoints to terrain height
+      const y = getTerrainHeight(npc.position[0], npc.position[2]);
+      const waypoints = npc.waypoints.map(wp => {
+        const wpY = getTerrainHeight(wp[0], wp[2]);
+        return [wp[0], wpY, wp[2]] as [number, number, number];
+      });
+      
+      return {
+        ...npc,
+        position: [npc.position[0], y, npc.position[2]] as [number, number, number],
+        waypoints
+      };
+    });
+  }, [getTerrainHeight]);
+
+  const [npcs, setNpcs] = useState(() => {
+    // Initial NPCs - will be constrained to building areas after terrain loads
+    const initialNpcs = [
+      {
+        id: 'guard1',
+        name: 'Guard',
+        position: [15, 2.5, 30] as [number, number, number],
+        waypoints: [
+          [15, 2.5, 30],
+          [35, 2.5, 30],
+          [35, 2.5, 50],
+          [15, 2.5, 50],
+        ] as [number, number, number][],
+        characterModelPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Knight.glb',
+      },
+      {
+        id: 'merchant1',
+        name: 'Merchant',
+        position: [-15, 2.5, 30] as [number, number, number],
+        waypoints: [
+          [-15, 2.5, 30],
+          [-35, 2.5, 30],
         [-35, 2.5, 50],
         [-15, 2.5, 50],
       ] as [number, number, number][],
@@ -2512,7 +2609,11 @@ export default function TestWorld() {
       showHealthBar: true,
       showHitbox: true,
     },
-  ]);
+    ];
+    
+    // Return initial NPCs - they will be constrained to building areas after terrain loads
+    return initialNpcs;
+  });
   
   // Dialogue box state
   const [dialogueBox, setDialogueBox] = useState<{
@@ -2568,6 +2669,9 @@ export default function TestWorld() {
   const [eraseBrushSize, setEraseBrushSize] = useState(3);
   const [selectedAssetType, setSelectedAssetType] = useState<'tree' | 'rock' | 'grass' | 'bush' | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['nature']));
+  const [buildingMode, setBuildingMode] = useState(false); // Building placement mode
+  const [selectedBuildingPack, setSelectedBuildingPack] = useState<string>('kaykit_castle');
+  const [selectedBuildingAsset, setSelectedBuildingAsset] = useState<string | null>(null);
   
   // Camera control modes
   const [panMode, setPanMode] = useState(false);
@@ -2576,6 +2680,7 @@ export default function TestWorld() {
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [characterHeightOffset, setCharacterHeightOffset] = useState(0.0); // Slider for height offset - 0.0 = ground level
+  const [avatarScale, setAvatarScale] = useState(1.0); // Avatar scale slider - 1.0 = default size
   
   // Character position/rotation refs for camera controller
   const characterPositionRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 20, 0));
@@ -2600,6 +2705,7 @@ export default function TestWorld() {
   // Ocean and Skybox controls
   const [timeOfDay, setTimeOfDay] = useState(0.5); // 0-1, where 0.5 is noon
   const [waveStrength, setWaveStrength] = useState(0.02);
+  const [waveAmplitude, setWaveAmplitude] = useState(1.0); // Wave height multiplier
   const [waveSpeed, setWaveSpeed] = useState(1.7);
   const [oceanTransparency, setOceanTransparency] = useState(1.0);
   const [sunIntensity, setSunIntensity] = useState(1.0);
@@ -2785,7 +2891,34 @@ export default function TestWorld() {
 
   // Manual asset handlers
   const handlePlaceAsset = (asset: any) => {
-    setManualAssets([...manualAssets, asset]);
+    if (asset.type === 'building') {
+      // Add building to placedBuilds - create single-asset build structure
+      const pack = BUILDING_ASSET_PACKS.find(p => p.id === asset.packId);
+      const assetDef = pack?.assets.find(a => a.type === asset.assetType);
+      if (assetDef) {
+        const buildingAsset: CastleAsset = {
+          id: `${asset.id}-asset`,
+          type: asset.assetType as any,
+          packId: asset.packId,
+          position: [0, 0, 0], // Relative to build position
+          rotation: asset.rotation || 0,
+          scale: asset.scale || assetDef.defaultScale || 6.0,
+        };
+        const buildingData = {
+          id: asset.id,
+          buildName: `${asset.packId}_${asset.assetType}`,
+          assets: [buildingAsset], // Single building as one asset in array
+          position: asset.position,
+          rotation: asset.rotation || 0,
+          areaId: buildingAreas.length > 0 ? buildingAreas[0].id : 0,
+          heightOffset: 0,
+        };
+        setPlacedBuilds([...placedBuilds, buildingData]);
+      }
+    } else {
+      // Add nature asset to manualAssets
+      setManualAssets([...manualAssets, asset]);
+    }
   };
 
   const handleEraseAsset = (id: string) => {
@@ -2831,6 +2964,7 @@ export default function TestWorld() {
     npcs,
     timeOfDay,
     waveStrength,
+    waveAmplitude,
     waveSpeed,
     oceanTransparency,
     sunIntensity,
@@ -2910,7 +3044,7 @@ export default function TestWorld() {
     treeHeightOffset, grassHeightOffset, rockHeightOffset, bushHeightOffset,
     slopeAdjustmentIntensity, buildingAreas, nextAreaId,
     manualAssets, proceduralAssets, questMarkers, npcs,
-    timeOfDay, waveStrength, waveSpeed, oceanTransparency, sunIntensity,
+    timeOfDay, waveStrength, waveAmplitude, waveSpeed, oceanTransparency, sunIntensity,
     enableDynamicSky, oceanSize, rippleScale, fogHeight,
     bubbleScale, bubbleDensity, bubbleSpeed
   ]);
@@ -2967,14 +3101,65 @@ export default function TestWorld() {
       }));
       setQuestMarkers(updatedMarkers);
       
-      const updatedNpcs = worldState.npcs.map(npc => ({
-        ...npc,
-        position: [npc.position[0], getTerrainHeight(npc.position[0], npc.position[2]), npc.position[2]] as [number, number, number],
-        waypoints: npc.waypoints.map(wp => [wp[0], getTerrainHeight(wp[0], wp[2]), wp[2]] as [number, number, number])
-      }));
+      // Constrain NPCs to building areas when loading world
+      const primaryArea = worldState.buildingAreas && worldState.buildingAreas.length > 0 
+        ? worldState.buildingAreas[0] 
+        : { x: 0, z: 0, radius: 20 };
+      
+      const updatedNpcs = worldState.npcs.map(npc => {
+        // Check if NPC is within any building area
+        let inArea = false;
+        for (const area of (worldState.buildingAreas || [])) {
+          const dist = Math.sqrt(Math.pow(npc.position[0] - area.x, 2) + Math.pow(npc.position[2] - area.z, 2));
+          if (dist <= area.radius) {
+            inArea = true;
+            break;
+          }
+        }
+        
+        // If not in area, move to primary building area
+        if (!inArea) {
+          const angle = Math.random() * Math.PI * 2;
+          const distance = Math.random() * primaryArea.radius * 0.3;
+          const x = primaryArea.x + Math.cos(angle) * distance;
+          const z = primaryArea.z + Math.sin(angle) * distance;
+          const y = getTerrainHeight(x, z);
+          
+          // Generate waypoints within area
+          const waypoints: [number, number, number][] = [[x, y, z]];
+          for (let i = 0; i < 3; i++) {
+            const wpAngle = Math.random() * Math.PI * 2;
+            const wpDistance = Math.random() * primaryArea.radius * 0.4;
+            const wpX = primaryArea.x + Math.cos(wpAngle) * wpDistance;
+            const wpZ = primaryArea.z + Math.sin(wpAngle) * wpDistance;
+            const wpY = getTerrainHeight(wpX, wpZ);
+            waypoints.push([wpX, wpY, wpZ]);
+          }
+          
+          return {
+            ...npc,
+            position: [x, y, z] as [number, number, number],
+            waypoints
+          };
+        }
+        
+        // Update Y position and waypoints to terrain height
+        const y = getTerrainHeight(npc.position[0], npc.position[2]);
+        const waypoints = npc.waypoints.map(wp => {
+          const wpY = getTerrainHeight(wp[0], wp[2]);
+          return [wp[0], wpY, wp[2]] as [number, number, number];
+        });
+        
+        return {
+          ...npc,
+          position: [npc.position[0], y, npc.position[2]] as [number, number, number],
+          waypoints
+        };
+      });
       setNpcs(updatedNpcs);
       setTimeOfDay(worldState.timeOfDay);
       setWaveStrength(worldState.waveStrength);
+      setWaveAmplitude(worldState.waveAmplitude ?? 1.0);
       setWaveSpeed(worldState.waveSpeed);
       setOceanTransparency(worldState.oceanTransparency);
       setSunIntensity(worldState.sunIntensity);
@@ -3039,6 +3224,12 @@ export default function TestWorld() {
     setBushHeightOffset(config.bushHeightOffset);
     setSlopeAdjustmentIntensity(config.slopeAdjustmentIntensity);
     setIsSquareTerrain(config.isSquareTerrain ?? false);
+    if (config.noiseType !== undefined) setNoiseType(config.noiseType);
+    // Set building areas if provided in template
+    if (config.buildingAreas && config.buildingAreas.length > 0) {
+      setBuildingAreas(config.buildingAreas);
+      setNextAreaId(Math.max(...config.buildingAreas.map(a => a.id)) + 1);
+    }
     if (config.sunIntensity !== undefined) setSunIntensity(config.sunIntensity);
     if (config.waveStrength !== undefined) setWaveStrength(config.waveStrength);
     if (config.waveAmplitude !== undefined) setWaveAmplitude(config.waveAmplitude);
@@ -3155,7 +3346,7 @@ export default function TestWorld() {
   }, [islandSize, isSquareTerrain]);
 
   // Update quest markers and NPCs positions when terrain is ready and building areas change
-  // Ensures they're positioned within building areas and on terrain surface
+  // Ensures NPCs are always positioned within building areas and on terrain surface
   useEffect(() => {
     if (!terrainMeshRef.current || buildingAreas.length === 0) return;
     
@@ -3188,50 +3379,9 @@ export default function TestWorld() {
       return { ...marker, position: [marker.position[0], y, marker.position[2]] as [number, number, number] };
     }));
     
-    // Update NPCs to be within building area
-    setNpcs(prev => prev.map(npc => {
-      // Check if NPC is within any building area
-      let inArea = false;
-      for (const area of buildingAreas) {
-        const dist = Math.sqrt(Math.pow(npc.position[0] - area.x, 2) + Math.pow(npc.position[2] - area.z, 2));
-        if (dist <= area.radius) {
-          inArea = true;
-          break;
-        }
-      }
-      
-      // If not in area, move to primary building area
-      if (!inArea) {
-        const angle = Math.random() * Math.PI * 2;
-        const distance = Math.random() * primaryArea.radius * 0.3;
-        const x = primaryArea.x + Math.cos(angle) * distance;
-        const z = primaryArea.z + Math.sin(angle) * distance;
-        const y = getTerrainHeight(x, z);
-        
-        // Generate waypoints within area
-        const waypoints: [number, number, number][] = [[x, y, z]];
-        for (let i = 0; i < 3; i++) {
-          const wpAngle = Math.random() * Math.PI * 2;
-          const wpDistance = Math.random() * primaryArea.radius * 0.4;
-          const wpX = primaryArea.x + Math.cos(wpAngle) * wpDistance;
-          const wpZ = primaryArea.z + Math.sin(wpAngle) * wpDistance;
-          const wpY = getTerrainHeight(wpX, wpZ);
-          waypoints.push([wpX, wpY, wpZ]);
-        }
-        
-        return { ...npc, position: [x, y, z] as [number, number, number], waypoints };
-      }
-      
-      // Update Y position and waypoints to terrain height
-      const y = getTerrainHeight(npc.position[0], npc.position[2]);
-      const waypoints = npc.waypoints.map(wp => {
-        const wpY = getTerrainHeight(wp[0], wp[2]);
-        return [wp[0], wpY, wp[2]] as [number, number, number];
-      });
-      
-      return { ...npc, position: [npc.position[0], y, npc.position[2]] as [number, number, number], waypoints };
-    }));
-  }, [terrainMeshRef, buildingAreas]);
+    // Constrain NPCs to building areas - ensure they're always within building areas
+    setNpcs(prev => constrainNpcsToBuildingAreas(prev, buildingAreas));
+  }, [terrainMeshRef, buildingAreas, constrainNpcsToBuildingAreas]);
 
   return (
     <div className="fixed inset-0 bg-gradient-to-b from-slate-900 to-slate-800 text-white overflow-hidden">
@@ -3820,22 +3970,116 @@ export default function TestWorld() {
           </>
         )}
         
+        {/* Building Mode UI */}
+        {manualMode && buildingMode && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold text-amber-300 uppercase mb-2">🏗️ Building Placement</h3>
+            
+            {/* Building Pack Selector */}
+            <div className="mb-3">
+              <label className="text-xs text-slate-400 block mb-1">Building Pack:</label>
+              <select
+                value={selectedBuildingPack}
+                onChange={(e) => {
+                  setSelectedBuildingPack(e.target.value);
+                  setSelectedBuildingAsset(null);
+                }}
+                className="w-full bg-slate-700 text-white text-xs py-2 px-3 rounded border border-slate-600 focus:border-amber-500 focus:outline-none"
+              >
+                {BUILDING_ASSET_PACKS.map((pack) => (
+                  <option key={pack.id} value={pack.id}>
+                    {pack.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Building Selection Grid */}
+            <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
+              {BUILDING_ASSET_PACKS.find(p => p.id === selectedBuildingPack)?.assets
+                .filter((asset) => {
+                  // Filter out props/objects - keep only buildings
+                  const objectTypes = ['bag', 'bag_open', 'bags', 'barrel', 'bell', 'bench', 'bonfire', 'cart', 'cauldron', 'crate', 'hay', 'package', 'rocks', 'sawmill_saw', 'smoke', 'door_round', 'door_straight', 'fence', 'gazebo', 'market_stand', 'path_straight', 'round_window', 'stairs', 'well', 'window'];
+                  return !objectTypes.includes(asset.type);
+                })
+                .map((asset) => {
+                  const assetKey = `${selectedBuildingPack}:${asset.type}`;
+                  return (
+                    <button
+                      key={asset.id}
+                      onClick={() => {
+                        if (selectedBuildingAsset === assetKey) {
+                          setSelectedBuildingAsset(null);
+                        } else {
+                          setSelectedBuildingAsset(assetKey);
+                          setSelectedAssetType(null);
+                        }
+                      }}
+                      className={`p-2 rounded-lg border transition-colors flex flex-col items-center gap-1 ${
+                        selectedBuildingAsset === assetKey
+                          ? 'bg-amber-600/30 border-amber-500 text-white'
+                          : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-700/50'
+                      }`}
+                    >
+                      <span className="text-xl">{asset.icon}</span>
+                      <span className="text-[10px] font-medium text-center leading-tight">{asset.name}</span>
+                    </button>
+                  );
+                })}
+            </div>
+            
+            {selectedBuildingAsset && (
+              <p className="text-[10px] text-amber-300 mt-2 text-center">
+                Selected: {BUILDING_ASSET_PACKS.find(p => p.id === selectedBuildingPack)?.assets.find(a => `${selectedBuildingPack}:${a.type}` === selectedBuildingAsset)?.name}
+              </p>
+            )}
+          </div>
+        )}
+        
         {/* Manual Placement Mode Button */}
         {!leftPanelMinimized && (
-        <div className="pt-4 mt-4 border-t border-slate-700">
+        <div className="pt-4 mt-4 border-t border-slate-700 space-y-2">
           <button
-            onClick={() => setManualMode(!manualMode)}
+            onClick={() => {
+              setManualMode(!manualMode);
+              setBuildingMode(false);
+              setSelectedBuildingAsset(null);
+            }}
             className={`w-full font-bold py-3 px-4 rounded-lg transition-all ${
-              manualMode 
+              manualMode && !buildingMode
                 ? 'bg-purple-600 hover:bg-purple-700 shadow-lg shadow-purple-500/50' 
                 : 'bg-slate-700 hover:bg-slate-600'
             } text-white text-sm`}
           >
-            {manualMode ? '← Back to Procedural Mode' : '→ Switch to Manual Placement'}
+            {manualMode && !buildingMode ? '← Back to Procedural Mode' : '→ Switch to Manual Placement'}
           </button>
+          
+          {/* Building Mode Button - Only show in manual mode */}
           {manualMode && (
+            <button
+              onClick={() => {
+                setBuildingMode(!buildingMode);
+                setSelectedAssetType(null);
+                setSelectedBuildingAsset(null);
+              }}
+              className={`w-full font-bold py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2 ${
+                buildingMode
+                  ? 'bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-500/50' 
+                  : 'bg-slate-700 hover:bg-slate-600'
+              } text-white text-sm`}
+            >
+              {buildingMode ? '← Back' : '🏗️ Buildings'}
+            </button>
+          )}
+          
+          {manualMode && !buildingMode && (
             <p className="text-[10px] text-purple-300 mt-2 text-center">
               Click terrain to place assets
+            </p>
+          )}
+          {buildingMode && (
+            <p className="text-[10px] text-amber-300 mt-2 text-center">
+              Click terrain to place buildings
             </p>
           )}
         </div>
@@ -3879,6 +4123,27 @@ export default function TestWorld() {
                 />
                 <p className="text-xs text-slate-400 mt-1">
                   Adjust if character floats or sinks into ground
+                </p>
+              </div>
+            )}
+
+            {/* Avatar Scale Slider - Only in test mode */}
+            {testMode && (
+              <div className="mb-4 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                <label className="text-xs font-bold text-slate-300 block mb-2">
+                  Avatar Scale: <span className="text-blue-400">{avatarScale.toFixed(2)}x</span>
+                </label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="3.0"
+                  step="0.1"
+                  value={avatarScale}
+                  onChange={(e) => setAvatarScale(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Adjust size of 3D avatar in play mode
                 </p>
               </div>
             )}
@@ -4642,6 +4907,7 @@ export default function TestWorld() {
                 timeOfDay={timeOfDay}
                 oceanSize={oceanSize}
                 waveStrength={waveStrength}
+                waveAmplitude={waveAmplitude}
                 waveSpeed={waveSpeed}
                 oceanTransparency={oceanTransparency}
                 rippleScale={rippleScale}
@@ -4650,8 +4916,9 @@ export default function TestWorld() {
             )}
             
             {/* Volumetric Fog / Cloud Mesh - Restored donut bubble ring */}
+            {/* Stable key to prevent remounting - only change when terrain type changes */}
             <VolumetricFog
-              key={`fog-${isSquareTerrain ? 'square' : 'circle'}-${islandSize}`}
+              key={`fog-${isSquareTerrain ? 'square' : 'circle'}`}
               timeOfDay={timeOfDay}
               fogHeight={fogHeight}
               bubbleScale={bubbleScale}
@@ -4660,6 +4927,11 @@ export default function TestWorld() {
               terrainSize={isSquareTerrain ? (islandSize * 2) : 230}
               terrainRadius={islandSize}
               isSquareTerrain={isSquareTerrain}
+              innerFogRadius={30}
+              innerFogHeight={4}
+              innerBubbleScale={0.7}
+              innerBubbleDensity={1.0}
+              innerBubbleSpeed={0.15}
             />
             
             {/* Procedural Forest Assets */}
@@ -4715,6 +4987,7 @@ export default function TestWorld() {
                     rotationRef={characterRotationRef}
                       getTerrainHeight={getTerrainHeight}
                       characterHeightOffset={characterHeightOffset}
+                      avatarScale={avatarScale}
                     npcPositionsRef={npcPositionsRef}
                     onAnimationTrigger={(crossfade) => {
                   if (animationTriggerRef.current) {
@@ -4857,6 +5130,8 @@ export default function TestWorld() {
               <>
                 <GroundClickHandler
                   selectedAssetType={selectedAssetType}
+                  selectedBuildingAsset={selectedBuildingAsset}
+                  selectedBuildingPack={selectedBuildingPack}
                   eraseMode={eraseMode}
                   eraseBrushSize={eraseBrushSize}
                   manualAssets={manualAssets}

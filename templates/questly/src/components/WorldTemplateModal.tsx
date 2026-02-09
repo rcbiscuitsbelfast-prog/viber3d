@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mountain, Trees, FolderOpen } from 'lucide-react';
+import type { BuildingArea } from '@/systems/world/WorldConfig';
 
 export interface WorldTemplate {
   id: string;
@@ -15,6 +16,7 @@ export interface WorldTemplate {
     heightScale: number;
     waterLevel: number;
     cliffIntensity: number;
+    noiseType?: 'standard' | 'smooth' | 'rocky' | 'ridged' | 'turbulent';
     treeAmount: number;
     treeSize: number;
     grassAmount: number;
@@ -42,6 +44,7 @@ export interface WorldTemplate {
     bubbleScale?: number;
     bubbleDensity?: number;
     bubbleSpeed?: number;
+    buildingAreas?: BuildingArea[]; // Default building areas for template
   };
 }
 
@@ -52,14 +55,14 @@ export const WORLD_TEMPLATES: WorldTemplate[] = [
     description: 'Circular island with ocean, hills, and beaches',
     icon: Mountain,
     config: {
-      roughness: 26,
-      islandSize: 44,
+      roughness: 26, // Island: Roughness 26
+      islandSize: 44, // Island: Terrain Size 44
       terrainDetail: 64,
       seed: 0,
-      heightScale: 55,
-      waterLevel: 0.9,
-      cliffIntensity: 100,
-      treeAmount: 3500,
+      heightScale: 55, // Island: Height Scale 55
+      waterLevel: 0.9, // Island: Water Level 0.9
+      cliffIntensity: 100, // Island: Cliff Intensity 100
+      treeAmount: 2000,
       treeSize: 100,
       grassAmount: 2000,
       grassSize: 100,
@@ -74,7 +77,24 @@ export const WORLD_TEMPLATES: WorldTemplate[] = [
       rockHeightOffset: 0,
       bushHeightOffset: 0,
       slopeAdjustmentIntensity: 3.5,
-      isSquareTerrain: false,
+      isSquareTerrain: false, // Island: circular terrain
+      noiseType: 'smooth' as const, // Island: Smooth (Rolling Hills)
+      // Island template defaults
+      sunIntensity: 1.0,
+      waveStrength: 0.08, // Island: Wave Strength 0.08
+      waveAmplitude: 1.0,
+      waveSpeed: 1.7,
+      oceanTransparency: 1.0,
+      oceanSize: 500,
+      rippleScale: 5.0,
+      fogHeight: 16.0, // Island: Fog Height 16.0m
+      bubbleScale: 0.7, // Island: Bubble Scale 0.7x
+      bubbleDensity: 2.4, // Island: Bubble Density 2.4x
+      bubbleSpeed: 0.0,
+      // Island default building area
+      buildingAreas: [
+        { id: 0, x: 10, z: -50, radius: 40, height: 4.0, minimized: false } // Island: Position X: 10, Z: -50, Radius: 40, Height: 4.0
+      ],
     },
   },
   {
@@ -83,14 +103,14 @@ export const WORLD_TEMPLATES: WorldTemplate[] = [
     description: 'Square forest area with hills, no water',
     icon: Trees,
     config: {
-      roughness: 20, // Lower roughness for smoother hills
-      islandSize: 200, // Large value to prevent island falloff
+      roughness: 25, // Forest: Roughness 25
+      islandSize: 83, // Forest: Terrain Size 83
       terrainDetail: 64,
       seed: 0,
-      heightScale: 30, // Lower height scale for mostly flat terrain
-      waterLevel: -20, // Very low to ensure no water visible
-      cliffIntensity: 100,
-      treeAmount: 3500,
+      heightScale: 35, // Forest: Height Scale 35
+      waterLevel: -20.0, // Forest: Water Level -20.0
+      cliffIntensity: 80, // Forest: Cliff Intensity 80
+      treeAmount: 2000,
       treeSize: 100,
       grassAmount: 2000,
       grassSize: 100,
@@ -105,19 +125,24 @@ export const WORLD_TEMPLATES: WorldTemplate[] = [
       rockHeightOffset: 0,
       bushHeightOffset: 0,
       slopeAdjustmentIntensity: 3.5,
-      isSquareTerrain: true, // Square terrain, no island falloff
+      isSquareTerrain: true, // Forest: Square terrain, no island falloff
+      noiseType: 'ridged' as const, // Forest: Ridged (Valleys)
       // Forest template defaults
       sunIntensity: 1.0,
-      waveStrength: 0.02,
-      waveAmplitude: 5.0,
-      waveSpeed: 0.0,
-      oceanTransparency: 0.0,
+      waveStrength: 0.02, // Forest: Wave Strength 0.02
+      waveAmplitude: 1.0,
+      waveSpeed: 1.7,
+      oceanTransparency: 1.0,
       oceanSize: 500,
-      rippleScale: 0.1,
-      fogHeight: 3.0,
-      bubbleScale: 0.3,
-      bubbleDensity: 3.0,
-      bubbleSpeed: 0, // 0 = completely static
+      rippleScale: 5.0,
+      fogHeight: 13.4, // Forest: Fog Height 13.4m
+      bubbleScale: 1.0, // Forest: Bubble Scale 1.0x
+      bubbleDensity: 2.8, // Forest: Bubble Density 2.8x
+      bubbleSpeed: 0.0,
+      // Forest default building area
+      buildingAreas: [
+        { id: 0, x: 0, z: -10, radius: 45, height: 2.5, minimized: false } // Forest: Position X: 0, Z: -10, Radius: 45, Height: 2.5
+      ],
     },
   },
 ];

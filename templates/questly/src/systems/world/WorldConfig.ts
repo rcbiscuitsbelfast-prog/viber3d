@@ -95,6 +95,7 @@ export interface WorldConfig {
   // Ocean and skybox settings
   timeOfDay: number;
   waveStrength: number;
+  waveAmplitude: number;
   waveSpeed: number;
   oceanTransparency: number;
   sunIntensity: number;
