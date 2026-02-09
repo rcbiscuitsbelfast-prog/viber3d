@@ -28,11 +28,9 @@ const questTypes: QuestTypeOption[] = [
 export default function QuestTypeSelector() {
   const navigate = useNavigate();
 
-  // Play background music (track 2.5) for quest type selector
+  // Play background music for quest type selector (no need to reinit - done in App)
   useEffect(() => {
-    globalAudioManager.init().then(() => {
-      globalAudioManager.playMusic('track_2_5');
-    });
+    globalAudioManager.playMusic('track_5');
   }, []);
 
   const handleSelectType = (typeTitle: string) => {

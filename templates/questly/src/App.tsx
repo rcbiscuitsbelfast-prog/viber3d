@@ -7,7 +7,6 @@ import QuestTypeSelector from './pages/QuestTypeSelector';
 import TemplateQuests from './pages/TemplateQuests';
 import UserDashboard from './pages/UserDashboard';
 import TestWorld from './pages/TestWorld';
-import CharacterSelectPage from './pages/CharacterSelectPage';
 import WorldBuilder from './pages/WorldBuilder';
 import WorldPreview from './pages/WorldPreview';
 import QuestSettings from './pages/QuestSettings';
@@ -18,6 +17,7 @@ import HaveYourSay from './pages/HaveYourSay';
 import Settings from './pages/Settings';
 import Navigation from './components/Navigation';
 import { useAuthStore } from './lib/auth';
+import { globalAudioManager } from './systems/audio';
 
 function App() {
   const initialize = useAuthStore((state) => state.initialize);
@@ -30,6 +30,15 @@ function App() {
       console.warn('Auth initialization failed:', error);
     }
   }, [initialize]);
+
+  // Initialize global audio manager once on app mount
+  useEffect(() => {
+    globalAudioManager.init().then(() => {
+      console.log('[App] Audio manager initialized');
+    }).catch((err) => {
+      console.warn('[App] Failed to initialize audio manager:', err);
+    });
+  }, []);
 
   return (
     <HashRouter>
@@ -48,7 +57,6 @@ function App() {
           <Route path="/quest-complete" element={<QuestComplete />} />
           <Route path="/dashboard" element={<UserDashboard />} />
           <Route path="/test-world" element={<TestWorld />} />
-          <Route path="/character-select" element={<CharacterSelectPage />} />
           <Route path="/fonts-demo" element={<FontsDemo />} />
           <Route path="/have-your-say" element={<HaveYourSay />} />
           <Route path="/settings" element={<Settings />} />

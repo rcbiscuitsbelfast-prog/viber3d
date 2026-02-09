@@ -33,11 +33,9 @@ const worldOptions: WorldOption[] = [
 export default function TemplateQuests() {
   const navigate = useNavigate();
 
-  // Play background music (track 2.5) for template selection
+  // Play background music for template selection (no need to reinit - done in App)
   useEffect(() => {
-    globalAudioManager.init().then(() => {
-      globalAudioManager.playMusic('track_2_5');
-    });
+    globalAudioManager.playMusic('track_5');
   }, []);
 
   const handleSelectTemplate = (templateId: string) => {

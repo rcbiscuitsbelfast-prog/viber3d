@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Hammer, Play, MessageSquare, Lock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useEffect } from 'react';
 import ParallaxBackground from '@/components/ParallaxBackground';
 import CustomButton from '@/components/CustomButton';
 import AssetCreditsFooter from '@/components/AssetCreditsFooter';
@@ -13,17 +14,9 @@ export default function MainMenu() {
   const [showComingSoonCarousel, setShowComingSoonCarousel] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
 
-  // Play background music (track 2.5) for main menu
+  // Play main menu music on component mount
   useEffect(() => {
-    globalAudioManager.init().then(() => {
-      // Play track 2.5 on loop for main menu
-      globalAudioManager.playMusic('track_2_5');
-    });
-    
-    // Keep music playing - don't stop on unmount
-    return () => {
-      // Music continues to other pages
-    };
+    globalAudioManager.playMusic('track_5');
   }, []);
 
   const comingSoonFeatures = [

@@ -14,11 +14,9 @@ export default function Settings() {
   };
   const { avatar, updateAvatar } = useAvatarSettings();
 
-  // Play background music (track 2.5) for settings page
+  // Play background music for settings page (no need to reinit - done in App)
   useEffect(() => {
-    globalAudioManager.init().then(() => {
-      globalAudioManager.playMusic('track_2_5');
-    });
+    globalAudioManager.playMusic('track_5');
   }, []);
 
   return (

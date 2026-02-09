@@ -12,8 +12,14 @@ class AudioManager {
 
   // Track paths - update these when music files are added
   private readonly trackPaths: Record<string, string> = {
-    'track_2_1': '/Assets/music/track_2_1.mp3', // Splash screen
-    'track_2_5': '/Assets/music/track_2_5.mp3', // Main menu and other pages
+    'track_1': `${import.meta.env.BASE_URL}Assets/music/Medieval Vol. 2 1 (Loop).mp3`,
+    'track_2': `${import.meta.env.BASE_URL}Assets/music/Medieval Vol. 2 2 (Loop).mp3`,
+    'track_3': `${import.meta.env.BASE_URL}Assets/music/Medieval Vol. 2 3 (Loop).mp3`,
+    'track_4': `${import.meta.env.BASE_URL}Assets/music/Medieval Vol. 2 4 (Loop).mp3`,
+    'track_5': `${import.meta.env.BASE_URL}Assets/music/Medieval Vol. 2 5 (Loop).mp3`,
+    'track_6': `${import.meta.env.BASE_URL}Assets/music/Medieval Vol. 2 6 (Loop).mp3`,
+    'track_7': `${import.meta.env.BASE_URL}Assets/music/Medieval Vol. 2 7 (Loop).mp3`,
+    'track_8': `${import.meta.env.BASE_URL}Assets/music/Medieval Vol. 2 8 (Loop).mp3`,
   };
 
   /**

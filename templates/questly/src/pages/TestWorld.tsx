@@ -206,6 +206,8 @@ function CharacterController({
         // Apply avatar scale from slider
         characterScene.scale.setScalar(avatarScale);
         characterScene.position.set(0, 0, 0);
+        // Don't rotate the model itself - let the group handle rotation
+        characterScene.rotation.y = 0;
         characterScene.visible = true;
         
         // Ensure model is visible and has shadows
@@ -3103,17 +3105,9 @@ export default function TestWorld() {
     getTerrainHeightRef.current = getTerrainHeight;
   }, [getTerrainHeight]);
 
-  // Play background music (track 2.5) for test world
+  // Play background music for test world (no need to reinit - done in App)
   useEffect(() => {
-    globalAudioManager.init().then(() => {
-      // Play track 2.5 on loop for test world
-      globalAudioManager.playMusic('track_2_5');
-    });
-    
-    // Keep music playing - don't stop on unmount
-    return () => {
-      // Music continues to other pages
-    };
+    globalAudioManager.playMusic('track_5');
   }, []);
 
   const handleRegenerate = () => {
@@ -3778,7 +3772,7 @@ export default function TestWorld() {
                 <svg className="w-5 h-5 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
-          </div>
+              </div>
               <span className="font-display text-lg text-primary-foreground font-bold hidden sm:block">Questly</span>
             </button>
             
@@ -3895,7 +3889,8 @@ export default function TestWorld() {
         </div>
       )}
       
-      {/* Asset Controls - Left Panel - Mobile responsive with minimize */}
+      {/* Asset Controls - Left Panel - Mobile responsive with minimize - Hidden in test mode */}
+      {!testMode && (
       <div className={`fixed top-[3.5rem] md:top-16 left-2 md:left-4 ${leftPanelMinimized ? 'bottom-auto h-auto' : 'bottom-2 md:bottom-4'} z-20 ${leftPanelMinimized ? 'w-12' : 'w-[calc(100%-1rem)] md:w-64'} bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg overflow-hidden flex flex-col transition-all duration-300 shadow-xl`}>
         {/* Panel Header */}
         <div className="flex items-center justify-between p-2 md:p-3 border-b border-slate-700 bg-slate-800/50 flex-shrink-0 min-h-[2.75rem] md:min-h-[3rem]">
@@ -4417,7 +4412,6 @@ export default function TestWorld() {
         )}
         
         {/* Manual Placement Mode Button */}
-        {!leftPanelMinimized && (
         <div className="pt-4 mt-4 border-t border-slate-700 space-y-2">
           <button
             onClick={() => {
@@ -4463,12 +4457,13 @@ export default function TestWorld() {
             </p>
           )}
         </div>
-        )}
-        </div>
-        )}
       </div>
+      )}
+      </div>
+      )}
       
-      {/* Island Controls - Right Panel - Mobile responsive with minimize */}
+      {/* Island Controls - Right Panel - Mobile responsive with minimize - Hidden in test mode */}
+      {!testMode && (
       <div className={`fixed top-[3.5rem] md:top-16 right-2 md:right-4 ${rightPanelMinimized ? 'bottom-auto h-auto' : 'bottom-2 md:bottom-4'} z-20 ${rightPanelMinimized ? 'w-12' : 'w-[calc(100%-1rem)] md:w-64'} bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg overflow-hidden flex flex-col transition-all duration-300 shadow-xl`}>
         {/* Panel Header */}
         <div className="flex items-center justify-between p-2 md:p-3 border-b border-slate-700 bg-slate-800/50 flex-shrink-0 min-h-[2.75rem] md:min-h-[3rem]">
@@ -5188,8 +5183,9 @@ export default function TestWorld() {
           </div>
         )}
         </div>
-        )}
+      )}
       </div>
+      )}
       
       {/* 3D Scene - Fixed to fit perfectly in viewport */}
       <div className="fixed inset-0 w-full h-full" style={{ top: '3.5rem', paddingTop: '0' }}>
@@ -5370,7 +5366,7 @@ export default function TestWorld() {
             />
             
             {/* Character Controller - only in test mode */}
-                {testMode && (() => {
+            {testMode && (() => {
                   // Calculate spawn position at building area center with terrain height
                   const spawnX = buildingAreas.length > 0 ? buildingAreas[0].x : 0;
                   const spawnZ = buildingAreas.length > 0 ? buildingAreas[0].z : 50;
@@ -5598,28 +5594,30 @@ export default function TestWorld() {
               </group>
             ) : (
               // In editor mode, render all assets individually for full editability
-              manualAssets.map((asset) => {
-                if (!asset || !asset.position) return null;
-                
-                const [x, y, z] = asset.position;
-                
-                if (asset.type === 'tree') {
-                  if (asset.treeType === 'pine') {
-                    return <PineTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
-                  } else if (asset.treeType === 'broad') {
-                    return <BroadTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
-                  } else {
-                    return <BushyTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+              <>
+                {manualAssets.map((asset) => {
+                  if (!asset || !asset.position) return null;
+                  
+                  const [x, y, z] = asset.position;
+                  
+                  if (asset.type === 'tree') {
+                    if (asset.treeType === 'pine') {
+                      return <PineTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                    } else if (asset.treeType === 'broad') {
+                      return <BroadTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                    } else {
+                      return <BushyTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                    }
+                  } else if (asset.type === 'rock') {
+                    return <Rock key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} variant={asset.variant || 0} />;
+                  } else if (asset.type === 'grass') {
+                    return <GrassClump key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                  } else if (asset.type === 'bush') {
+                    return <Bush key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} variant={asset.variant || 0} />;
                   }
-                } else if (asset.type === 'rock') {
-                  return <Rock key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} variant={asset.variant || 0} />;
-                } else if (asset.type === 'grass') {
-                  return <GrassClump key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
-                } else if (asset.type === 'bush') {
-                  return <Bush key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} variant={asset.variant || 0} />;
-                }
-                return null;
-              })
+                  return null;
+                })}
+              </>
             )}
             {/* Darkness Overlay for night time */}
             <DarknessOverlay timeOfDay={timeOfDay} />
@@ -5635,7 +5633,7 @@ export default function TestWorld() {
         message={dialogueBox.message}
         type={dialogueBox.type}
         onClose={closeDialogue}
-        onEdit={dialogueBox.type === 'npc' && interactingWith ? () => {
+        onEdit={(dialogueBox.type === 'npc' && interactingWith) ? () => {
           const npcId = interactingWith.replace('npc-', '');
           openNPCEditor(npcId);
           closeDialogue();
@@ -5802,6 +5800,6 @@ export default function TestWorld() {
           />
         </>
       )}
-              </div>
+    </div>
   );
 }

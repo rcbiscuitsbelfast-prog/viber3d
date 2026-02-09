@@ -3792,18 +3792,11 @@ export default function BuilderPage() {
   const [isDropMode, setIsDropMode] = useState(false); // For dropping player on terrain
   const [playerStartPosition, setPlayerStartPosition] = useState<[number, number, number] | null>(null);
 
-  // Play background music (track 2.5) during build and play modes
+  // Play background music during build and play modes (no need to reinit - done in App)
   useEffect(() => {
-    globalAudioManager.init().then(() => {
-      // Play track 2.5 on loop for build/play mode
-      globalAudioManager.playMusic('track_2_5');
-    });
-    
-    // Cleanup: stop music when component unmounts
-    return () => {
-      globalAudioManager.stopMusic();
-    };
-  }, []); // Play once when component mounts, keep playing during build/play
+    globalAudioManager.playMusic('track_5');
+    // Don't stop music on unmount - keep it persistent
+  }, []);
 
   // ===== WebGL Context Loss Recovery (Feb 6, 2026) =====
   const [webglContextLost, setWebglContextLost] = useState(false);
