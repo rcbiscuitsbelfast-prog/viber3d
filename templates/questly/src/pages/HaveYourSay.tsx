@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Send, MessageSquare } from 'lucide-react';
 import ParallaxBackground from '@/components/ParallaxBackground';
 import CustomButton from '@/components/CustomButton';
-import MenuOverlayController from '@/components/MenuOverlayController';
 
 type FeedbackCategory = 'suggestion' | 'question' | 'complaint' | 'report_quest';
 
@@ -163,8 +162,6 @@ export default function HaveYourSay() {
           </div>
         </motion.div>
       </div>
-
-      <MenuOverlayController />
     </ParallaxBackground>
   );
 }

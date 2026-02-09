@@ -9,7 +9,6 @@ import { useAuthStore } from '@/lib/auth';
 import { listWorlds, deleteWorld, type WorldMetadata } from '@/utils/worldStorage';
 import { getWorldActivity, recordWorldEvent } from '@/utils/worldActivity';
 import CustomButton from '@/components/CustomButton';
-import MenuOverlayController from '@/components/MenuOverlayController';
 
 type TabId = 'account' | 'worlds' | 'activity' | 'settings';
 
@@ -561,9 +560,6 @@ export default function PlayerDashboard() {
           </main>
         </div>
       </div>
-
-      {/* Avatar Controller */}
-      <MenuOverlayController />
     </div>
   );
 }

@@ -3,7 +3,6 @@ import { useEffect } from 'react';
 import { ArrowLeft, Volume2, VolumeX, User, MessageSquare, Eye, EyeOff } from 'lucide-react';
 import { useSettingsStore, useAvatarSettings } from '@/stores/settingsStore';
 import CustomButton from '@/components/CustomButton';
-import MenuOverlayController from '@/components/MenuOverlayController';
 import { globalAudioManager } from '@/systems/audio';
 
 export default function Settings() {
@@ -221,8 +220,6 @@ export default function Settings() {
           </CustomButton>
         </div>
       </div>
-
-      <MenuOverlayController />
     </div>
   );
 }

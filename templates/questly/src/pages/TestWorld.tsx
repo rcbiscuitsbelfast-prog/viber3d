@@ -2,8 +2,9 @@ import React, { Suspense, useState, useMemo, useRef, useEffect, useLayoutEffect,
 import { useFrame, Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment, Sky, useGLTF } from '@react-three/drei';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Home } from 'lucide-react';
+import { Home, Volume2, VolumeX } from 'lucide-react';
 import CustomButton from '@/components/CustomButton';
+import { useSettingsStore } from '@/stores/settingsStore';
 import * as THREE from 'three';
 import { oceanVertexShader, oceanFragmentShader, skyboxVertexShader, skyboxFragmentShader } from '@/shaders/OceanShaders';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -3830,13 +3831,26 @@ export default function TestWorld() {
       {testMode ? (
         <>
           {/* Mobile Test Mode Header */}
-          <div className="fixed top-4 left-4 z-50 lg:hidden">
+          <div className="fixed top-4 left-4 z-50 lg:hidden flex gap-2">
             <button
               onClick={() => setSidebarOpen(true)}
               className="p-3 bg-slate-800/90 hover:bg-slate-700 rounded-lg transition-colors shadow-lg backdrop-blur"
               aria-label="Open menu"
             >
               <Home className="w-6 h-6 text-white" />
+            </button>
+            
+            {/* Mobile Mute Button */}
+            <button
+              onClick={() => useSettingsStore.setState({ musicEnabled: !useSettingsStore.getState().musicEnabled })}
+              className="p-3 bg-slate-800/90 hover:bg-slate-700 rounded-lg transition-colors shadow-lg backdrop-blur"
+              aria-label={useSettingsStore.getState().musicEnabled ? 'Mute' : 'Unmute'}
+            >
+              {useSettingsStore.getState().musicEnabled ? (
+                <Volume2 className="w-6 h-6 text-white" />
+              ) : (
+                <VolumeX className="w-6 h-6 text-slate-400" />
+              )}
             </button>
           </div>
 

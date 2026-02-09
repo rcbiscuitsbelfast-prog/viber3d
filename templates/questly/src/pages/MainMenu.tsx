@@ -6,7 +6,6 @@ import { useEffect } from 'react';
 import ParallaxBackground from '@/components/ParallaxBackground';
 import CustomButton from '@/components/CustomButton';
 import AssetCreditsFooter from '@/components/AssetCreditsFooter';
-import MenuOverlayController from '@/components/MenuOverlayController';
 import { globalAudioManager } from '@/systems/audio';
 
 export default function MainMenu() {
@@ -225,8 +224,6 @@ export default function MainMenu() {
           </div>
         </div>
       )}
-
-      <MenuOverlayController />
     </ParallaxBackground>
   );
 }

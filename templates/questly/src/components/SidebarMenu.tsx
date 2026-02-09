@@ -1,8 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Home, Settings, Music, LogIn, LayoutDashboard, X } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
 
 interface SidebarMenuProps {
   isOpen: boolean;
@@ -12,7 +12,10 @@ interface SidebarMenuProps {
 export default function SidebarMenu({ isOpen, onClose }: SidebarMenuProps) {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuthStore();
-  const [isMusicOn, setIsMusicOn] = useState(true);
+  const musicEnabled = useSettingsStore((state) => state.musicEnabled);
+  const setMusicEnabled = (enabled: boolean) => {
+    useSettingsStore.setState({ musicEnabled: enabled });
+  };
 
   const handleAuthClick = () => {
     onClose();
@@ -113,15 +116,15 @@ export default function SidebarMenu({ isOpen, onClose }: SidebarMenuProps) {
 
               {/* Music Toggle */}
               <button
-                onClick={() => setIsMusicOn(!isMusicOn)}
+                onClick={() => setMusicEnabled(!musicEnabled)}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                  isMusicOn
+                  musicEnabled
                     ? 'bg-slate-800 hover:bg-slate-700 text-white'
                     : 'bg-slate-800/50 hover:bg-slate-800 text-slate-400'
                 }`}
               >
                 <Music className="w-5 h-5" />
-                <span className="font-medium">{isMusicOn ? 'Music On' : 'Music Off'}</span>
+                <span className="font-medium">{musicEnabled ? 'Music On' : 'Music Off'}</span>
               </button>
 
               {/* Settings - Coming Soon */}

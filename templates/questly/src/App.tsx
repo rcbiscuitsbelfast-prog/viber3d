@@ -16,6 +16,7 @@ import FontsDemo from './pages/FontsDemo';
 import HaveYourSay from './pages/HaveYourSay';
 import Settings from './pages/Settings';
 import Navigation from './components/Navigation';
+import MenuOverlayController from './components/MenuOverlayController';
 import { useAuthStore } from './lib/auth';
 import { globalAudioManager } from './systems/audio';
 
@@ -62,6 +63,9 @@ function App() {
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        
+        {/* Original Dru Helper - appears on all pages */}
+        <MenuOverlayController />
       </div>
     </HashRouter>
   );
