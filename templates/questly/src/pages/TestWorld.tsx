@@ -2453,11 +2453,16 @@ export default function TestWorld() {
   ]);
   
   // NPCs with waypoints - will be positioned on building area once terrain is ready
+  // Use a ref to store getTerrainHeight function to avoid initialization order issues
+  const getTerrainHeightRef = useRef<((x: number, z: number) => number) | null>(null);
+  
   // Helper function to constrain NPCs to building areas
   const constrainNpcsToBuildingAreas = useCallback((npcsToConstrain: typeof npcs, areas: BuildingArea[]) => {
     if (!areas || areas.length === 0) return npcsToConstrain;
+    if (!getTerrainHeightRef.current) return npcsToConstrain; // Wait for getTerrainHeight to be initialized
     
     const primaryArea = areas[0];
+    const getTerrainHeight = getTerrainHeightRef.current;
     
     return npcsToConstrain.map(npc => {
       // Check if NPC is within any building area
@@ -2509,7 +2514,7 @@ export default function TestWorld() {
         waypoints
       };
     });
-  }, [getTerrainHeight]);
+  }, []);
 
   const [npcs, setNpcs] = useState(() => {
     // Initial NPCs - will be constrained to building areas after terrain loads
@@ -2779,7 +2784,7 @@ export default function TestWorld() {
   };
   
   // Shared terrain height function - samples from actual terrain mesh geometry (matches rendered terrain)
-  const getTerrainHeight = (worldX: number, worldZ: number) => {
+  const getTerrainHeight = useCallback((worldX: number, worldZ: number) => {
     const scale = isSquareTerrain ? (islandSize * 2) : 200;
     
     // First try to sample from actual terrain mesh geometry (most accurate - matches what's rendered)
@@ -2879,7 +2884,12 @@ export default function TestWorld() {
     }
     
     return height;
-  };
+  }, [terrainMeshRef, buildingAreas, isSquareTerrain, islandSize, seed, roughness, heightScale, waterLevel, noiseType]);
+  
+  // Store getTerrainHeight in ref for use in constrainNpcsToBuildingAreas
+  useEffect(() => {
+    getTerrainHeightRef.current = getTerrainHeight;
+  }, [getTerrainHeight]);
 
   const handleRegenerate = () => {
     // Regenerate both terrain and assets by changing seed

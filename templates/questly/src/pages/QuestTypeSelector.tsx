@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sword, Scroll } from 'lucide-react';
 import ParallaxBackground from '@/components/ParallaxBackground';
-import CustomButton from '@/components/CustomButton';
 import { cn } from '@/lib/utils';
 
 interface QuestTypeOption {
@@ -27,12 +25,10 @@ const questTypes: QuestTypeOption[] = [
 
 export default function QuestTypeSelector() {
   const navigate = useNavigate();
-  const [selectedType, setSelectedType] = useState<string>('');
 
-  const handleContinue = () => {
-    if (selectedType) {
-      navigate('/templates', { state: { questType: selectedType } });
-    }
+  const handleSelectType = (typeTitle: string) => {
+    // Navigate directly to templates page when clicking a quest type
+    navigate('/templates', { state: { questType: typeTitle } });
   };
 
   return (
@@ -79,24 +75,15 @@ export default function QuestTypeSelector() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
-                onClick={() => setSelectedType(type.title)}
+                onClick={() => handleSelectType(type.title)}
                 className={cn(
                   'parchment-box cursor-pointer transition-all duration-200 p-8',
-                  'hover:scale-105 hover:shadow-xl',
-                  selectedType === type.title
-                    ? 'ring-4 ring-primary shadow-2xl scale-105'
-                    : 'hover:ring-2 hover:ring-primary/50'
+                  'hover:scale-105 hover:shadow-xl hover:ring-2 hover:ring-primary/50 group'
                 )}
               >
                 <div className="flex flex-col items-center text-center space-y-4">
-                  <div className={cn(
-                    'p-6 rounded-full transition-colors',
-                    selectedType === type.title ? 'bg-primary' : 'bg-primary/20'
-                  )}>
-                    <type.icon className={cn(
-                      'w-12 h-12',
-                      selectedType === type.title ? 'text-white' : 'text-primary'
-                    )} />
+                  <div className="p-6 rounded-full bg-primary/20 transition-colors group-hover:bg-primary">
+                    <type.icon className="w-12 h-12 text-primary group-hover:text-white transition-colors" />
                   </div>
                   <h3 className="text-2xl font-bold font-serif text-primary">
                     {type.title}
@@ -110,20 +97,6 @@ export default function QuestTypeSelector() {
           </motion.div>
         </AnimatePresence>
 
-        {/* Continue Button */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: selectedType ? 1 : 0.5 }}
-          className="mt-8 flex justify-center"
-        >
-          <CustomButton
-            size="large"
-            onClick={handleContinue}
-            disabled={!selectedType}
-          >
-            Continue
-          </CustomButton>
-        </motion.div>
       </div>
     </ParallaxBackground>
   );

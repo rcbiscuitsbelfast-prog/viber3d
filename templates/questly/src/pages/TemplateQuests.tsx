@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mountain, Trees, Lock } from 'lucide-react';
 import ParallaxBackground from '@/components/ParallaxBackground';
-import CustomButton from '@/components/CustomButton';
 
 interface WorldOption {
   id: string;
@@ -32,13 +30,10 @@ const worldOptions: WorldOption[] = [
 
 export default function TemplateQuests() {
   const navigate = useNavigate();
-  const [selectedWorld, setSelectedWorld] = useState<string>('');
 
-  const handleContinue = () => {
-    if (selectedWorld) {
-      // Navigate directly to test-world with template param — bypasses the template modal
-      navigate(`/test-world?template=${selectedWorld}`);
-    }
+  const handleSelectTemplate = (templateId: string) => {
+    // Navigate directly to test-world with template param when clicking a template
+    navigate(`/test-world?template=${templateId}`);
   };
 
   return (
@@ -80,14 +75,10 @@ export default function TemplateQuests() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: idx * 0.1 }}
-                onClick={() => world.available && setSelectedWorld(world.id)}
+                onClick={() => world.available && handleSelectTemplate(world.id)}
                 className={`
                   parchment-box cursor-pointer transition-all duration-200 p-8 relative
-                  ${world.available ? 'hover:scale-105 hover:shadow-xl' : 'opacity-60 cursor-not-allowed'}
-                  ${selectedWorld === world.id
-                    ? 'ring-4 ring-primary shadow-2xl scale-105'
-                    : 'hover:ring-2 hover:ring-primary/50'
-                  }
+                  ${world.available ? 'hover:scale-105 hover:shadow-xl hover:ring-2 hover:ring-primary/50' : 'opacity-60 cursor-not-allowed'}
                 `}
               >
                 <div className="flex flex-col items-center text-center space-y-4">
@@ -121,20 +112,6 @@ export default function TemplateQuests() {
           </div>
         </motion.div>
 
-        {/* Continue Button */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: selectedWorld ? 1 : 0.5 }}
-          className="mt-8 flex justify-center"
-        >
-          <CustomButton
-            size="large"
-            onClick={handleContinue}
-            disabled={!selectedWorld}
-          >
-            Start Building
-          </CustomButton>
-        </motion.div>
       </div>
     </ParallaxBackground>
   );
