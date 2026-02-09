@@ -49,6 +49,7 @@ export default function AssetCreditsFooter() {
               href={creator.url}
               target="_blank"
               rel="noopener noreferrer"
+              data-help-id={`credit-${creator.name.toLowerCase()}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}

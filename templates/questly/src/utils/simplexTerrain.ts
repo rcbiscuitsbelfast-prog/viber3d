@@ -208,8 +208,8 @@ export function generateSimplexTerrain(config: TerrainConfig): TerrainData {
       // Color based on height
       let color: THREE.Color;
       if (height < 0.5) {
-        // Water - matches ocean plane color
-        color = new THREE.Color('#1A4D80');
+        // Sand/beach - terrain below water line shows as sandy beach
+        color = new THREE.Color('#d4a574');
       } else if (height < 3) {
         // Light green - low grass
         color = new THREE.Color('#90c850');

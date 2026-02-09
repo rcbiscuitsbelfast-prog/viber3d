@@ -1,194 +1,138 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Star, Lock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Mountain, Trees, Lock } from 'lucide-react';
 import ParallaxBackground from '@/components/ParallaxBackground';
 import CustomButton from '@/components/CustomButton';
-import { cn } from '@/lib/utils';
 
-interface QuestTemplate {
+interface WorldOption {
   id: string;
   name: string;
   description: string;
-  icon: string;
-  difficulty: 'Easy' | 'Medium' | 'Hard';
-  premium: boolean;
+  icon: React.ComponentType<{ className?: string }>;
+  available: boolean;
 }
 
-const templates: QuestTemplate[] = [
+const worldOptions: WorldOption[] = [
   {
-    id: 'forest-rescue',
-    name: 'Forest Rescue',
-    description: 'Save the lost villagers from the enchanted forest.',
-    icon: '🌲',
-    difficulty: 'Easy',
-    premium: false,
+    id: 'forest',
+    name: 'Forest',
+    description: 'Square forest area with rolling hills, dense trees, and winding paths. No surrounding water.',
+    icon: Trees,
+    available: true,
   },
   {
-    id: 'dungeon-delve',
-    name: 'Dungeon Delve',
-    description: 'Explore ancient ruins and defeat the guardian.',
-    icon: '🏰',
-    difficulty: 'Medium',
-    premium: false,
-  },
-  {
-    id: 'dragon-hunt',
-    name: 'Dragon Hunt',
-    description: 'Track and defeat the legendary dragon.',
-    icon: '🐉',
-    difficulty: 'Hard',
-    premium: true,
-  },
-  {
-    id: 'treasure-hunt',
-    name: 'Treasure Hunt',
-    description: 'Follow clues to find the hidden treasure.',
-    icon: '💎',
-    difficulty: 'Easy',
-    premium: false,
-  },
-  {
-    id: 'mystery-mansion',
-    name: 'Mystery Mansion',
-    description: 'Solve puzzles in the haunted mansion.',
-    icon: '🏚️',
-    difficulty: 'Medium',
-    premium: true,
-  },
-  {
-    id: 'wizard-tower',
-    name: 'Wizard Tower',
-    description: 'Climb the tower and retrieve the ancient spellbook.',
-    icon: '🔮',
-    difficulty: 'Hard',
-    premium: false,
+    id: 'island',
+    name: 'Island',
+    description: 'Circular island with ocean, sandy beaches, hills, and lush vegetation surrounded by water.',
+    icon: Mountain,
+    available: true,
   },
 ];
 
 export default function TemplateQuests() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
-  
-  // Get quest type from navigation state
-  const questType = (location.state as any)?.questType || 'Combat Quest';
+  const [selectedWorld, setSelectedWorld] = useState<string>('');
 
   const handleContinue = () => {
-    if (selectedTemplate) {
-      const template = templates.find(t => t.id === selectedTemplate);
-      navigate('/world-builder', { 
-        state: { 
-          questType: questType === 'Combat Quest' ? 'combat' : 'non-combat',
-          templateId: selectedTemplate,
-          templateName: template?.name,
-        } 
-      });
-    }
-  };
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'Easy': return 'text-green-600';
-      case 'Medium': return 'text-amber-600';
-      case 'Hard': return 'text-red-600';
-      default: return 'text-gray-600';
+    if (selectedWorld) {
+      // Navigate directly to test-world with template param — bypasses the template modal
+      navigate(`/test-world?template=${selectedWorld}`);
     }
   };
 
   return (
     <ParallaxBackground>
-      <div className="max-w-6xl mx-auto w-full p-4 pt-24 pb-24 min-h-screen flex flex-col">
+      <div className="max-w-4xl mx-auto w-full p-4 pt-24 pb-24 min-h-screen flex flex-col">
         {/* Header */}
         <div className="flex justify-between items-center mb-8 bg-white/60 backdrop-blur-sm p-4 rounded-xl border border-primary/20">
           <button
-            onClick={() => navigate('/quest-type')}
+            onClick={() => navigate(-1)}
             className="text-primary hover:underline flex items-center gap-1 font-bold"
           >
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
-
-          <span className="text-primary font-display font-bold">Choose Template</span>
+          <span className="text-primary font-display font-bold">Choose Your World</span>
+          <div className="w-16" />
         </div>
 
         {/* Title */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
+          className="text-center mb-10"
         >
           <h1 className="text-3xl md:text-4xl font-bold font-serif text-primary mb-2">
-            Quest Templates
+            Pick a World Template
           </h1>
           <p className="text-muted-foreground font-display">
-            Start with a template or build from scratch
+            Choose the terrain for your adventure
           </p>
         </motion.div>
 
-        {/* Templates Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flex-1">
-          {templates.map((template, idx) => (
-            <motion.div
-              key={template.id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: idx * 0.05 }}
-              onClick={() => !template.premium && setSelectedTemplate(template.id)}
-              className={cn(
-                'parchment-box cursor-pointer transition-all duration-200 p-6 relative',
-                template.premium ? 'opacity-75 cursor-not-allowed' : 'hover:scale-105 hover:shadow-xl',
-                selectedTemplate === template.id && !template.premium
-                  ? 'ring-4 ring-primary shadow-2xl scale-105'
-                  : 'hover:ring-2 hover:ring-primary/50'
-              )}
-            >
-              {/* Premium Badge */}
-              {template.premium && (
-                <div className="absolute top-3 right-3 bg-amber-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                  <Lock className="w-3 h-3" /> Premium
+        {/* World Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1 max-w-2xl mx-auto w-full">
+          {worldOptions.map((world, idx) => {
+            const Icon = world.icon;
+            return (
+              <motion.div
+                key={world.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: idx * 0.1 }}
+                onClick={() => world.available && setSelectedWorld(world.id)}
+                className={`
+                  parchment-box cursor-pointer transition-all duration-200 p-8 relative
+                  ${world.available ? 'hover:scale-105 hover:shadow-xl' : 'opacity-60 cursor-not-allowed'}
+                  ${selectedWorld === world.id
+                    ? 'ring-4 ring-primary shadow-2xl scale-105'
+                    : 'hover:ring-2 hover:ring-primary/50'
+                  }
+                `}
+              >
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="bg-primary/10 p-5 rounded-2xl">
+                    <Icon className="w-12 h-12 text-primary" />
+                  </div>
+                  <h3 className="text-2xl font-bold font-serif text-primary">
+                    {world.name}
+                  </h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {world.description}
+                  </p>
                 </div>
-              )}
-
-              <div className="flex flex-col items-center text-center space-y-3">
-                {/* Icon */}
-                <div className="text-6xl">
-                  {template.icon}
-                </div>
-
-                {/* Title */}
-                <h3 className="text-xl font-bold font-serif text-primary">
-                  {template.name}
-                </h3>
-
-                {/* Description */}
-                <p className="text-sm text-muted-foreground">
-                  {template.description}
-                </p>
-
-                {/* Difficulty */}
-                <div className="flex items-center gap-2">
-                  <Star className={cn('w-4 h-4', getDifficultyColor(template.difficulty))} />
-                  <span className={cn('text-sm font-bold', getDifficultyColor(template.difficulty))}>
-                    {template.difficulty}
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
+
+        {/* More Coming Soon Banner */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mt-10 text-center"
+        >
+          <div className="inline-flex items-center gap-2 px-6 py-3 bg-primary/10 border-2 border-primary/20 rounded-full">
+            <Lock className="w-4 h-4 text-primary/60" />
+            <span className="text-sm font-display font-semibold text-primary/70">
+              More world templates coming soon!
+            </span>
+          </div>
+        </motion.div>
 
         {/* Continue Button */}
         <motion.div
           initial={{ opacity: 0 }}
-          animate={{ opacity: selectedTemplate ? 1 : 0.5 }}
+          animate={{ opacity: selectedWorld ? 1 : 0.5 }}
           className="mt-8 flex justify-center"
         >
           <CustomButton
             size="large"
             onClick={handleContinue}
-            disabled={!selectedTemplate}
+            disabled={!selectedWorld}
           >
-            Continue to Dashboard
+            Start Building
           </CustomButton>
         </motion.div>
       </div>

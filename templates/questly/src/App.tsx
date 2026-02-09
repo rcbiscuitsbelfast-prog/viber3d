@@ -6,13 +6,15 @@ import GameBuilder from './pages/GameBuilder';
 import QuestTypeSelector from './pages/QuestTypeSelector';
 import TemplateQuests from './pages/TemplateQuests';
 import UserDashboard from './pages/UserDashboard';
-import ThreeTextPage from './pages/ThreeTextPage';
 import TestWorld from './pages/TestWorld';
 import WorldBuilder from './pages/WorldBuilder';
 import WorldPreview from './pages/WorldPreview';
 import QuestSettings from './pages/QuestSettings';
 import QuestComplete from './pages/QuestComplete';
 import CastleBuilder from './pages/CastleBuilder';
+import FontsDemo from './pages/FontsDemo';
+import HaveYourSay from './pages/HaveYourSay';
+import Settings from './pages/Settings';
 import Navigation from './components/Navigation';
 import { useAuthStore } from './lib/auth';
 
@@ -45,7 +47,9 @@ function App() {
           <Route path="/quest-complete" element={<QuestComplete />} />
           <Route path="/dashboard" element={<UserDashboard />} />
           <Route path="/test-world" element={<TestWorld />} />
-          <Route path="/three-text" element={<ThreeTextPage />} />
+          <Route path="/fonts-demo" element={<FontsDemo />} />
+          <Route path="/have-your-say" element={<HaveYourSay />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

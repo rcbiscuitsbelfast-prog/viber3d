@@ -6,6 +6,12 @@ import SignCanvas from '@/r3f/SignCanvas';
 import { r3f } from '@/lib/tunnel';
 import { SplashIslandScene } from '@/r3f/SplashIslandScene';
 
+// LocalStorage keys for fade duration
+const FADE_DURATION_KEY = 'splash_fade_duration';
+const SIGN_FOG_DURATION_KEY = 'splash_sign_fog_duration';
+const DEFAULT_FADE_DURATION = 1.7;
+const DEFAULT_SIGN_FOG_DURATION = 0.8; // Sign fog clears earlier
+
 // Three.js Splash Scene Component - Island Background (Rotating)
 function SplashScene({
   fogHeight,
@@ -17,6 +23,7 @@ function SplashScene({
   innerBubbleScale,
   innerBubbleDensity,
   innerBubbleSpeed,
+  islandScale,
   onLoaded
 }: {
   fogHeight: number; 
@@ -28,6 +35,7 @@ function SplashScene({
   innerBubbleScale: number;
   innerBubbleDensity: number;
   innerBubbleSpeed: number;
+  islandScale: number;
   onLoaded: () => void;
 }) {
   return (
@@ -44,6 +52,7 @@ function SplashScene({
         innerBubbleScale={innerBubbleScale}
         innerBubbleDensity={innerBubbleDensity}
         innerBubbleSpeed={innerBubbleSpeed}
+        islandScale={islandScale}
         onLoaded={onLoaded}
       />
     </r3f.In>
@@ -59,24 +68,102 @@ export default function SplashScreen() {
   const [islandVisible, setIslandVisible] = useState(false);
   const [buttonVisible, setButtonVisible] = useState(false);
   
-  // Island fog controls
-  const [fogHeight, setFogHeight] = useState(5.0);
-  const [bubbleScale, setBubbleScale] = useState(1.0);
-  const [bubbleDensity, setBubbleDensity] = useState(1.0);
-  const [bubbleSpeed, setBubbleSpeed] = useState(0.2);
-  const [innerFogRadius, setInnerFogRadius] = useState(37.5);
-  const [innerFogHeight, setInnerFogHeight] = useState(0.0);
-  const [innerBubbleScale, setInnerBubbleScale] = useState(0.70);
-  const [innerBubbleDensity, setInnerBubbleDensity] = useState(2.3);
-  const [innerBubbleSpeed, setInnerBubbleSpeed] = useState(0.15);
+  // Fade duration with localStorage persistence
+  const [fadeDuration] = useState(() => {
+    const saved = localStorage.getItem(FADE_DURATION_KEY);
+    return saved ? parseFloat(saved) : DEFAULT_FADE_DURATION;
+  });
 
-  // When island loads, show island and button
+  // Sign fog duration (separate, earlier than island fade)
+  const [signFogDuration] = useState(() => {
+    const saved = localStorage.getItem(SIGN_FOG_DURATION_KEY);
+    return saved ? parseFloat(saved) : DEFAULT_SIGN_FOG_DURATION;
+  });
+  const [signVisible, setSignVisible] = useState(false);
+  
+  const [blurAmount, setBlurAmount] = useState(20); // Starting blur amount in pixels
+  const [signBlurAmount, setSignBlurAmount] = useState(15); // Sign-specific blur
+  
+  // Island fog controls (fixed values, no sliders)
+  const fogHeight = 5.0;
+  const bubbleScale = 1.0;
+  const bubbleDensity = 1.0;
+  const bubbleSpeed = 0.2;
+  const innerFogRadius = 37.5;
+  const innerFogHeight = 0.0;
+  const innerBubbleScale = 0.70;
+  const innerBubbleDensity = 2.3;
+  const innerBubbleSpeed = 0.15;
+  
+  // Island zoom and sign/text position controls (fixed values, no sliders)
+  const islandScale = 1.0;
+  const signOffsetY = 0.260;
+  const textOffsetY = -0.310;
+  const textOffsetZ = 0.066;
+
+  // When island loads, wait a moment then show island with smooth fade
   useEffect(() => {
     if (islandLoaded) {
-      setIslandVisible(true);
-      setTimeout(() => setButtonVisible(true), 300);
+      // Show sign first (earlier fog clearing)
+      setTimeout(() => {
+        setSignVisible(true);
+      }, 100);
+
+      // Delay island fade start, then show button after fade completes
+      const islandFadeDelayMs = Math.max(300, fadeDuration * 1000);
+      const islandFadeDurationMs = fadeDuration * 1000;
+
+      setTimeout(() => {
+        setIslandVisible(true);
+        const buttonDelay = islandFadeDurationMs;
+        setTimeout(() => setButtonVisible(true), buttonDelay);
+      }, islandFadeDelayMs);
     }
-  }, [islandLoaded]);
+  }, [fadeDuration, islandLoaded]);
+
+  // Animate blur reduction as island fades in
+  useEffect(() => {
+    if (islandVisible) {
+      // Gradually reduce blur as fade progresses
+      const startTime = Date.now();
+      const duration = fadeDuration * 1000;
+      
+      const animateBlur = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // Ease out the blur reduction
+        const easeProgress = 1 - Math.pow(1 - progress, 2);
+        setBlurAmount(20 * (1 - easeProgress));
+        
+        if (progress < 1) {
+          requestAnimationFrame(animateBlur);
+        }
+      };
+      
+      requestAnimationFrame(animateBlur);
+    }
+  }, [islandVisible, fadeDuration]);
+
+  // Animate sign blur reduction (earlier and faster)
+  useEffect(() => {
+    if (signVisible) {
+      const startTime = Date.now();
+      const duration = signFogDuration * 1000;
+      
+      const animateSignBlur = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easeProgress = 1 - Math.pow(1 - progress, 2);
+        setSignBlurAmount(15 * (1 - easeProgress));
+        
+        if (progress < 1) {
+          requestAnimationFrame(animateSignBlur);
+        }
+      };
+      
+      requestAnimationFrame(animateSignBlur);
+    }
+  }, [signVisible, signFogDuration]);
 
   const handleIslandLoaded = () => {
     setIslandLoaded(true);
@@ -89,14 +176,31 @@ export default function SplashScreen() {
 
   return (
     <>
-      {/* Island Canvas - rotating background (z-10) */}
-      {showCanvas && <R3FCanvas />}
-      {/* Island Canvas - rotating background (z-10) */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: islandVisible ? 1 : 0 }}
-        transition={{ duration: 0.8 }}
-      >
+      {/* Island Canvas - rotating background (z-10) with real fade on the canvas */}
+      {showCanvas && (
+        <motion.div
+          className="fixed inset-0 -z-10"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: islandVisible ? 1 : 0 }}
+          transition={{ duration: fadeDuration, ease: 'easeInOut' }}
+          style={{ filter: `blur(${Math.max(0, blurAmount - 4)}px)` }}
+        >
+          <R3FCanvas className="w-full h-full" />
+        </motion.div>
+      )}
+      {/* Island Canvas - fog overlay and portal scene */}
+      <div className="relative">
+        {/* White overlay with blur that fades out smoothly - dispersing fog effect */}
+        <motion.div
+          initial={{ opacity: 1 }}
+          animate={{ opacity: islandVisible ? 0 : 1 }}
+          transition={{ duration: fadeDuration, ease: "easeInOut" }}
+          className="absolute inset-0 bg-white z-10 pointer-events-none"
+          style={{ 
+            backdropFilter: `blur(${blurAmount}px)`,
+            WebkitBackdropFilter: `blur(${blurAmount}px)`,
+          }}
+        />
         <SplashScene 
           fogHeight={fogHeight}
           bubbleScale={bubbleScale}
@@ -107,17 +211,32 @@ export default function SplashScreen() {
           innerBubbleScale={innerBubbleScale}
           innerBubbleDensity={innerBubbleDensity}
           innerBubbleSpeed={innerBubbleSpeed}
+          islandScale={islandScale}
           onLoaded={handleIslandLoaded}
         />
-      </motion.div>
+      </div>
 
-      {/* Sign Canvas - fixed foreground (z-15) overlays on top */}
-      <motion.div
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        <SignCanvas />
-      </motion.div>
+      {/* Sign Canvas - fixed foreground (z-15) overlays on top with separate fog */}
+      <div className="relative">
+        {/* Sign-specific fog layer that clears earlier */}
+        <motion.div
+          initial={{ opacity: 1 }}
+          animate={{ opacity: signVisible ? 0 : 1 }}
+          transition={{ duration: signFogDuration, ease: "easeOut" }}
+          className="absolute inset-0 bg-white/80 z-16 pointer-events-none"
+          style={{ 
+            backdropFilter: `blur(${signBlurAmount}px)`,
+            WebkitBackdropFilter: `blur(${signBlurAmount}px)`,
+          }}
+        />
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: signVisible ? 1 : 0 }}
+          transition={{ duration: signFogDuration * 0.8, ease: "easeOut" }}
+        >
+          <SignCanvas textOffsetZ={textOffsetZ} signOffsetY={signOffsetY} textOffsetY={textOffsetY} />
+        </motion.div>
+      </div>
       
       {/* UI Content on Top */}
       <div className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden text-white px-4 z-20 pointer-events-auto">
@@ -159,6 +278,7 @@ export default function SplashScreen() {
         >
           Powered by Three.js & React Three Fiber
         </motion.p>
+
       </div>
     </>
   );

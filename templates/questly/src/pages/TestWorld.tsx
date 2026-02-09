@@ -153,8 +153,8 @@ function CharacterController({
   const groupRef = useRef<THREE.Group>(null);
   const positionRef = useRef<THREE.Vector3>(new THREE.Vector3(...startPosition));
   const [position, setPosition] = useState<THREE.Vector3>(new THREE.Vector3(...startPosition)); // For React rendering
-  const rotationRef = useRef(Math.PI); // Start facing opposite direction (180 degrees)
-  const [rotation, setRotation] = useState(Math.PI); // Keep state for React rendering
+  const rotationRef = useRef(0); // Start facing away from camera (0 degrees)
+  const [rotation, setRotation] = useState(0); // Keep state for React rendering
   const [model, setModel] = useState<THREE.Object3D | null>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
   const velocity = useRef(new THREE.Vector3());
@@ -2395,9 +2395,10 @@ export default function TestWorld() {
   // Global height offset for all placed builds
   const [buildHeightOffset, setBuildHeightOffset] = useState(0);
   
-  // Check if coming from direct test scene link
+  // Check if coming from direct test scene link or template selection
   const [searchParams] = useSearchParams();
   const directTestMode = searchParams.get('direct') === 'true';
+  const templateParam = searchParams.get('template'); // 'forest' or 'island' from TemplateQuests
   
   // Manual placement mode
   const [manualMode, setManualMode] = useState(false);
@@ -3059,13 +3060,23 @@ export default function TestWorld() {
     }
   };
 
-  // Show template modal on mount (user can load saved worlds from there)
+  // Show template modal on mount OR auto-select template from URL param
   const hasCheckedAutoSave = useRef(false);
   useEffect(() => {
     if (hasCheckedAutoSave.current) return;
     hasCheckedAutoSave.current = true;
 
-    // Always show template modal - user can select template or load saved world
+    // If a template param was passed (from TemplateQuests page), auto-select it
+    if (templateParam) {
+      const template = WORLD_TEMPLATES.find(t => t.id === templateParam);
+      if (template) {
+        handleSelectTemplate(template);
+        setTemplateModalOpen(false);
+        return;
+      }
+    }
+
+    // Otherwise show template modal - user can select template or load saved world
     setTemplateModalOpen(true);
   }, []); // Only on mount
   

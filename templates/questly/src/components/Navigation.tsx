@@ -7,11 +7,11 @@ export default function Navigation() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMusicOn, setIsMusicOn] = useState(true);
-  
-  const { isAuthenticated, user } = useAuthStore();
 
-  // Don't show on splash screen or TestWorld (it has its own header)
-  if (location.pathname === '/' || location.pathname === '/test-world') return null;
+  const { isAuthenticated } = useAuthStore();
+
+  // Don't show on splash screen, TestWorld, or FontsDemo (they have their own headers)
+  if (location.pathname === '/' || location.pathname === '/test-world' || location.pathname === '/fonts-demo') return null;
 
   const handleAuthClick = () => {
     if (isAuthenticated) {
@@ -26,7 +26,7 @@ export default function Navigation() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 p-4 pointer-events-none">
       <div className="max-w-7xl mx-auto flex justify-between items-center pointer-events-auto">
-        <Link to="/menu">
+        <Link to="/menu" data-help-id="home">
           <div className="flex items-center gap-2 cursor-pointer group">
             <div className="bg-primary p-3 rounded-lg shadow-lg border-b-4 border-primary/70 group-hover:-translate-y-1 transition-transform">
               <Home className="w-6 h-6 text-primary-foreground" />
@@ -41,6 +41,7 @@ export default function Navigation() {
           {/* Auth Button - Sign In or Dashboard */}
           <button
             onClick={handleAuthClick}
+            data-help-id="dashboard"
             className="
               bg-primary px-4 py-3 rounded-lg shadow-lg border-b-4 border-primary/70
               transition-all hover:scale-105 active:translate-y-1 active:border-b-2
@@ -62,6 +63,7 @@ export default function Navigation() {
 
           <button
             onClick={() => setIsMusicOn(!isMusicOn)}
+            data-help-id="music"
             className={`
               bg-primary p-3 rounded-lg shadow-lg border-b-4 border-primary/70
               transition-all hover:scale-105 active:translate-y-1 active:border-b-2
@@ -72,6 +74,8 @@ export default function Navigation() {
           </button>
 
           <button
+            onClick={() => navigate('/settings')}
+            data-help-id="settings"
             className="
               bg-primary p-3 rounded-lg shadow-lg border-b-4 border-primary/70
               transition-all hover:scale-105 active:translate-y-1 active:border-b-2

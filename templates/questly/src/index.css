@@ -13,4 +13,129 @@
   .parchment-box {
     @apply bg-muted border-2 border-primary/20 rounded-lg p-6 shadow-md;
   }
+
+  .questly-avatar-idle {
+    animation: questly-avatar-idle 3.2s ease-in-out infinite;
+    transform-origin: center bottom;
+  }
+
+  .questly-avatar-blink {
+    animation: questly-avatar-blink 5s infinite;
+    opacity: 0;
+  }
+
+  .questly-speech-bubble {
+    position: absolute;
+    z-index: 10;
+  }
+
+  .questly-avatar-expressive {
+    animation: questly-avatar-eyebrows 0.6s ease-in-out infinite;
+    transform-origin: center center;
+  }
+}
+
+@keyframes questly-avatar-idle {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(2px);
+  }
+}
+
+@keyframes questly-avatar-blink {
+  0%, 94%, 100% {
+    opacity: 0;
+  }
+  95%, 96% {
+    opacity: 1;
+  }
+}
+
+@keyframes questly-avatar-eyebrows {
+  0%, 100% {
+    transform: translateY(calc(-2px * var(--expressive-intensity, 1))) rotate(calc(-3deg * var(--expressive-intensity, 1)));
+  }
+  50% {
+    transform: translateY(calc(2px * var(--expressive-intensity, 1))) rotate(calc(3deg * var(--expressive-intensity, 1)));
+  }
+}
+
+/* Horizontal slider styling */
+.slider-horizontal {
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+  background: rgb(51, 65, 85);
+  border-radius: 4px;
+  height: 8px;
+}
+
+.slider-horizontal::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: rgb(59, 130, 246);
+  cursor: pointer;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: background 0.2s, transform 0.1s;
+}
+
+.slider-horizontal::-webkit-slider-thumb:hover {
+  background: rgb(37, 99, 235);
+  transform: scale(1.1);
+}
+
+.slider-horizontal::-webkit-slider-thumb:active {
+  background: rgb(29, 78, 216);
+  transform: scale(0.95);
+}
+
+.slider-horizontal::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  background: rgb(59, 130, 246);
+  cursor: pointer;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: background 0.2s;
+}
+
+.slider-horizontal::-moz-range-thumb:hover {
+  background: rgb(37, 99, 235);
+}
+
+.slider-horizontal::-moz-range-thumb:active {
+  background: rgb(29, 78, 216);
+}
+
+.slider-horizontal::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 8px;
+  background: rgb(51, 65, 85);
+  border-radius: 4px;
+}
+
+.slider-horizontal::-moz-range-track {
+  width: 100%;
+  height: 8px;
+  background: rgb(51, 65, 85);
+  border-radius: 4px;
+}
+
+.slider-horizontal:focus {
+  outline: none;
+}
+
+.slider-horizontal:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+.slider-horizontal:focus::-moz-range-thumb {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
 }

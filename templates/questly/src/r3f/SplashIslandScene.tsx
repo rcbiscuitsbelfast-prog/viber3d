@@ -5,7 +5,7 @@
 // Note: This is purely visual - no physics, collisions, or dynamic generation for fast loading.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { generateSimplexTerrain, sampleTerrainHeight } from '@/utils/simplexTerrain';
@@ -27,6 +27,7 @@ interface SplashIslandSceneProps {
   innerBubbleScale?: number;
   innerBubbleDensity?: number;
   innerBubbleSpeed?: number;
+  islandScale?: number;
   onLoaded?: () => void;
 }
 
@@ -42,6 +43,7 @@ export function SplashIslandScene({
   innerBubbleScale = 0.70,
   innerBubbleDensity = 1.0,
   innerBubbleSpeed = 0.15,
+  islandScale = 1.0,
   onLoaded
 }: SplashIslandSceneProps) {
   const islandRef = useRef<THREE.Group>(null);
@@ -73,7 +75,25 @@ export function SplashIslandScene({
   const slopeAdjustmentIntensity = 3.5;
 
   const terrainScale = isSquareTerrain ? islandSize * 2 : 200;
-  const islandScale = 0.08;
+  const baseIslandScale = 0.08;
+  
+  // Camera zoom control - adjust camera distance instead of scaling island
+  // This keeps the island in the same position relative to UI elements
+  const { camera } = useThree();
+  useEffect(() => {
+    if (camera instanceof THREE.PerspectiveCamera) {
+      // Base camera Z position (when islandScale = 1.0) - matches R3FCanvas default
+      const baseZ = 18;
+      // Adjust camera Z distance: higher islandScale = closer camera (smaller Z)
+      // Inverse relationship: scale 2.0 = half distance, scale 0.5 = double distance
+      const newZ = baseZ / islandScale;
+      // Keep Y position fixed, only adjust Z for zoom
+      camera.position.set(camera.position.x, camera.position.y, newZ);
+      // Look at island center
+      camera.lookAt(0, -4.5, 0);
+      camera.updateProjectionMatrix();
+    }
+  }, [camera, islandScale]);
 
   const terrainData = useMemo(() => {
     return generateSimplexTerrain({
@@ -439,8 +459,8 @@ export function SplashIslandScene({
       />
       <hemisphereLight args={['#87CEEB', '#68A47A', 0.5]} />
 
-      {/* Island group - centered at origin, positioned lower */}
-      <group ref={islandRef} position={[0, -4.5, 0]} scale={[islandScale, islandScale, islandScale]}>
+      {/* Island group - centered at origin, positioned lower - fixed scale, zoom via camera */}
+      <group ref={islandRef} position={[0, -4.5, 0]} scale={[baseIslandScale, baseIslandScale, baseIslandScale]}>
         {/* Terrain mesh using builder defaults */}
         <mesh geometry={terrainGeometry} castShadow receiveShadow>
           <meshStandardMaterial
@@ -458,7 +478,7 @@ export function SplashIslandScene({
       </group>
 
       {/* Ocean plane - matches terrain builder water color - extended to cover full screen */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -4.5 + waterLevel * islandScale, 0]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -4.5 + waterLevel * baseIslandScale, 0]} receiveShadow>
         <planeGeometry args={[2000, 2000]} />
         <meshStandardMaterial
           color="#1A4D80"

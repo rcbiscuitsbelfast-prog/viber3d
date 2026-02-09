@@ -12,7 +12,8 @@ interface SplashSignSceneProps {
   scale?: number;
   lightIntensity?: number;
   dragRotation?: [number, number, number];
-  signOffsetY?: number; // Moves sign up/down without moving text
+  signOffsetY?: number; // Moves sign up/down
+  textOffsetY?: number; // Moves text up/down independently
   textOffsetZ?: number; // Moves text forward/back on Z-axis
 }
 
@@ -21,6 +22,7 @@ export function SplashSignScene({
   lightIntensity = 2.0,
   dragRotation = [0, 0, 0],
   signOffsetY = 0,
+  textOffsetY = 0,
   textOffsetZ = 0,
 }: SplashSignSceneProps) {
   const [signBounds, setSignBounds] = useState<{
@@ -33,10 +35,10 @@ export function SplashSignScene({
   // Compute positions based on sign geometry
   const positions = useMemo(() => {
     if (!signBounds) {
-      // Default fallback positions while bounds are calculating
+      // Default fallback positions while bounds are calculating - still show text
       return {
         signPos: [0, 0, 0] as [number, number, number],
-        textPos: [0, 0.3, -0.18] as [number, number, number],
+        textPos: [0, 0.3 + textOffsetY, -0.18 + textOffsetZ] as [number, number, number],
       };
     }
 
@@ -47,11 +49,12 @@ export function SplashSignScene({
       -signBounds.center.z,
     ];
 
-    // Text at fixed position (not relative to sign)
-    const textPos: [number, number, number] = [0, 0.3, -0.18 + textOffsetZ];
+    // Text positioned above sign center, with independent Y and Z offsets
+    const textY = -signBounds.center.y + signOffsetY + 0.3 + textOffsetY;
+    const textPos: [number, number, number] = [0, textY, -0.18 + textOffsetZ];
 
     return { signPos, textPos };
-  }, [signBounds, signOffsetY, textOffsetZ]);
+  }, [signBounds, signOffsetY, textOffsetY, textOffsetZ]);
 
   const textSize = 0.11;
   const bevelSize = 0.003;
@@ -73,25 +76,23 @@ export function SplashSignScene({
           </group>
 
           {/* 3D Text - Questerly - positioned above sign */}
-          {signBounds && (
-            <Font3DText
-              text="Questerly"
-              position={positions.textPos}
-              color="#FFD700"
-              size={textSize}
-              height={0.420}
-              bevelEnabled={true}
-              bevelSize={bevelSize}
-              bevelThickness={0.050}
-              bevelSegments={3}
-              curveSegments={3}
-              fontUrl={resolveAssetPath('/fonts/gentilis_regular.typeface.json')}
-              materialType="standard"
-              edgeColor="#B8860B"
-              outlineEnabled={false}
-              rotation={[0, 0, 0]}
-            />
-          )}
+          <Font3DText
+            text="Questerly"
+            position={positions.textPos}
+            color="#FFD700"
+            size={textSize}
+            height={0.420}
+            bevelEnabled={true}
+            bevelSize={bevelSize}
+            bevelThickness={0.050}
+            bevelSegments={3}
+            curveSegments={3}
+            fontUrl={resolveAssetPath('/fonts/gentilis_regular.typeface.json')}
+            materialType="standard"
+            edgeColor="#B8860B"
+            outlineEnabled={false}
+            rotation={[0, 0, 0]}
+          />
         </group>
       </Suspense>
     </>

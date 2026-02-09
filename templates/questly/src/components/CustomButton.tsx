@@ -1,6 +1,6 @@
-import { ReactNode } from 'react';
+import { ReactNode, ButtonHTMLAttributes } from 'react';
 
-interface CustomButtonProps {
+interface CustomButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   onClick?: () => void;
   children: ReactNode;
   size?: 'small' | 'large';
@@ -14,6 +14,7 @@ export default function CustomButton({
   size = 'large',
   disabled = false,
   className = '',
+  ...rest
 }: CustomButtonProps) {
   const isSmall = size === 'small';
 
@@ -35,6 +36,7 @@ export default function CustomButton({
           shadow-lg hover:shadow-xl
           ${className}
         `}
+        {...rest}
       >
         {children}
       </button>
@@ -58,6 +60,7 @@ export default function CustomButton({
         shadow-2xl hover:shadow-3xl
         ${className}
       `}
+      {...rest}
     >
       {children}
     </button>

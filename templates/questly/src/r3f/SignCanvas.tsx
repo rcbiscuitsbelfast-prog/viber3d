@@ -5,7 +5,13 @@ import { SplashSignScene } from './SplashSignScene';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 
-export default function SignCanvas() {
+interface SignCanvasProps {
+  textOffsetZ?: number;
+  signOffsetY?: number;
+  textOffsetY?: number;
+}
+
+export default function SignCanvas({ textOffsetZ: propTextOffsetZ, signOffsetY: propSignOffsetY, textOffsetY: propTextOffsetY }: SignCanvasProps = {}) {
   const [viewport, setViewport] = useState({
     width: typeof window !== 'undefined' ? window.innerWidth : 1024,
     height: typeof window !== 'undefined' ? window.innerHeight : 768,
@@ -19,8 +25,28 @@ export default function SignCanvas() {
   // Debug mode for tuning (enabled via URL param ?debug=true)
   const [debugMode, setDebugMode] = useState(false);
   const [debugScale, setDebugScale] = useState(3.0);
-  const [signOffsetY, setSignOffsetY] = useState(0.300);
-  const [textOffsetZ, setTextOffsetZ] = useState(0.030);
+  const [signOffsetY, setSignOffsetY] = useState(propSignOffsetY ?? 0.300);
+  const [textOffsetY, setTextOffsetY] = useState(propTextOffsetY ?? 0.0);
+  const [textOffsetZ, setTextOffsetZ] = useState(propTextOffsetZ ?? 0.030);
+  
+  // Update values when props change
+  useEffect(() => {
+    if (propTextOffsetZ !== undefined) {
+      setTextOffsetZ(propTextOffsetZ);
+    }
+  }, [propTextOffsetZ]);
+  
+  useEffect(() => {
+    if (propSignOffsetY !== undefined) {
+      setSignOffsetY(propSignOffsetY);
+    }
+  }, [propSignOffsetY]);
+  
+  useEffect(() => {
+    if (propTextOffsetY !== undefined) {
+      setTextOffsetY(propTextOffsetY);
+    }
+  }, [propTextOffsetY]);
 
   useEffect(() => {
     // Check for debug mode in URL
@@ -123,12 +149,13 @@ export default function SignCanvas() {
     return {
       scale: finalScale,
       signOffsetY,
+      textOffsetY,
       textOffsetZ,
       cameraPos: [0, 0, 3.5] as [number, number, number],
       cameraFov: 50,
       aspectRatio,
     };
-  }, [viewport.width, viewport.height, debugMode, debugScale, signOffsetY, textOffsetZ]);
+  }, [viewport.width, viewport.height, debugMode, debugScale, signOffsetY, textOffsetY, textOffsetZ]);
 
   return (
     <>
@@ -152,6 +179,7 @@ export default function SignCanvas() {
           <SplashSignScene 
             scale={config.scale}
             signOffsetY={config.signOffsetY}
+            textOffsetY={config.textOffsetY}
             textOffsetZ={config.textOffsetZ}
             lightIntensity={2.0}
             dragRotation={dragRotation}

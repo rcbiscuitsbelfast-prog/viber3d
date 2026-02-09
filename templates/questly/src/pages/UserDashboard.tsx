@@ -2,12 +2,21 @@ import { Suspense, useState, useCallback, useEffect, useRef } from 'react';
 import { Text, Text3D } from '@react-three/drei';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows } from '@react-three/drei';
-import { User, ChevronDown, ChevronRight } from 'lucide-react';
+import { User, ChevronDown, ChevronRight, RotateCcw, Save } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth';
 import CustomButton from '@/components/CustomButton';
 import AnimatedCharacter from '@/r3f/AnimatedCharacter';
+import AvatarController2D from '@/components/AvatarController2D';
+import SpeechBubbleController from '@/components/SpeechBubbleController';
+import ColorPickerWheel from '@/components/ColorPickerWheel';
+import ColorPaletteBoard from '@/components/ColorPaletteBoard';
+import { useCustomizableCharacter } from '@/hooks/useCustomizableCharacter';
+import { CharacterPresets } from '@/modules/character-customizer/CharacterPresets';
+import { RGB } from '@/modules/character-customizer/types';
+import { DEFAULT_AVATAR_LAYERS } from '@/lib/avatarDefaults';
 import { getWeaponConfig, getShieldConfig } from '@/data/weapon-configs';
 import { animationManager } from '@/systems/animation/AnimationManager';
 import { Font3DText } from '../r3f/Font3DText';
@@ -51,6 +60,12 @@ interface AssetPack {
   subGroups?: {
     [key: string]: Character[];
   };
+}
+
+interface SavedVariantSummary {
+  id: string;
+  name: string;
+  baseModel: string;
 }
 
 const ASSET_PACKS: AssetPack[] = [
@@ -245,6 +260,7 @@ function CollapsibleMonsterGroups({
                 {characters.map((char) => (
                   <button
                     key={char.id}
+                    data-help-id={`char-${char.id}`}
                     onClick={() => onSelectCharacter(char)}
                     className={`px-4 py-2 rounded-lg font-semibold transition-all ${
                       selectedCharacter.id === char.id
@@ -1308,6 +1324,57 @@ export default function UserDashboard() {
   const user = useAuthStore((state) => state.user);
   const [selectedPack, setSelectedPack] = useState<AssetPack>(ASSET_PACKS[0]);
   const [selectedCharacter, setSelectedCharacter] = useState<Character>(ASSET_PACKS[0].characters[0]);
+  const [customizerVariantName, setCustomizerVariantName] = useState('');
+  const [customizerShowWheel, setCustomizerShowWheel] = useState(false);
+  const [customizerIsSaving, setCustomizerIsSaving] = useState(false);
+  const [customizerMessage, setCustomizerMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [customizerSavedVariants, setCustomizerSavedVariants] = useState<SavedVariantSummary[]>([]);
+  const [customizerLoadingVariants, setCustomizerLoadingVariants] = useState(false);
+  const [avatarMode, setAvatarMode] = useState<'idle' | 'talk'>('idle');
+  const [avatarSpeech, setAvatarSpeech] = useState<{ id: number; text: string } | null>(null);
+  const avatarTalkTimeoutRef = useRef<number | null>(null);
+  const [avatarTweaks, setAvatarTweaks] = useState({ ...DEFAULT_AVATAR_LAYERS });
+  const [expressionIntensity, setExpressionIntensity] = useState(1);
+  const [explodeMode, setExplodeMode] = useState(false);
+  const [explodeDistance, setExplodeDistance] = useState(90);
+  const [forceMouthOpen, setForceMouthOpen] = useState(false);
+  const [forceBlinkVisible, setForceBlinkVisible] = useState(false);
+  const [hideEyesOnSelect, setHideEyesOnSelect] = useState(true);
+  const [avatarZoom, setAvatarZoom] = useState(520);
+  const [bubbleTweaks, setBubbleTweaks] = useState({ x: 0, y: 0, scale: 1 });
+  const [selectedAvatarPart, setSelectedAvatarPart] = useState<
+    | 'head'
+    | 'face'
+    | 'mouth'
+    | 'blink'
+    | 'leftEye'
+    | 'rightEye'
+    | 'leftPupil'
+    | 'rightPupil'
+    | 'leftBrow'
+    | 'rightBrow'
+    | 'bubble'
+    | null
+  >(null);
+  const dragStateRef = useRef<{
+    part:
+      | 'head'
+      | 'face'
+      | 'mouth'
+      | 'blink'
+      | 'leftEye'
+      | 'rightEye'
+      | 'leftPupil'
+      | 'rightPupil'
+      | 'leftBrow'
+      | 'rightBrow'
+      | 'bubble'
+      | null;
+    startX: number;
+    startY: number;
+    initialX: number;
+    initialY: number;
+  } | null>(null);
   
   // Sign 3D text parameters
   const [signText, setSignText] = useState('Questerly');
@@ -1320,6 +1387,99 @@ export default function UserDashboard() {
   const [signTextPosition, setSignTextPosition] = useState<[number, number, number]>([0, 1.90, 0.20]);
   const [signTextRotation, setSignTextRotation] = useState<[number, number, number]>([0, 0, 0]);
 
+  const isKaykitCustomizer =
+    selectedPack.id === 'kaykit' &&
+    ['rogue', 'knight', 'ranger', 'mage', 'barbarian'].includes(selectedCharacter.id);
+
+  const {
+    model: customizerModel,
+    colorPalette: customizerPalette,
+    selectedColorIndex: customizerSelectedColorIndex,
+    selectColor: selectCustomizerColor,
+    replaceColor: replaceCustomizerColor,
+    undoLastChange: undoCustomizerChange,
+    saveVariant: saveCustomizerVariant,
+    loadVariant: loadCustomizerVariant,
+    isLoading: isCustomizerLoading,
+    error: customizerError,
+  } = useCustomizableCharacter({
+    characterPath: isKaykitCustomizer ? selectedCharacter.modelPath : '',
+  });
+
+  const triggerAvatarSpeech = useCallback((text: string) => {
+    setAvatarSpeech({ id: Date.now(), text });
+    setAvatarMode('talk');
+
+    if (avatarTalkTimeoutRef.current) {
+      window.clearTimeout(avatarTalkTimeoutRef.current);
+    }
+
+    avatarTalkTimeoutRef.current = window.setTimeout(() => {
+      setAvatarMode('idle');
+    }, 2400);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (avatarTalkTimeoutRef.current) {
+        window.clearTimeout(avatarTalkTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!dragStateRef.current) return;
+      const { part, startX, startY, initialX, initialY } = dragStateRef.current;
+      const dx = event.clientX - startX;
+      const dy = event.clientY - startY;
+
+      if (part === 'bubble') {
+        setBubbleTweaks((prev) => ({ ...prev, x: initialX + dx, y: initialY + dy }));
+        return;
+      }
+
+      if (part) {
+        setAvatarTweaks((prev) => ({
+          ...prev,
+          [part]: { ...prev[part], x: initialX + dx, y: initialY + dy },
+        }));
+      }
+    };
+
+    const handlePointerUp = () => {
+      dragStateRef.current = null;
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, []);
+
+  const avatarPartList = [
+    { key: 'head', label: 'Head' },
+    { key: 'face', label: 'Face' },
+    { key: 'mouth', label: 'Mouth' },
+    { key: 'blink', label: 'Blink' },
+    { key: 'leftEye', label: 'Left Eye' },
+    { key: 'rightEye', label: 'Right Eye' },
+    { key: 'leftPupil', label: 'Left Pupil' },
+    { key: 'rightPupil', label: 'Right Pupil' },
+    { key: 'leftBrow', label: 'Left Brow' },
+    { key: 'rightBrow', label: 'Right Brow' },
+  ] as const;
+
+  const getScaleMin = (part: (typeof avatarPartList)[number]['key']) => {
+    if (part === 'mouth' || part === 'blink' || part === 'leftPupil' || part === 'rightPupil') {
+      return 0.2;
+    }
+    return 0.4;
+  };
+
   const handlePackChange = (pack: AssetPack) => {
     setSelectedPack(pack);
     // Get all characters (from characters array or subGroups)
@@ -1328,6 +1488,103 @@ export default function UserDashboard() {
       : pack.characters;
     if (allCharacters.length > 0) {
       setSelectedCharacter(allCharacters[0]);
+    }
+  };
+
+  const showCustomizerMessage = (type: 'success' | 'error', text: string) => {
+    setCustomizerMessage({ type, text });
+    window.setTimeout(() => setCustomizerMessage(null), 4000);
+  };
+
+  const loadCustomizerVariants = useCallback(async () => {
+    if (!isKaykitCustomizer) {
+      setCustomizerSavedVariants([]);
+      return;
+    }
+
+    try {
+      setCustomizerLoadingVariants(true);
+      const variants = await CharacterPresets.getVariantsByModel(selectedCharacter.id);
+      setCustomizerSavedVariants(
+        variants.map((variant) => ({
+          id: variant.id,
+          name: variant.name,
+          baseModel: variant.baseModel,
+        }))
+      );
+    } catch (error) {
+      console.error('[Dashboard Customizer] Failed to load variants:', error);
+      showCustomizerMessage('error', 'Failed to load saved variants');
+    } finally {
+      setCustomizerLoadingVariants(false);
+    }
+  }, [isKaykitCustomizer, selectedCharacter.id]);
+
+  useEffect(() => {
+    loadCustomizerVariants();
+    setCustomizerVariantName('');
+    setCustomizerShowWheel(false);
+  }, [loadCustomizerVariants, selectedCharacter.id]);
+
+  const handleCustomizerColorChange = async (newColor: RGB) => {
+    if (customizerSelectedColorIndex === null || !customizerPalette[customizerSelectedColorIndex]) return;
+
+    const selectedColor = customizerPalette[customizerSelectedColorIndex];
+    try {
+      await replaceCustomizerColor(selectedColor.rgb, newColor, 20);
+    } catch (error) {
+      console.error('[Dashboard Customizer] Color replacement failed:', error);
+      showCustomizerMessage('error', 'Failed to apply color change');
+    }
+  };
+
+  const handleCustomizerSave = async () => {
+    if (!customizerVariantName.trim()) {
+      showCustomizerMessage('error', 'Please enter a name for your variant');
+      return;
+    }
+
+    try {
+      setCustomizerIsSaving(true);
+      const variantId = await saveCustomizerVariant(customizerVariantName.trim(), [selectedCharacter.id]);
+      setCustomizerSavedVariants((prev) => [
+        ...prev,
+        {
+          id: variantId,
+          name: customizerVariantName.trim(),
+          baseModel: selectedCharacter.id,
+        },
+      ]);
+      setCustomizerVariantName('');
+      showCustomizerMessage('success', `Variant "${customizerVariantName}" saved`);
+    } catch (error) {
+      console.error('[Dashboard Customizer] Save failed:', error);
+      showCustomizerMessage('error', 'Failed to save variant');
+    } finally {
+      setCustomizerIsSaving(false);
+    }
+  };
+
+  const handleCustomizerLoadVariant = async (variantId: string) => {
+    try {
+      await loadCustomizerVariant(variantId);
+      showCustomizerMessage('success', 'Variant loaded');
+    } catch (error) {
+      console.error('[Dashboard Customizer] Load failed:', error);
+      showCustomizerMessage('error', 'Failed to load variant');
+    }
+  };
+
+  const handleCustomizerDeleteVariant = async (variantId: string) => {
+    if (!confirm('Delete this variant permanently?')) return;
+
+    try {
+      await CharacterPresets.deleteVariant(variantId);
+      setCustomizerSavedVariants((prev) => prev.filter((variant) => variant.id !== variantId));
+      showCustomizerMessage('success', 'Variant deleted');
+    } catch (error) {
+      console.error('[Dashboard Customizer] Delete failed:', error);
+      showCustomizerMessage('error', 'Failed to delete variant');
     }
   };
 
@@ -1350,20 +1607,30 @@ export default function UserDashboard() {
             <CustomButton
               onClick={() => navigate('/test-world')}
               variant="primary"
+              data-help-id="terrain-builder"
             >
               🏔️ Terrain Builder
             </CustomButton>
             <CustomButton
               onClick={() => navigate('/builder')}
               variant="primary"
+              data-help-id="builder"
             >
               🏰 Builder
             </CustomButton>
             <CustomButton
               onClick={() => navigate('/three-text')}
               variant="primary"
+              data-help-id="three-text"
             >
               🔤 Three-text
+            </CustomButton>
+            <CustomButton
+              onClick={() => navigate('/character-customizer')}
+              variant="primary"
+              data-help-id="character-customizer"
+            >
+              🎨 Customizer
             </CustomButton>
           </div>
         </motion.div>
@@ -1375,6 +1642,7 @@ export default function UserDashboard() {
             {ASSET_PACKS.map((pack) => (
               <button
                 key={pack.id}
+                data-help-id={`pack-${pack.id}`}
                 onClick={() => handlePackChange(pack)}
                 className={`px-6 py-3 rounded-lg font-semibold transition-all min-w-32 ${
                   selectedPack.id === pack.id
@@ -1418,6 +1686,7 @@ export default function UserDashboard() {
                   {allCharacters.map((char) => (
                     <button
                       key={char.id}
+                      data-help-id={`char-${char.id}`}
                       onClick={() => setSelectedCharacter(char)}
                       className={`px-4 py-2 rounded-lg font-semibold transition-all ${
                         selectedCharacter.id === char.id
@@ -1677,6 +1946,522 @@ export default function UserDashboard() {
             <p className="text-slate-500">{selectedPack.description}</p>
           </div>
         )}
+
+        {/* KayKit Variant Builder */}
+        <div className="mt-8 bg-slate-800 rounded-xl border border-slate-700 p-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-5">
+            <div>
+              <h3 className="text-xl font-semibold">KayKit Variant Builder</h3>
+              <p className="text-sm text-slate-400">
+                Recolor and save idle variants for KayKit Adventurers.
+              </p>
+            </div>
+            {customizerMessage && (
+              <div
+                className={
+                  customizerMessage.type === 'success'
+                    ? 'px-3 py-2 rounded-md bg-emerald-900/50 border border-emerald-600 text-emerald-200 text-sm'
+                    : 'px-3 py-2 rounded-md bg-rose-900/50 border border-rose-600 text-rose-200 text-sm'
+                }
+              >
+                {customizerMessage.text}
+              </div>
+            )}
+          </div>
+
+          {!isKaykitCustomizer ? (
+            <div className="text-slate-400 text-sm">
+              Select a KayKit Adventurer (Rogue, Knight, Ranger, Mage, Barbarian) to enable recoloring.
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 bg-slate-900/60 border border-slate-700 rounded-lg overflow-hidden">
+                  <div className="p-3 border-b border-slate-700 text-sm text-slate-300">
+                    {selectedCharacter.name} Preview (rotate + zoom)
+                  </div>
+                  <div className="relative" style={{ height: '420px' }}>
+                    {isCustomizerLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 z-10">
+                        <div className="text-slate-200">Loading model...</div>
+                      </div>
+                    )}
+                    {customizerError && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 z-10">
+                        <div className="text-rose-300 text-sm px-4 text-center">{customizerError}</div>
+                      </div>
+                    )}
+                    <Canvas
+                      camera={{ position: [0, 1, 3], fov: 50 }}
+                      style={{ background: 'linear-gradient(to bottom, #1f2937, #0f172a)' }}
+                    >
+                      <ambientLight intensity={0.7} />
+                      <directionalLight position={[4, 6, 4]} intensity={1} />
+                      <directionalLight position={[-4, 3, -4]} intensity={0.4} />
+                      {customizerModel && (
+                        <group>
+                          <primitive object={customizerModel} scale={1.4} position={[0, -1, 0]} />
+                        </group>
+                      )}
+                      <OrbitControls enablePan={false} minDistance={2} maxDistance={8} target={[0, 0.5, 0]} />
+                    </Canvas>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="bg-slate-900/60 border border-slate-700 rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-slate-200 mb-3">Color Palette</h4>
+                    {customizerPalette.length === 0 && !isCustomizerLoading && (
+                      <p className="text-xs text-slate-500">No colors detected.</p>
+                    )}
+                    {customizerPalette.length > 0 && (
+                      <ColorPaletteBoard
+                        colors={customizerPalette}
+                        selectedColorIndex={customizerSelectedColorIndex}
+                        onColorClick={selectCustomizerColor}
+                      />
+                    )}
+                  </div>
+
+                  <div className="bg-slate-900/60 border border-slate-700 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-slate-200">Color Editor</h4>
+                      <button
+                        onClick={undoCustomizerChange}
+                        className="p-2 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200"
+                        title="Undo last change"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+                    </div>
+                    {customizerSelectedColorIndex !== null && customizerPalette[customizerSelectedColorIndex] ? (
+                      <div>
+                        <button
+                          onClick={() => setCustomizerShowWheel((prev) => !prev)}
+                          className="w-full px-3 py-2 rounded-md border border-primary/60 text-primary text-sm font-semibold hover:bg-primary/10"
+                        >
+                          {customizerShowWheel ? 'Hide' : 'Show'} Color Wheel
+                        </button>
+                        {customizerShowWheel && (
+                          <div className="mt-4 flex justify-center">
+                            <ColorPickerWheel
+                              initialColor={customizerPalette[customizerSelectedColorIndex].rgb}
+                              onColorChange={handleCustomizerColorChange}
+                              size={200}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500">Select a palette color to edit.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 bg-slate-900/60 border border-slate-700 rounded-lg p-4">
+                  <h4 className="text-sm font-semibold text-slate-200 mb-3">Save Variant</h4>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="text"
+                      value={customizerVariantName}
+                      onChange={(e) => setCustomizerVariantName(e.target.value)}
+                      placeholder="Variant name..."
+                      className="flex-1 bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white placeholder-slate-500"
+                      disabled={!customizerModel || customizerIsSaving}
+                    />
+                    <button
+                      onClick={handleCustomizerSave}
+                      disabled={!customizerModel || customizerIsSaving || !customizerVariantName.trim()}
+                      className="px-4 py-2 rounded-md bg-primary text-white text-sm font-semibold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Save className="w-4 h-4" />
+                      {customizerIsSaving ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/60 border border-slate-700 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-slate-200">Saved Variants</h4>
+                    {customizerLoadingVariants && (
+                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    )}
+                  </div>
+                  {customizerSavedVariants.length === 0 ? (
+                    <p className="text-xs text-slate-500">No saved variants yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {customizerSavedVariants.map((variant) => (
+                        <div
+                          key={variant.id}
+                          className="flex items-center justify-between bg-slate-800/60 border border-slate-700 rounded-md px-3 py-2"
+                        >
+                          <div>
+                            <div className="text-sm text-slate-200">{variant.name}</div>
+                            <div className="text-[10px] text-slate-500 uppercase">{variant.baseModel}</div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleCustomizerLoadVariant(variant.id)}
+                              className="text-xs text-primary hover:text-primary/80"
+                            >
+                              Load
+                            </button>
+                            <button
+                              onClick={() => handleCustomizerDeleteVariant(variant.id)}
+                              className="text-xs text-rose-300 hover:text-rose-200"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 2D Avatar Test Panel */}
+        <div className="mt-6 bg-slate-800 rounded-xl border border-slate-700 p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-200">2D Avatar Test (Druid)</h3>
+              <p className="text-xs text-slate-400">Dashboard-only sprite animation sandbox</p>
+            </div>
+            <span className="text-xs text-slate-500">Idle · Talk · Pupil tracking</span>
+          </div>
+          <div className="flex flex-col gap-6">
+            <div className="relative w-full sm:w-auto">
+              <div className="relative w-full min-h-[90vh] bg-slate-900/50 border border-slate-700 rounded-xl flex items-center justify-center overflow-hidden">
+                <div
+                  className={`absolute left-1/2 top-3 ${selectedAvatarPart === 'bubble' ? 'ring-2 ring-violet-400/70 rounded-lg' : ''}`}
+                  style={{
+                    transform: `translate(calc(-50% + ${bubbleTweaks.x}px), ${bubbleTweaks.y}px) scale(${bubbleTweaks.scale})`,
+                  }}
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    setSelectedAvatarPart('bubble');
+                    dragStateRef.current = {
+                      part: 'bubble',
+                      startX: event.clientX,
+                      startY: event.clientY,
+                      initialX: bubbleTweaks.x,
+                      initialY: bubbleTweaks.y,
+                    };
+                  }}
+                >
+                  <SpeechBubbleController
+                    key={avatarSpeech?.id}
+                    text={avatarSpeech?.text}
+                    visible={Boolean(avatarSpeech)}
+                    onHide={() => setAvatarSpeech(null)}
+                    className="relative"
+                  />
+                </div>
+                <AvatarController2D
+                  mode={avatarMode}
+                  size={avatarZoom}
+                  headTransform={avatarTweaks.head}
+                  faceTransform={{
+                    x: avatarTweaks.face.x + (explodeMode ? -explodeDistance : 0),
+                    y: avatarTweaks.face.y,
+                    scale: avatarTweaks.face.scale,
+                  }}
+                  mouthTransform={{
+                    x: avatarTweaks.mouth.x + (explodeMode ? explodeDistance : 0),
+                    y: avatarTweaks.mouth.y,
+                    scale: avatarTweaks.mouth.scale,
+                  }}
+                  blinkTransform={{
+                    x: avatarTweaks.blink.x,
+                    y: avatarTweaks.blink.y + (explodeMode ? -explodeDistance : 0),
+                    scale: avatarTweaks.blink.scale,
+                  }}
+                  leftEyeTransform={{
+                    x: avatarTweaks.leftEye.x + (explodeMode ? -explodeDistance : 0),
+                    y: avatarTweaks.leftEye.y,
+                    scale: avatarTweaks.leftEye.scale,
+                  }}
+                  rightEyeTransform={{
+                    x: avatarTweaks.rightEye.x + (explodeMode ? explodeDistance : 0),
+                    y: avatarTweaks.rightEye.y,
+                    scale: avatarTweaks.rightEye.scale,
+                  }}
+                  leftPupilTransform={{
+                    x: avatarTweaks.leftPupil.x + (explodeMode ? -explodeDistance : 0),
+                    y: avatarTweaks.leftPupil.y,
+                    scale: avatarTweaks.leftPupil.scale,
+                  }}
+                  rightPupilTransform={{
+                    x: avatarTweaks.rightPupil.x + (explodeMode ? explodeDistance : 0),
+                    y: avatarTweaks.rightPupil.y,
+                    scale: avatarTweaks.rightPupil.scale,
+                  }}
+                  leftBrowTransform={{
+                    x: avatarTweaks.leftBrow.x,
+                    y: avatarTweaks.leftBrow.y + (explodeMode ? -explodeDistance : 0),
+                    scale: avatarTweaks.leftBrow.scale,
+                  }}
+                  rightBrowTransform={{
+                    x: avatarTweaks.rightBrow.x,
+                    y: avatarTweaks.rightBrow.y + (explodeMode ? -explodeDistance : 0),
+                    scale: avatarTweaks.rightBrow.scale,
+                  }}
+                  expressionIntensity={expressionIntensity}
+                  selectedPart={selectedAvatarPart && selectedAvatarPart !== 'bubble' ? selectedAvatarPart : null}
+                  onPartPointerDown={(part, event) => {
+                    event.stopPropagation();
+                    setSelectedAvatarPart(part);
+                    dragStateRef.current = {
+                      part,
+                      startX: event.clientX,
+                      startY: event.clientY,
+                      initialX: avatarTweaks[part].x,
+                      initialY: avatarTweaks[part].y,
+                    };
+                  }}
+                  hideEyesOnSelect={hideEyesOnSelect}
+                  forceMouthOpen={forceMouthOpen}
+                  forceBlinkVisible={forceBlinkVisible}
+                />
+              </div>
+              <div className="text-[10px] text-slate-500 mt-2 text-center">Click & drag parts to move</div>
+            </div>
+            <div className="flex-1 w-full">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <button
+                  onClick={() => setAvatarMode('idle')}
+                  className="px-3 py-2 bg-slate-900 text-slate-200 text-xs rounded-lg border border-slate-700 hover:bg-slate-800 transition"
+                >
+                  Idle
+                </button>
+                <button
+                  onClick={() => triggerAvatarSpeech('Hello from Questerly!')}
+                  className="px-3 py-2 bg-slate-900 text-slate-200 text-xs rounded-lg border border-slate-700 hover:bg-slate-800 transition"
+                >
+                  Talk
+                </button>
+                <button
+                  onClick={() => triggerAvatarSpeech('Need help? Select a model pack to preview animations.')}
+                  className="px-3 py-2 bg-slate-900 text-slate-200 text-xs rounded-lg border border-slate-700 hover:bg-slate-800 transition"
+                >
+                  Help
+                </button>
+                <button
+                  onClick={() => triggerAvatarSpeech('Ask me about the dashboard or models.')}
+                  className="px-3 py-2 bg-slate-900 text-slate-200 text-xs rounded-lg border border-slate-700 hover:bg-slate-800 transition"
+                >
+                  Chat
+                </button>
+                <button
+                  onClick={() => {
+                    const jokes = [
+                      'Why did the ranger bring string? For quest lines!',
+                      'My spellbook is just a list of TODOs.',
+                      'The druid says: keep your branches organized. 🌿',
+                    ];
+                    triggerAvatarSpeech(jokes[Math.floor(Math.random() * jokes.length)]);
+                  }}
+                  className="px-3 py-2 bg-slate-900 text-slate-200 text-xs rounded-lg border border-slate-700 hover:bg-slate-800 transition"
+                >
+                  Joke/Story
+                </button>
+              </div>
+              <p className="text-xs text-slate-500 mt-3">Pupils follow the mouse automatically for this test.</p>
+              <div className="mt-4 bg-slate-900/60 border border-slate-700 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs text-slate-300 font-semibold uppercase">Alignment Controls</div>
+                  <button
+                    onClick={() =>
+                      setAvatarTweaks({ ...DEFAULT_AVATAR_LAYERS })
+                    }
+                    className="text-[10px] text-slate-300 hover:text-white"
+                  >
+                    Reset
+                  </button>
+                </div>
+                <div className="text-[10px] text-slate-500 mb-2">Selected: {selectedAvatarPart ?? 'none'}</div>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <label className="text-[10px] text-slate-500 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={explodeMode}
+                      onChange={(e) => setExplodeMode(e.target.checked)}
+                    />
+                    Explode features
+                  </label>
+                  <label className="text-[10px] text-slate-500 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={hideEyesOnSelect}
+                      onChange={(e) => setHideEyesOnSelect(e.target.checked)}
+                    />
+                    Hide eyes on select
+                  </label>
+                  <label className="text-[10px] text-slate-500 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={forceMouthOpen}
+                      onChange={(e) => setForceMouthOpen(e.target.checked)}
+                    />
+                    Mouth always visible
+                  </label>
+                  <label className="text-[10px] text-slate-500 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={forceBlinkVisible}
+                      onChange={(e) => setForceBlinkVisible(e.target.checked)}
+                    />
+                    Blink always visible
+                  </label>
+                </div>
+                <label className="text-[10px] text-slate-500 block mb-3">
+                  Explode distance: {explodeDistance}
+                  <input
+                    type="range"
+                    min={40}
+                    max={140}
+                    step={1}
+                    value={explodeDistance}
+                    onChange={(e) => setExplodeDistance(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </label>
+                <label className="text-[10px] text-slate-500 block mb-3">
+                  Canvas zoom: {avatarZoom}px
+                  <input
+                    type="range"
+                    min={320}
+                    max={760}
+                    step={10}
+                    value={avatarZoom}
+                    onChange={(e) => setAvatarZoom(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </label>
+                {avatarPartList.map((part) => (
+                  <div key={part.key} className="mb-3">
+                    <div className="text-[10px] text-slate-400 uppercase mb-1">{part.label}</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="text-[10px] text-slate-500">
+                        X: {avatarTweaks[part.key].x}
+                        <input
+                          type="range"
+                          min={-120}
+                          max={120}
+                          step={1}
+                          value={avatarTweaks[part.key].x}
+                          onChange={(e) =>
+                            setAvatarTweaks((prev) => ({
+                              ...prev,
+                              [part.key]: { ...prev[part.key], x: Number(e.target.value) },
+                            }))
+                          }
+                          className="w-full"
+                        />
+                      </label>
+                      <label className="text-[10px] text-slate-500">
+                        Y: {avatarTweaks[part.key].y}
+                        <input
+                          type="range"
+                          min={-120}
+                          max={120}
+                          step={1}
+                          value={avatarTweaks[part.key].y}
+                          onChange={(e) =>
+                            setAvatarTweaks((prev) => ({
+                              ...prev,
+                              [part.key]: { ...prev[part.key], y: Number(e.target.value) },
+                            }))
+                          }
+                          className="w-full"
+                        />
+                      </label>
+                    </div>
+                    <label className="text-[10px] text-slate-500 block mt-2">
+                      Scale: {avatarTweaks[part.key].scale.toFixed(2)}
+                      <input
+                        type="range"
+                        min={getScaleMin(part.key)}
+                        max={2}
+                        step={0.01}
+                        value={avatarTweaks[part.key].scale}
+                        onChange={(e) =>
+                          setAvatarTweaks((prev) => ({
+                            ...prev,
+                            [part.key]: { ...prev[part.key], scale: Number(e.target.value) },
+                          }))
+                        }
+                        className="w-full"
+                      />
+                    </label>
+                  </div>
+                ))}
+                <div className="mt-2 border-t border-slate-700 pt-3">
+                  <div className="text-[10px] text-slate-400 uppercase mb-1">Expression</div>
+                  <label className="text-[10px] text-slate-500 block mt-2">
+                    Expression: {expressionIntensity.toFixed(2)}
+                    <input
+                      type="range"
+                      min={0}
+                      max={2}
+                      step={0.05}
+                      value={expressionIntensity}
+                      onChange={(e) => setExpressionIntensity(Number(e.target.value))}
+                      className="w-full"
+                    />
+                  </label>
+                </div>
+                <div className="mt-2 border-t border-slate-700 pt-3">
+                  <div className="text-[10px] text-slate-400 uppercase mb-1">Speech Bubble</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <label className="text-[10px] text-slate-500">
+                      X: {bubbleTweaks.x}
+                      <input
+                        type="range"
+                        min={-60}
+                        max={60}
+                        step={1}
+                        value={bubbleTweaks.x}
+                        onChange={(e) => setBubbleTweaks((prev) => ({ ...prev, x: Number(e.target.value) }))}
+                        className="w-full"
+                      />
+                    </label>
+                    <label className="text-[10px] text-slate-500">
+                      Y: {bubbleTweaks.y}
+                      <input
+                        type="range"
+                        min={-80}
+                        max={80}
+                        step={1}
+                        value={bubbleTweaks.y}
+                        onChange={(e) => setBubbleTweaks((prev) => ({ ...prev, y: Number(e.target.value) }))}
+                        className="w-full"
+                      />
+                    </label>
+                    <label className="text-[10px] text-slate-500">
+                      Scale: {bubbleTweaks.scale.toFixed(2)}
+                      <input
+                        type="range"
+                        min={0.6}
+                        max={1.6}
+                        step={0.01}
+                        value={bubbleTweaks.scale}
+                        onChange={(e) => setBubbleTweaks((prev) => ({ ...prev, scale: Number(e.target.value) }))}
+                        className="w-full"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

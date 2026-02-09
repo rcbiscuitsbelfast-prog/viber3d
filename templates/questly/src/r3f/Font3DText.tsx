@@ -1,12 +1,14 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
-import { useFrame } from '@react-three/fiber';
 import { create3DText } from './create3DText';
 import { resolveAssetPath } from '@/lib/paths';
 
+// Stable default references to prevent unnecessary re-renders
+const DEFAULT_POSITION: [number, number, number] = [0, 0, 0];
+const DEFAULT_ROTATION: [number, number, number] = [0, 0, 0];
+const DEFAULT_TEXTURE_REPEAT: [number, number] = [1, 1];
 
-
-export function Font3DText(props: {
+export interface Font3DTextProps {
   text: string;
   position?: [number, number, number];
   color?: string;
@@ -32,10 +34,12 @@ export function Font3DText(props: {
   outlineThickness?: number;
   outlineOffset?: number;
   [key: string]: any;
-}) {
+}
+
+export const Font3DText = React.memo(function Font3DTextComponent(props: Font3DTextProps) {
   const {
     text,
-    position = [0, 0, 0],
+    position = DEFAULT_POSITION,
     color = '#FFD700',
     height = 0.1,
     bevelSize = 0.02,
@@ -45,12 +49,12 @@ export function Font3DText(props: {
     curveSegments = 12,
     size = 1.2,
     bevelEnabled = false,
-    rotation = [0, 0, 0],
+    rotation = DEFAULT_ROTATION,
     fontUrl = resolveAssetPath('/fonts/gentilis_regular.typeface.json'),
     textureUrl,
     bumpMapUrl,
     roughnessMapUrl,
-    textureRepeat = [1, 1],
+    textureRepeat = DEFAULT_TEXTURE_REPEAT,
     materialType = 'standard',
     gradientMapUrl,
     edgeColor,
@@ -116,15 +120,21 @@ export function Font3DText(props: {
           gradientMap: gradientMap || undefined
         });
       } else {
-        frontMaterial = new THREE.MeshStandardMaterial({
+        const materialProps: any = {
           color,
           metalness: 0.2,
           roughness: 0.9,
-          map: map || undefined,
-          bumpMap: bumpMap || undefined,
-          bumpScale: bumpMap ? 0.06 : 0,
-          roughnessMap: roughnessMap || undefined
-        });
+        };
+        
+        // Only add texture properties if they exist
+        if (map) materialProps.map = map;
+        if (bumpMap) {
+          materialProps.bumpMap = bumpMap;
+          materialProps.bumpScale = 0.06;
+        }
+        if (roughnessMap) materialProps.roughnessMap = roughnessMap;
+        
+        frontMaterial = new THREE.MeshStandardMaterial(materialProps);
       }
 
       // If edgeColor is specified, create a material array
@@ -153,6 +163,7 @@ export function Font3DText(props: {
         material
       })
     ).then((createdMesh) => {
+      console.log('[Font3DText] Successfully created mesh for text:', text);
       if (mounted) {
         // Log bounding box after mesh creation
         createdMesh.geometry.computeBoundingBox();
@@ -187,8 +198,58 @@ export function Font3DText(props: {
           setOutlineMesh(null);
         }
       }
+    }).catch((error) => {
+      console.error('[Font3DText] Error loading font or creating text:', error);
+      console.error('[Font3DText] Font URL was:', fontUrl);
     });
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+      // Clean up geometries, materials, and textures to prevent memory leaks
+      // ===== GPU MEMORY CLEANUP (Feb 6, 2026) =====
+      const disposeTextures = (material: THREE.Material) => {
+        const mat = material as THREE.MeshStandardMaterial;
+        if (mat.map) mat.map.dispose();
+        if (mat.normalMap) mat.normalMap.dispose();
+        if (mat.roughnessMap) mat.roughnessMap.dispose();
+        if (mat.metalnessMap) mat.metalnessMap.dispose();
+        if (mat.bumpMap) mat.bumpMap.dispose();
+        if (mat.aoMap) mat.aoMap.dispose();
+        if (mat.emissiveMap) mat.emissiveMap.dispose();
+      };
+
+      if (mesh) {
+        if (mesh.geometry) {
+          mesh.geometry.dispose();
+        }
+        if (mesh.material) {
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach(m => {
+              disposeTextures(m);
+              m.dispose();
+            });
+          } else {
+            disposeTextures(mesh.material);
+            mesh.material.dispose();
+          }
+        }
+      }
+      if (outlineMesh) {
+        if (outlineMesh.geometry) {
+          outlineMesh.geometry.dispose();
+        }
+        if (outlineMesh.material) {
+          if (Array.isArray(outlineMesh.material)) {
+            outlineMesh.material.forEach(m => {
+              disposeTextures(m);
+              m.dispose();
+            });
+          } else {
+            disposeTextures(outlineMesh.material);
+            outlineMesh.material.dispose();
+          }
+        }
+      }
+    };
   }, [text, color, size, height, curveSegments, bevelEnabled, bevelThickness, bevelSize, bevelSegments, bevelOffset, fontUrl, textureUrl, bumpMapUrl, roughnessMapUrl, textureRepeat, materialType, gradientMapUrl, edgeColor, outlineEnabled, outlineColor, outlineThickness, outlineOffset]);
 
   useEffect(() => {
@@ -204,4 +265,20 @@ export function Font3DText(props: {
       <primitive object={mesh} ref={meshRef} />
     </group>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison to prevent unnecessary re-renders
+  // Only re-render if these critical props change
+  return (
+    prevProps.text === nextProps.text &&
+    prevProps.fontUrl === nextProps.fontUrl &&
+    prevProps.color === nextProps.color &&
+    prevProps.size === nextProps.size &&
+    prevProps.height === nextProps.height &&
+    prevProps.materialType === nextProps.materialType &&
+    prevProps.outlineEnabled === nextProps.outlineEnabled &&
+    // Compare array props by reference (now using stable defaults)
+    prevProps.position === nextProps.position &&
+    prevProps.rotation === nextProps.rotation &&
+    prevProps.textureRepeat === nextProps.textureRepeat
+  );
+});
