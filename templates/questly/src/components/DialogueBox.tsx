@@ -7,6 +7,7 @@ interface DialogueBoxProps {
   message: string;
   onClose: () => void;
   type?: 'npc' | 'quest' | 'location' | 'info';
+  onEdit?: () => void; // Optional edit handler for NPCs
 }
 
 export default function DialogueBox({ 
@@ -14,7 +15,8 @@ export default function DialogueBox({
   title, 
   message, 
   onClose,
-  type = 'info'
+  type = 'info',
+  onEdit
 }: DialogueBoxProps) {
   if (!isOpen) return null;
 
@@ -66,8 +68,16 @@ export default function DialogueBox({
               ))}
             </div>
             
-            {/* Action Button */}
-            <div className="flex justify-end">
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-2">
+              {type === 'npc' && onEdit && (
+                <button
+                  onClick={onEdit}
+                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+                >
+                  ✏️ Edit Dialogue
+                </button>
+              )}
               <button
                 onClick={onClose}
                 className="px-6 py-2 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-lg transition-colors"

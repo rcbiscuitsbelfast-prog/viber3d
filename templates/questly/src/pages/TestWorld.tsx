@@ -47,6 +47,7 @@ import {
   isFirebaseAvailable
 } from '../systems/world';
 import { isFirebaseConfigured } from '../lib/firebase';
+import { globalTTSEngine } from '../systems/voice/TTSEngine';
 
 // Patch three.js with three-mesh-bvh for accelerated raycasting
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
@@ -2173,6 +2174,7 @@ function GroundClickHandler({
   onPlaceAsset,
   onEraseAsset,
   getTerrainHeight,
+  setGhostPreviewPosition,
 }: {
   selectedAssetType: 'tree' | 'rock' | 'grass' | 'bush' | null;
   selectedBuildingAsset: string | null;
@@ -2183,6 +2185,7 @@ function GroundClickHandler({
   onPlaceAsset: (asset: any) => void;
   onEraseAsset: (id: string) => void;
   getTerrainHeight: (x: number, z: number) => number;
+  setGhostPreviewPosition: (pos: [number, number, number] | null) => void;
 }) {
   const { camera, raycaster, pointer, scene } = useThree();
   const manualAssetsRef = useRef(manualAssets);
@@ -2190,6 +2193,51 @@ function GroundClickHandler({
   useEffect(() => {
     manualAssetsRef.current = manualAssets;
   }, [manualAssets]);
+
+  // Track mouse position for ghost preview
+  useEffect(() => {
+    if (!selectedBuildingAsset && !selectedAssetType) {
+      setGhostPreviewPosition(null);
+      return;
+    }
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const canvas = event.target as HTMLCanvasElement;
+      if (!canvas || canvas.tagName !== 'CANVAS') {
+        setGhostPreviewPosition(null);
+        return;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(pointer, camera);
+
+      // Find terrain mesh
+      const terrainMesh = scene.children.find(
+        (child) => child.type === 'Mesh' && child.userData.isTerrain
+      );
+
+      if (!terrainMesh) {
+        setGhostPreviewPosition(null);
+        return;
+      }
+
+      const intersects = raycaster.intersectObject(terrainMesh, false);
+
+      if (intersects.length > 0) {
+        const point = intersects[0].point;
+        const terrainY = getTerrainHeight(point.x, point.z);
+        setGhostPreviewPosition([point.x, terrainY, point.z]);
+      } else {
+        setGhostPreviewPosition(null);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [selectedBuildingAsset, selectedAssetType, camera, raycaster, pointer, scene, getTerrainHeight, setGhostPreviewPosition]);
 
   useEffect(() => {
     if (!selectedAssetType && !selectedBuildingAsset && !eraseMode) return;
@@ -2263,6 +2311,8 @@ function GroundClickHandler({
               };
               // Add to placedBuilds instead of manualAssets
               onPlaceAsset({ ...buildingData, type: 'building' });
+              // Clear ghost preview after placement
+              setGhostPreviewPosition(null);
             }
           }
         } else if (selectedAssetType) {
@@ -2306,9 +2356,59 @@ function GroundClickHandler({
 
     window.addEventListener('click', handleClick);
     return () => window.removeEventListener('click', handleClick);
-  }, [selectedAssetType, selectedBuildingAsset, selectedBuildingPack, eraseMode, eraseBrushSize, onPlaceAsset, onEraseAsset, camera, raycaster, pointer, scene, getTerrainHeight]);
+  }, [selectedAssetType, selectedBuildingAsset, selectedBuildingPack, eraseMode, eraseBrushSize, onPlaceAsset, onEraseAsset, camera, raycaster, pointer, scene, getTerrainHeight, setGhostPreviewPosition]);
 
   return null;
+}
+
+// Ghost Building Preview Component
+function GhostBuilding({
+  packId,
+  assetType,
+  position,
+}: {
+  packId: string;
+  assetType: string;
+  position: [number, number, number];
+}) {
+  const pack = BUILDING_ASSET_PACKS.find(p => p.id === packId);
+  if (!pack) return null;
+  
+  const assetDef = pack.assets.find(a => a.type === assetType);
+  if (!assetDef) return null;
+  
+  // Skip FBX files - useGLTF only supports GLTF/GLB
+  if (assetDef.modelPath.toLowerCase().endsWith('.fbx')) {
+    return null;
+  }
+  
+  const modelPath = getAssetPath(`${pack.basePath}${assetDef.modelPath}`);
+
+  try {
+    const { scene } = useGLTF(modelPath);
+    const baseScale = assetDef.defaultScale || 6.0;
+    
+    return (
+      <group position={position} scale={baseScale}>
+        <primitive
+          object={scene.clone()}
+          onBeforeRender={(renderer: any) => {
+            scene.traverse((child) => {
+              if (child instanceof THREE.Mesh) {
+                child.material = child.material.clone();
+                child.material.transparent = true;
+                child.material.opacity = 0.5;
+                child.material.color.setHex(0x00ffff);
+              }
+            });
+          }}
+        />
+      </group>
+    );
+  } catch (error) {
+    console.warn(`[GhostBuilding] Failed to load: ${modelPath}`, error);
+    return null;
+  }
 }
 
 // Category Section Component for Manual Mode
@@ -2530,6 +2630,13 @@ export default function TestWorld() {
           [15, 2.5, 50],
         ] as [number, number, number][],
         characterModelPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Knight.glb',
+        dialogue: [
+          'Halt! Who goes there?',
+          'The castle is secure, all is well.',
+          'Keep moving, citizen.',
+          'I stand guard day and night.',
+        ],
+        voiceId: 'google-uk-male',
       },
       {
         id: 'merchant1',
@@ -2541,8 +2648,15 @@ export default function TestWorld() {
         [-35, 2.5, 50],
         [-15, 2.5, 50],
       ] as [number, number, number][],
-      characterModelPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Mage.glb',
-    },
+        characterModelPath: '/Assets/KayKit_Adventurers_2.0_FREE/KayKit_Adventurers_2.0_FREE/Characters/gltf/Mage.glb',
+        dialogue: [
+          'Welcome to my shop! What can I get for you?',
+          'Fine wares, finest prices!',
+          'Looking for something special?',
+          'Come, browse my collection!',
+        ],
+        voiceId: 'google-us',
+      },
     {
       id: 'fighter1',
       name: 'Rogue Fighter',
@@ -2652,23 +2766,70 @@ export default function TestWorld() {
     }
   };
   
-  // Handle NPC clicks
+  // Handle NPC clicks - with random speech and TTS
   const handleNPCClick = (npcId: string) => {
     const npc = npcs.find(n => n.id === npcId);
     if (npc) {
       setInteractingWith(`npc-${npcId}`);
+      
+      // Get random dialogue or default message
+      const dialogue = (npc as any).dialogue || [`Hello! I'm ${npc.name}.`];
+      const randomMessage = dialogue[Math.floor(Math.random() * dialogue.length)];
+      
+      // Play TTS if voice is available
+      const voiceId = (npc as any).voiceId || 'google-us';
+      if (globalTTSEngine.isVoiceAvailable(voiceId)) {
+        globalTTSEngine.speak(randomMessage, voiceId);
+      }
+      
       setDialogueBox({
         isOpen: true,
         title: npc.name,
-        message: `NPC: ${npc.name}\n\nThis will open an interaction dialog in the future.`,
+        message: randomMessage,
         type: 'npc'
       });
+      
+      // Add edit button in dialogue box - we'll handle this in DialogueBox component
+      // For now, add a right-click handler to open editor
     }
   };
   
   const closeDialogue = () => {
     setDialogueBox({ isOpen: false, title: '', message: '', type: 'info' });
     setInteractingWith(null);
+    globalTTSEngine.stop(); // Stop any TTS when closing dialogue
+  };
+  
+  // NPC dialogue editing state
+  const [editingNPC, setEditingNPC] = useState<string | null>(null);
+  const [npcDialogueText, setNpcDialogueText] = useState<string>('');
+  const [npcVoiceId, setNpcVoiceId] = useState<string>('google-us');
+  
+  // Open NPC dialogue editor
+  const openNPCEditor = (npcId: string) => {
+    const npc = npcs.find(n => n.id === npcId);
+    if (npc) {
+      setEditingNPC(npcId);
+      const dialogue = (npc as any).dialogue || [];
+      setNpcDialogueText(dialogue.join('\n'));
+      setNpcVoiceId((npc as any).voiceId || 'google-us');
+    }
+  };
+  
+  // Save NPC dialogue
+  const saveNPCDialogue = () => {
+    if (!editingNPC) return;
+    
+    const dialogueLines = npcDialogueText.split('\n').filter(line => line.trim());
+    
+    setNpcs(prev => prev.map(npc => 
+      npc.id === editingNPC 
+        ? { ...npc, dialogue: dialogueLines, voiceId: npcVoiceId } as any
+        : npc
+    ));
+    
+    setEditingNPC(null);
+    setNpcDialogueText('');
   };
   const [eraseMode, setEraseMode] = useState(false);
   const [eraseBrushSize, setEraseBrushSize] = useState(3);
@@ -2677,6 +2838,7 @@ export default function TestWorld() {
   const [buildingMode, setBuildingMode] = useState(false); // Building placement mode
   const [selectedBuildingPack, setSelectedBuildingPack] = useState<string>('kaykit_castle');
   const [selectedBuildingAsset, setSelectedBuildingAsset] = useState<string | null>(null);
+  const [ghostPreviewPosition, setGhostPreviewPosition] = useState<[number, number, number] | null>(null);
   
   // Camera control modes
   const [panMode, setPanMode] = useState(false);
@@ -4937,11 +5099,11 @@ export default function TestWorld() {
               terrainSize={isSquareTerrain ? (islandSize * 2) : 230}
               terrainRadius={islandSize}
               isSquareTerrain={isSquareTerrain}
-              innerFogRadius={30}
-              innerFogHeight={4}
-              innerBubbleScale={0.7}
-              innerBubbleDensity={1.0}
-              innerBubbleSpeed={0.15}
+              innerFogRadius={islandSize * 0.7}
+              innerFogHeight={fogHeight * 0.25}
+              innerBubbleScale={bubbleScale * 0.7}
+              innerBubbleDensity={bubbleDensity * 0.67}
+              innerBubbleSpeed={bubbleSpeed * 0.75}
             />
             
             {/* Procedural Forest Assets */}
@@ -5148,7 +5310,19 @@ export default function TestWorld() {
                   onPlaceAsset={handlePlaceAsset}
                   onEraseAsset={handleEraseAsset}
                   getTerrainHeight={getTerrainHeight}
+                  setGhostPreviewPosition={setGhostPreviewPosition}
                 />
+                
+                {/* Ghost preview for buildings */}
+                {buildingMode && ghostPreviewPosition && selectedBuildingAsset && selectedBuildingPack && (
+                  <Suspense fallback={null}>
+                    <GhostBuilding
+                      packId={selectedBuildingPack}
+                      assetType={selectedBuildingAsset.split(':')[1]}
+                      position={ghostPreviewPosition}
+                    />
+                  </Suspense>
+                )}
                 
                 {/* Erase Brush Visual Indicator */}
                 {eraseMode && (
@@ -5227,7 +5401,86 @@ export default function TestWorld() {
         message={dialogueBox.message}
         type={dialogueBox.type}
         onClose={closeDialogue}
+        onEdit={dialogueBox.type === 'npc' && interactingWith ? () => {
+          const npcId = interactingWith.replace('npc-', '');
+          openNPCEditor(npcId);
+          closeDialogue();
+        } : undefined}
       />
+      
+      {/* NPC Dialogue Editor Modal */}
+      {editingNPC && (() => {
+        const npc = npcs.find(n => n.id === editingNPC);
+        if (!npc) return null;
+        
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-slate-800 border-2 border-primary rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <h2 className="text-2xl font-bold text-white mb-4">Edit {npc.name} Dialogue</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">
+                    Dialogue Lines (one per line)
+                  </label>
+                  <textarea
+                    value={npcDialogueText}
+                    onChange={(e) => setNpcDialogueText(e.target.value)}
+                    className="w-full h-40 bg-slate-900 border border-slate-700 rounded text-white p-3 font-mono text-sm"
+                    placeholder="Enter dialogue lines, one per line..."
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">
+                    Voice
+                  </label>
+                  <select
+                    value={npcVoiceId}
+                    onChange={(e) => setNpcVoiceId(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded text-white p-2"
+                  >
+                    {globalTTSEngine.getAllVoices().map(voice => (
+                      <option key={voice.id} value={voice.id}>
+                        {voice.name} - {voice.description}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      const lines = npcDialogueText.split('\n').filter(l => l.trim());
+                      if (lines.length > 0) {
+                        globalTTSEngine.speak(lines[0], npcVoiceId);
+                      }
+                    }}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                  >
+                    🔊 Preview Voice
+                  </button>
+                  <button
+                    onClick={saveNPCDialogue}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+                  >
+                    💾 Save Dialogue
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingNPC(null);
+                      setNpcDialogueText('');
+                    }}
+                    className="flex-1 bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* World Template Modal */}
       <WorldTemplateModal
