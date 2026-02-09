@@ -62,7 +62,7 @@ function CharacterPreview({
   const shieldAdjustments = shieldPath ? getShieldConfig(shieldPath) : undefined;
 
   return (
-    <group ref={groupRef} position={[0, 0, 0]} scale={isSelected ? 1.05 : 0.95}>
+    <group ref={groupRef} position={[0, -0.2, 0]} scale={isSelected ? 1.05 : 0.95}>
       <AnimatedCharacter
         characterPath={getAssetPath(characterPath)}
         assetId={assetId}
@@ -76,7 +76,7 @@ function CharacterPreview({
         shieldPath={shieldPath ? getAssetPath(shieldPath) : undefined}
         weaponAdjustments={weaponAdjustments}
         shieldAdjustments={shieldAdjustments}
-        animationTimeScale={0.3}
+        animationTimeScale={0.05}
       />
       <ambientLight intensity={0.6} />
       <directionalLight position={[5, 5, 5]} intensity={0.8} />
@@ -101,14 +101,20 @@ function MiniCanvas({
       whileTap={{ scale: 0.95 }}
       onClick={onSelect}
       className={`
-        relative w-32 h-48 md:w-40 md:h-64 rounded-lg overflow-hidden cursor-pointer transition-all flex-shrink-0 snap-center
+        relative rounded-lg overflow-hidden cursor-pointer transition-all flex-shrink-0 snap-center bg-slate-800/90 backdrop-blur-sm
         ${isSelected 
           ? 'ring-4 ring-primary shadow-2xl shadow-primary/50' 
           : 'ring-2 ring-slate-600 hover:ring-slate-500'
         }
       `}
+      style={{
+        width: '200px',
+        height: '300px',
+        minWidth: '200px',
+        minHeight: '300px',
+      }}
     >
-      <Canvas camera={{ position: [0, 1.5, 3.5], fov: 50 }}>
+      <Canvas camera={{ position: [0, 2.2, 5.5], fov: 40 }}>
         <Suspense fallback={null}>
           <CharacterPreview 
             characterPath={character.modelPath} 
@@ -118,7 +124,7 @@ function MiniCanvas({
         </Suspense>
         <OrbitControls 
           enabled={false} 
-          target={[0, 1, 0]}
+          target={[0, 0.8, 0]}
           minDistance={2}
           maxDistance={6}
         />
@@ -208,7 +214,7 @@ export default function CharacterSelectionModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
           onClick={onClose}
         >
           {/* Floating content - no background box */}
@@ -231,42 +237,60 @@ export default function CharacterSelectionModal({
             </div>
 
             {/* Horizontal Scrolling Character Selection with arrows */}
-            <div className="relative mb-6">
-              {/* Left arrow */}
+            <div className="relative mb-6" style={{ minHeight: '300px' }}>
+              {/* Left arrow - Always visible */}
               <button
                 onMouseDown={() => startScrolling('left')}
                 onMouseUp={stopScrolling}
                 onMouseLeave={stopScrolling}
                 onTouchStart={() => startScrolling('left')}
                 onTouchEnd={stopScrolling}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full p-2 md:p-3 transition-all"
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-white/30 hover:bg-white/40 backdrop-blur-md rounded-full p-3 transition-all shadow-lg"
+                style={{
+                  left: '-20px',
+                  width: '48px',
+                  height: '48px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
                 aria-label="Scroll left"
               >
-                <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-white" />
+                <ChevronLeft className="w-6 h-6 text-white" />
               </button>
 
-              {/* Right arrow */}
+              {/* Right arrow - Always visible */}
               <button
                 onMouseDown={() => startScrolling('right')}
                 onMouseUp={stopScrolling}
                 onMouseLeave={stopScrolling}
                 onTouchStart={() => startScrolling('right')}
                 onTouchEnd={stopScrolling}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full p-2 md:p-3 transition-all"
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-white/30 hover:bg-white/40 backdrop-blur-md rounded-full p-3 transition-all shadow-lg"
+                style={{
+                  right: '-20px',
+                  width: '48px',
+                  height: '48px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
                 aria-label="Scroll right"
               >
-                <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-white" />
+                <ChevronRight className="w-6 h-6 text-white" />
               </button>
 
               {/* Scroll container */}
               <div 
                 ref={scrollContainerRef}
-                className="flex gap-4 md:gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory character-scroll-container px-10 md:px-12"
+                className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory"
                 style={{
                   scrollbarWidth: 'none',
                   msOverflowStyle: 'none',
                   scrollBehavior: 'smooth',
                   WebkitOverflowScrolling: 'touch',
+                  paddingLeft: '40px',
+                  paddingRight: '40px',
                 }}
               >
                 {CHARACTER_OPTIONS.map((character) => (
@@ -294,12 +318,6 @@ export default function CharacterSelectionModal({
             <style>{`
               .scrollbar-hide::-webkit-scrollbar {
                 display: none;
-              }
-              @media (max-width: 768px) {
-                .character-scroll-container {
-                  padding-left: calc(50vw - 80px);
-                  padding-right: calc(50vw - 80px);
-                }
               }
             `}</style>
           </motion.div>

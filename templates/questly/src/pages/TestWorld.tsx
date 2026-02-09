@@ -1,4 +1,4 @@
-import React, { Suspense, useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { Suspense, useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { useFrame, Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment, Sky, useGLTF } from '@react-three/drei';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -25,6 +25,8 @@ import { WalkingNPC } from '../components/WalkingNPC';
 import SidebarMenu from '../components/SidebarMenu';
 import DialogueBox from '../components/DialogueBox';
 import FloatingInteractionIcon from '../components/FloatingInteractionIcon';
+import { ActionBar, ActionSlot } from '../components/ActionBar';
+import { RadialMenu } from '../components/RadialMenu';
 // import ModularCastle from '../components/ModularCastle'; // Removed - using saved builds instead
 import { CastleAsset, BUILDING_ASSET_PACKS } from './CastleBuilder';
 import { generateSimplexTerrain, sampleTerrainHeight } from '../utils/simplexTerrain';
@@ -131,6 +133,7 @@ function CharacterController({
   characterHeightOffset = 0.9,
   avatarScale = 1.0,
   npcPositionsRef,
+  onRef,
 }: {
   startPosition: [number, number, number];
   terrainMeshRef: React.RefObject<THREE.Mesh>;
@@ -154,13 +157,14 @@ function CharacterController({
   characterHeightOffset?: number;
   avatarScale?: number;
   npcPositionsRef?: React.MutableRefObject<Map<string, THREE.Vector3>>;
+  onRef?: (ref: { playAnimation: (name: string) => void }) => void;
 }) {
   const characterRef = useRef<THREE.Group>(null);
   const groupRef = useRef<THREE.Group>(null);
   const positionRef = useRef<THREE.Vector3>(new THREE.Vector3(...startPosition));
   const [position, setPosition] = useState<THREE.Vector3>(new THREE.Vector3(...startPosition)); // For React rendering
   const rotationRef = useRef(Math.PI); // Start facing away from camera (180 degrees = Math.PI)
-  const [rotation, setRotation] = useState(0); // Keep state for React rendering
+  const [rotation, setRotation] = useState(Math.PI); // Start facing away from camera (180 degrees = Math.PI)
   const [model, setModel] = useState<THREE.Object3D | null>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
   const velocity = useRef(new THREE.Vector3());
@@ -254,6 +258,19 @@ function CharacterController({
       onAnimationTrigger(crossfadeTo);
     }
   }, [onAnimationTrigger, crossfadeTo]);
+  
+  // Expose playAnimation via onRef for ActionBar
+  useEffect(() => {
+    if (onRef && crossfadeTo) {
+      onRef({
+        playAnimation: (name: string) => {
+          if (animationsLoaded) {
+            crossfadeTo(name, 0.2);
+          }
+        },
+      });
+    }
+  }, [onRef, crossfadeTo, animationsLoaded]);
   
   // Character movement controls
   useEffect(() => {
@@ -619,11 +636,17 @@ function CharacterController({
   
   // Initialize rotation ref on mount and sync with external ref
   // Character should face away from camera initially (180 degrees = Math.PI)
-  useEffect(() => {
+  // Use useLayoutEffect to set rotation synchronously before first render
+  useLayoutEffect(() => {
+    const initialRotation = Math.PI; // Face away from camera
+    rotationRef.current = initialRotation;
+    setRotation(initialRotation);
     if (externalRotationRef) {
-      rotationRef.current = externalRotationRef.current || Math.PI; // Face away from camera
-    } else {
-      rotationRef.current = Math.PI; // Default: face away from camera
+      externalRotationRef.current = initialRotation;
+    }
+    // Also set directly on group ref to ensure it's applied immediately
+    if (groupRef.current) {
+      groupRef.current.rotation.y = initialRotation;
     }
   }, [externalRotationRef]);
   
@@ -631,13 +654,15 @@ function CharacterController({
   useFrame(() => {
     if (groupRef.current) {
       groupRef.current.rotation.y = rotationRef.current;
+      // Also update state to keep React in sync
+      setRotation(rotationRef.current);
     }
   });
   
   // KayKit character model
   return (
     <group ref={characterRef} position={position}>
-      <group ref={groupRef} rotation={[0, rotationRef.current, 0]}>
+      <group ref={groupRef} rotation={[0, rotation, 0]}>
         {model ? (
           <primitive object={model} />
         ) : (
@@ -2550,6 +2575,16 @@ export default function TestWorld() {
   const [characterSelectionModalOpen, setCharacterSelectionModalOpen] = useState(false);
   const [enablePhysics, setEnablePhysics] = useState(false); // Toggle physics
   const animationTriggerRef = useRef<((anim: string) => void) | null>(null);
+  
+  // Action bar state for test mode
+  const [actionBarSlots, setActionBarSlots] = useState<Array<ActionSlot | null>>([
+    null, null, null, null, null
+  ]);
+  const [selectedActionSlotIndex, setSelectedActionSlotIndex] = useState<number>(0);
+  const [activeActionSlotIndex, setActiveActionSlotIndex] = useState<number>(-1);
+  const [showRadialMenu, setShowRadialMenu] = useState(false);
+  const [equippedWeaponId, setEquippedWeaponId] = useState<string | undefined>(undefined);
+  const characterControllerRef = useRef<{ playAnimation: (name: string) => void } | null>(null);
   
   // Quest markers for demo - will be positioned on building area once terrain is ready
   // Note: Marker with id 2 (Merchant) should align with merchant1 NPC
@@ -5362,6 +5397,9 @@ export default function TestWorld() {
                       animationTriggerRef.current = crossfade;
                   }
                     }}
+                    onRef={(ref) => {
+                      characterControllerRef.current = ref;
+                    }}
                   />
                   );
                 })()}
@@ -5694,6 +5732,76 @@ export default function TestWorld() {
         onSelect={handleCharacterSelect}
         currentCharacter={selectedCharacter}
       />
+      
+      {/* Action Bar and Radial Menu - Only shown in test mode */}
+      {testMode && (
+        <>
+          {/* Action Bar */}
+          <ActionBar
+            slots={actionBarSlots}
+            selectedSlotIndex={selectedActionSlotIndex}
+            activeSlotIndex={activeActionSlotIndex}
+            isRadialOpen={showRadialMenu}
+            onSlotClick={(index) => {
+              setSelectedActionSlotIndex(index);
+              const slot = actionBarSlots[index];
+              if (slot && slot.animationName && characterControllerRef.current) {
+                // Mark as active temporarily
+                setActiveActionSlotIndex(index);
+                characterControllerRef.current.playAnimation(slot.animationName);
+                // Reset active after 2 seconds for non-combat animations
+                setTimeout(() => setActiveActionSlotIndex(-1), 2000);
+              }
+              // If it's a weapon, equip it
+              if (slot && slot.type === 'weapon' && slot.weaponPath) {
+                setEquippedWeaponId(slot.id);
+              }
+            }}
+            onRadialToggle={() => setShowRadialMenu(!showRadialMenu)}
+            onDrop={(index, item) => {
+              const newSlots = [...actionBarSlots];
+              newSlots[index] = item;
+              setActionBarSlots(newSlots);
+              // If dropping a weapon, mark it as equipped
+              if (item.type === 'weapon') {
+                setEquippedWeaponId(item.id);
+                // Update the slot to show it's equipped
+                newSlots[index] = { ...item, isEquipped: true };
+                setActionBarSlots(newSlots);
+              }
+            }}
+          />
+          
+          {/* Radial Menu */}
+          <RadialMenu
+            isOpen={showRadialMenu}
+            onClose={() => setShowRadialMenu(false)}
+            selectedSlotIndex={selectedActionSlotIndex}
+            equippedWeaponId={equippedWeaponId}
+            onSelectItem={(slot) => {
+              // Add to selected slot
+              const newSlots = [...actionBarSlots];
+              newSlots[selectedActionSlotIndex] = slot;
+              setActionBarSlots(newSlots);
+              
+              // Play animation immediately if it has one
+              if (slot.animationName && characterControllerRef.current) {
+                setActiveActionSlotIndex(selectedActionSlotIndex);
+                characterControllerRef.current.playAnimation(slot.animationName);
+                setTimeout(() => setActiveActionSlotIndex(-1), 2000);
+              }
+              
+              // If it's a weapon, equip it
+              if (slot.type === 'weapon' && slot.weaponPath) {
+                setEquippedWeaponId(slot.id);
+                newSlots[selectedActionSlotIndex] = { ...slot, isEquipped: true };
+                setActionBarSlots(newSlots);
+              }
+              // Note: Radial menu does NOT close - user must click outside
+            }}
+          />
+        </>
+      )}
               </div>
   );
 }

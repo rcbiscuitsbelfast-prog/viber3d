@@ -51,12 +51,13 @@ class AudioManager {
    */
   playMusic(trackId: string, loop: boolean = true): void {
     if (!this.isInitialized) {
-      console.warn('AudioManager not initialized. Call init() first.');
+      console.warn('[AudioManager] Not initialized. Call init() first.');
       return;
     }
 
     // If same track is already playing, don't restart
     if (this.currentTrack === trackId && this.musicAudio && !this.musicAudio.paused) {
+      console.log(`[AudioManager] Track ${trackId} already playing, skipping`);
       return;
     }
 
@@ -65,6 +66,7 @@ class AudioManager {
 
     // Check if music is enabled
     if (!this.musicEnabled) {
+      console.log(`[AudioManager] Music disabled, will play ${trackId} when enabled`);
       this.currentTrack = trackId; // Remember the track for when music is re-enabled
       return;
     }
@@ -75,6 +77,8 @@ class AudioManager {
       return;
     }
 
+    console.log(`[AudioManager] Attempting to play track: ${trackId} from path: ${trackPath}`);
+
     // Create new audio element
     this.musicAudio = new Audio(trackPath);
     this.musicAudio.loop = loop;
@@ -82,9 +86,21 @@ class AudioManager {
 
     // Handle errors
     this.musicAudio.addEventListener('error', (e) => {
-      console.error(`Failed to load music track ${trackId}:`, e);
+      console.error(`[AudioManager] Failed to load music track ${trackId}:`, e);
+      console.error(`[AudioManager] Track path: ${trackPath}`);
+      console.error(`[AudioManager] Error details:`, this.musicAudio?.error);
       this.musicAudio = null;
       this.currentTrack = null;
+    });
+
+    // Log when audio can play
+    this.musicAudio.addEventListener('canplay', () => {
+      console.log(`[AudioManager] Track ${trackId} is ready to play`);
+    });
+
+    // Log when audio starts playing
+    this.musicAudio.addEventListener('play', () => {
+      console.log(`[AudioManager] Track ${trackId} started playing`);
     });
 
     // Play music
@@ -92,10 +108,29 @@ class AudioManager {
       .play()
       .then(() => {
         this.currentTrack = trackId;
+        console.log(`[AudioManager] Successfully playing track: ${trackId}`);
       })
       .catch((err) => {
-        console.warn(`Failed to play music track ${trackId}:`, err);
-        // User interaction may be required - music will play on next user interaction
+        console.warn(`[AudioManager] Failed to play music track ${trackId}:`, err);
+        console.warn(`[AudioManager] Track path: ${trackPath}`);
+        console.warn(`[AudioManager] Music enabled: ${this.musicEnabled}`);
+        // User interaction may be required - try to play on next user interaction
+        // Add a one-time click listener to start music
+        const tryPlayOnInteraction = () => {
+          if (this.musicAudio && this.currentTrack === trackId) {
+            this.musicAudio.play()
+              .then(() => {
+                console.log(`[AudioManager] Music started after user interaction`);
+                document.removeEventListener('click', tryPlayOnInteraction);
+                document.removeEventListener('touchstart', tryPlayOnInteraction);
+              })
+              .catch(() => {
+                // Still failed, keep listener
+              });
+          }
+        };
+        document.addEventListener('click', tryPlayOnInteraction, { once: true });
+        document.addEventListener('touchstart', tryPlayOnInteraction, { once: true });
       });
   }
 

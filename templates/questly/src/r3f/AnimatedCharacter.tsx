@@ -439,6 +439,7 @@ export default function AnimatedCharacter({
     assetId,
     model,
     defaultAnimation: 'idle',
+    timeScale: animationTimeScale,
   });
 
   // Notify parent when animations loaded

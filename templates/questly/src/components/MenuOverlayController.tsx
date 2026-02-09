@@ -100,29 +100,6 @@ export default function MenuOverlayController() {
   // Default: -104px to position head directly above toggle button
   const headHeightOffset = -104;
   
-  // Menu button positions - evenly spaced around head in a semicircle (top half)
-  // Radius for button circle (distance from head center)
-  const buttonRadius = 100;
-  // Even spacing: 3 buttons in 180-degree arc (top semicircle)
-  // Starting at 10:30 (315 degrees), spacing by 60 degrees each
-  // This gives: 315° (10:30), 15° (11:30), 75° (12:30)
-  const startAngle = (315 * Math.PI) / 180; // Start at 10:30
-  const angleStep = (60 * Math.PI) / 180;   // 60 degrees between buttons
-  
-  const helpAngle = startAngle;                    // 10:30 position
-  const chatAngle = startAngle + angleStep;        // 11:30 position (15 degrees)
-  const jokeAngle = startAngle + (angleStep * 2);  // 12:30 position (75 degrees)
-  
-  // Calculate positions
-  // Note: In CSS, Y increases downward, but our angles assume Y increases upward
-  // So we negate sin to get correct CSS Y coordinates
-  const helpX = Math.cos(helpAngle) * buttonRadius;
-  const helpY = -Math.sin(helpAngle) * buttonRadius;
-  const chatX = Math.cos(chatAngle) * buttonRadius;
-  const chatY = -Math.sin(chatAngle) * buttonRadius;
-  const jokeX = Math.cos(jokeAngle) * buttonRadius;
-  const jokeY = -Math.sin(jokeAngle) * buttonRadius;
-  
   // Determine which help overlay to use based on current route
   const getHelpOverlay = () => {
     const path = location.pathname;
@@ -316,64 +293,38 @@ export default function MenuOverlayController() {
                   />
                 )}
 
-              {/* Main Menu Options - Circular Layout Around Avatar Head */}
-              {menuState === 'main' && (() => {
-                // Head center is at the top-center of the avatar (approximately)
-                const headCenterX = 0; // Relative to avatar center
-                const headCenterY = -65; // Above avatar center (head is at top)
-                
-                return (
-                  <div
-                    data-avatar-menu
-                    className="absolute z-30"
-                    style={{ 
-                      top: `${headCenterY}px`,
-                      left: '50%',
-                      transform: `translateX(-50%) scale(${1 / druScale})`, // Compensate for container scale - keep buttons at full size
-                      transformOrigin: 'center',
-                      width: '200px',
-                      height: '200px',
-                    }}
+              {/* Main Menu Options - Simple fixed positioning above avatar */}
+              {menuState === 'main' && (
+                <div
+                  data-avatar-menu
+                  className="flex flex-col gap-2 items-center absolute z-30"
+                  style={{ 
+                    top: '-200px',
+                    left: '50%',
+                    transform: `translateX(-50%) scale(${1 / druScale})`, // Compensate for container scale - keep buttons at full size
+                    transformOrigin: 'center',
+                  }}
+                >
+                  <button
+                    onClick={() => handleOptionClick('help')}
+                    className="px-4 py-2 bg-white text-slate-900 text-xs rounded-lg border-2 border-black shadow-lg hover:bg-slate-100 transition font-medium whitespace-nowrap"
                   >
-                    {/* Help - 10:30 position */}
-                    <button
-                      onClick={() => handleOptionClick('help')}
-                      className="absolute px-4 py-2 bg-white text-slate-900 text-xs rounded-lg border-2 border-black shadow-lg hover:bg-slate-100 transition font-medium whitespace-nowrap"
-                      style={{
-                        top: `${headCenterY + helpY}px`,
-                        left: `${headCenterX + helpX}px`,
-                        transform: 'translate(-50%, -50%)',
-                      }}
-                    >
-                      Help
-                    </button>
-                    {/* Chat - 11:15 position */}
-                    <button
-                      onClick={() => handleOptionClick('chat')}
-                      className="absolute px-4 py-2 bg-white text-slate-900 text-xs rounded-lg border-2 border-black shadow-lg hover:bg-slate-100 transition font-medium whitespace-nowrap"
-                      style={{
-                        top: `${headCenterY + chatY}px`,
-                        left: `${headCenterX + chatX}px`,
-                        transform: 'translate(-50%, -50%)',
-                      }}
-                    >
-                      Chat
-                    </button>
-                    {/* Joke - 12:00 position */}
-                    <button
-                      onClick={() => handleOptionClick('joke')}
-                      className="absolute px-4 py-2 bg-white text-slate-900 text-xs rounded-lg border-2 border-black shadow-lg hover:bg-slate-100 transition font-medium whitespace-nowrap"
-                      style={{
-                        top: `${headCenterY + jokeY}px`,
-                        left: `${headCenterX + jokeX}px`,
-                        transform: 'translate(-50%, -50%)',
-                      }}
-                    >
-                      Joke/Story
-                    </button>
-                  </div>
-                );
-              })()}
+                    Help
+                  </button>
+                  <button
+                    onClick={() => handleOptionClick('chat')}
+                    className="px-4 py-2 bg-white text-slate-900 text-xs rounded-lg border-2 border-black shadow-lg hover:bg-slate-100 transition font-medium whitespace-nowrap"
+                  >
+                    Chat
+                  </button>
+                  <button
+                    onClick={() => handleOptionClick('joke')}
+                    className="px-4 py-2 bg-white text-slate-900 text-xs rounded-lg border-2 border-black shadow-lg hover:bg-slate-100 transition font-medium whitespace-nowrap"
+                  >
+                    Joke/Story
+                  </button>
+                </div>
+              )}
 
               {/* Chat Options - Above Avatar */}
               {menuState === 'chat' && (

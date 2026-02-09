@@ -8,6 +8,7 @@ interface UseCharacterAnimationOptions {
   assetId: string;
   model: THREE.Object3D | null;
   defaultAnimation?: string;
+  timeScale?: number;
 }
 
 /**
@@ -19,6 +20,7 @@ export function useCharacterAnimation({
   assetId,
   model,
   defaultAnimation = 'idle',
+  timeScale = 1.0,
 }: UseCharacterAnimationOptions) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [currentAnimation, setCurrentAnimation] = useState<string | null>(null);
@@ -132,10 +134,11 @@ export function useCharacterAnimation({
 
         // Play default animation immediately with full weight
         if (defaultAnimation && animations[defaultAnimation]) {
-          console.log(`[useCharacterAnimation] Playing default animation '${defaultAnimation}' for ${characterId}`);
+          console.log(`[useCharacterAnimation] Playing default animation '${defaultAnimation}' for ${characterId} with timeScale ${timeScale}`);
           const action = animationManager.playAnimation(characterId, defaultAnimation, { 
             loop: true,
-            fadeInDuration: 0 // No fade in for initial animation to prevent T-pose
+            fadeInDuration: 0, // No fade in for initial animation to prevent T-pose
+            timeScale: timeScale
           });
           if (action) {
             action.setEffectiveWeight(1.0); // Ensure full weight immediately
@@ -153,10 +156,11 @@ export function useCharacterAnimation({
               a.toLowerCase().includes('run')
             ) || availableAnims[0];
             
-            console.log(`[useCharacterAnimation] Default animation '${defaultAnimation}' not found, using '${fallbackAnim}' instead for ${characterId}`);
+            console.log(`[useCharacterAnimation] Default animation '${defaultAnimation}' not found, using '${fallbackAnim}' instead for ${characterId} with timeScale ${timeScale}`);
             const action = animationManager.playAnimation(characterId, fallbackAnim, { 
               loop: true,
-              fadeInDuration: 0 // No fade in for initial animation
+              fadeInDuration: 0, // No fade in for initial animation
+              timeScale: timeScale
             });
             if (action) {
               action.setEffectiveWeight(1.0); // Ensure full weight immediately
