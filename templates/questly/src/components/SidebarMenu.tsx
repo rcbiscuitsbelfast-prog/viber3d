@@ -28,6 +28,7 @@ export default function SidebarMenu({ isOpen, onClose }: SidebarMenuProps) {
   const menuItems = [
     { label: 'Main Menu', icon: Home, href: '/menu' },
     { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', requireAuth: true },
+    { label: 'My Templates', icon: LayoutDashboard, href: '/dashboard?tab=templates', requireAuth: false },
   ];
 
   return (

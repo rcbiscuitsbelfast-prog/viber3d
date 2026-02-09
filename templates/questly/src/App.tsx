@@ -7,6 +7,7 @@ import QuestTypeSelector from './pages/QuestTypeSelector';
 import TemplateQuests from './pages/TemplateQuests';
 import UserDashboard from './pages/UserDashboard';
 import TestWorld from './pages/TestWorld';
+import CharacterSelectPage from './pages/CharacterSelectPage';
 import WorldBuilder from './pages/WorldBuilder';
 import WorldPreview from './pages/WorldPreview';
 import QuestSettings from './pages/QuestSettings';
@@ -47,6 +48,7 @@ function App() {
           <Route path="/quest-complete" element={<QuestComplete />} />
           <Route path="/dashboard" element={<UserDashboard />} />
           <Route path="/test-world" element={<TestWorld />} />
+          <Route path="/character-select" element={<CharacterSelectPage />} />
           <Route path="/fonts-demo" element={<FontsDemo />} />
           <Route path="/have-your-say" element={<HaveYourSay />} />
           <Route path="/settings" element={<Settings />} />

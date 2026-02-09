@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mountain, Trees, FolderOpen } from 'lucide-react';
+import { X, Mountain, Trees, FolderOpen, Star } from 'lucide-react';
 import type { BuildingArea } from '@/systems/world/WorldConfig';
 
 export interface WorldTemplate {
@@ -168,7 +168,12 @@ export default function WorldTemplateModal({
   onSelectSavedWorld,
   savedWorlds,
 }: WorldTemplateModalProps) {
-  const [view, setView] = useState<'main' | 'templates' | 'saved'>('main');
+  const [view, setView] = useState<'main' | 'templates' | 'saved' | 'my-templates'>('main');
+  
+  // Load saved templates from localStorage
+  const savedTemplates = typeof window !== 'undefined' 
+    ? JSON.parse(localStorage.getItem('questly_templates') || '[]')
+    : [];
 
   return (
     <AnimatePresence>
@@ -234,6 +239,25 @@ export default function WorldTemplateModal({
                     </div>
                   </div>
                 </motion.button>
+                
+                {savedTemplates.length > 0 && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setView('my-templates')}
+                    className="bg-slate-800 hover:bg-slate-700 border-2 border-primary/30 hover:border-primary/50 rounded-lg p-6 text-left transition-all group col-span-2"
+                  >
+                    <div className="flex items-center gap-4 mb-3">
+                      <div className="bg-primary/20 p-3 rounded-lg group-hover:bg-primary/30 transition-colors">
+                        <Star className="w-8 h-8 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-white mb-1">My Templates ({savedTemplates.length})</h3>
+                        <p className="text-sm text-slate-400">Load your saved world templates</p>
+                      </div>
+                    </div>
+                  </motion.button>
+                )}
               </div>
             )}
 
@@ -272,6 +296,49 @@ export default function WorldTemplateModal({
                       </motion.button>
                     );
                   })}
+                </div>
+              </div>
+            )}
+
+            {/* My Templates View */}
+            {view === 'my-templates' && (
+              <div>
+                <button
+                  onClick={() => setView('main')}
+                  className="text-slate-400 hover:text-white mb-4 flex items-center gap-2 transition-colors"
+                >
+                  ← Back
+                </button>
+                <div className="space-y-2">
+                  {savedTemplates.length === 0 ? (
+                    <div className="text-center py-8 text-slate-400">
+                      <Star className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>No saved templates yet</p>
+                    </div>
+                  ) : (
+                    savedTemplates.map((template: any, index: number) => (
+                      <motion.button
+                        key={index}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => {
+                          onSelectSavedWorld(`template-${index}`);
+                          onClose();
+                        }}
+                        className="w-full bg-slate-800 hover:bg-slate-700 border-2 border-primary/30 hover:border-primary/50 rounded-lg p-4 text-left transition-all"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-lg font-bold text-white">{template.name || `Template ${index + 1}`}</h3>
+                            <p className="text-sm text-slate-400">
+                              {template.createdAt ? new Date(template.createdAt).toLocaleDateString() : 'No date'}
+                            </p>
+                          </div>
+                          <Star className="w-6 h-6 text-primary" />
+                        </div>
+                      </motion.button>
+                    ))
+                  )}
                 </div>
               </div>
             )}

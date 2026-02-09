@@ -1612,6 +1612,24 @@ export default function UserDashboard() {
               🏔️ Terrain Builder
             </CustomButton>
             <CustomButton
+              onClick={() => {
+                const templates = JSON.parse(localStorage.getItem('questly_templates') || '[]');
+                if (templates.length > 0) {
+                  navigate('/test-world');
+                  setTimeout(() => {
+                    const event = new CustomEvent('openTemplateModal');
+                    window.dispatchEvent(event);
+                  }, 500);
+                } else {
+                  alert('No templates saved yet. Create a template in the Terrain Builder!');
+                }
+              }}
+              variant="primary"
+              data-help-id="templates"
+            >
+              ⭐ My Templates ({JSON.parse(localStorage.getItem('questly_templates') || '[]').length})
+            </CustomButton>
+            <CustomButton
               onClick={() => navigate('/builder')}
               variant="primary"
               data-help-id="builder"
