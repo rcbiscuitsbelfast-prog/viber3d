@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { ArrowLeft, Mountain, Trees, Lock } from 'lucide-react';
 import ParallaxBackground from '@/components/ParallaxBackground';
+import { globalAudioManager } from '@/systems/audio';
 
 interface WorldOption {
   id: string;
@@ -30,6 +32,13 @@ const worldOptions: WorldOption[] = [
 
 export default function TemplateQuests() {
   const navigate = useNavigate();
+
+  // Play background music (track 2.5) for template selection
+  useEffect(() => {
+    globalAudioManager.init().then(() => {
+      globalAudioManager.playMusic('track_2_5');
+    });
+  }, []);
 
   const handleSelectTemplate = (templateId: string) => {
     // Navigate directly to test-world with template param when clicking a template

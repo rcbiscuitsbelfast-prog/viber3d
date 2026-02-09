@@ -67,11 +67,12 @@ export class AnimationManager {
     }
 
     const action = mixer.clipAction(clip);
+    const timeScale = options.timeScale || 1.0; // Get timeScale early
     
     // Configure action
     action.loop = options.loop !== false ? THREE.LoopRepeat : THREE.LoopOnce;
     action.clampWhenFinished = !options.loop; // Clamp when not looping
-    action.timeScale = options.timeScale || 1.0;
+    action.timeScale = timeScale; // Set timeScale on action
     action.enabled = true; // Ensure action is enabled
 
     // Disable root motion for animations that move the character off-screen
@@ -110,11 +111,14 @@ export class AnimationManager {
         }
         
         modifiedAction.reset();
-        modifiedAction.setEffectiveTimeScale(1.0);
+        modifiedAction.setEffectiveTimeScale(timeScale); // Use timeScale from above
         modifiedAction.setEffectiveWeight(1.0);
         
         if (options.fadeInDuration && options.fadeInDuration > 0 && currentAction && currentAction !== modifiedAction) {
           modifiedAction.fadeIn(options.fadeInDuration);
+        } else {
+          // If no fade, set weight immediately to prevent T-pose
+          modifiedAction.setEffectiveWeight(1.0);
         }
         
         modifiedAction.play();
@@ -127,6 +131,17 @@ export class AnimationManager {
     const currentActionKey = `${characterId}_current`;
     const currentAction = this.activeActions.get(currentActionKey);
     
+    // If same action is already playing, just update timeScale if needed
+    if (currentAction === action && action.isRunning()) {
+      const currentTimeScale = action.timeScale;
+      const newTimeScale = options.timeScale || 1.0;
+      if (currentTimeScale !== newTimeScale) {
+        action.timeScale = newTimeScale;
+        action.setEffectiveTimeScale(newTimeScale);
+      }
+      return action; // Don't restart if already playing
+    }
+    
     if (currentAction && currentAction !== action) {
       if (options.fadeOutDuration) {
         currentAction.fadeOut(options.fadeOutDuration);
@@ -137,11 +152,14 @@ export class AnimationManager {
 
     // Start new action with proper weight
     action.reset();
-    action.setEffectiveTimeScale(1.0);
+    action.setEffectiveTimeScale(timeScale); // Use timeScale from above
     action.setEffectiveWeight(1.0);
     
     if (options.fadeInDuration && options.fadeInDuration > 0 && currentAction && currentAction !== action) {
       action.fadeIn(options.fadeInDuration);
+    } else {
+      // If no fade, set weight immediately to prevent T-pose
+      action.setEffectiveWeight(1.0);
     }
     
     action.play();

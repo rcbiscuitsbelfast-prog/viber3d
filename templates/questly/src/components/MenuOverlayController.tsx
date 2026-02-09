@@ -100,13 +100,28 @@ export default function MenuOverlayController() {
   // Default: -104px to position head directly above toggle button
   const headHeightOffset = -104;
   
-  // Menu button positions (fixed values from testing)
-  const helpX = 92.00; // Help Button (10:30)
-  const helpY = -26.00;
-  const chatX = 33.00; // Chat Button (11:15)
-  const chatY = 16.00;
-  const jokeX = -12.00; // Joke Button (12:00)
-  const jokeY = 63.00;
+  // Menu button positions - evenly spaced around head in a semicircle (top half)
+  // Radius for button circle (distance from head center)
+  const buttonRadius = 100;
+  // Even spacing: 3 buttons in 180-degree arc (top semicircle)
+  // Starting at 10:30 (315 degrees), spacing by 60 degrees each
+  // This gives: 315° (10:30), 15° (11:30), 75° (12:30)
+  const startAngle = (315 * Math.PI) / 180; // Start at 10:30
+  const angleStep = (60 * Math.PI) / 180;   // 60 degrees between buttons
+  
+  const helpAngle = startAngle;                    // 10:30 position
+  const chatAngle = startAngle + angleStep;        // 11:30 position (15 degrees)
+  const jokeAngle = startAngle + (angleStep * 2);  // 12:30 position (75 degrees)
+  
+  // Calculate positions
+  // Note: In CSS, Y increases downward, but our angles assume Y increases upward
+  // So we negate sin to get correct CSS Y coordinates
+  const helpX = Math.cos(helpAngle) * buttonRadius;
+  const helpY = -Math.sin(helpAngle) * buttonRadius;
+  const chatX = Math.cos(chatAngle) * buttonRadius;
+  const chatY = -Math.sin(chatAngle) * buttonRadius;
+  const jokeX = Math.cos(jokeAngle) * buttonRadius;
+  const jokeY = -Math.sin(jokeAngle) * buttonRadius;
   
   // Determine which help overlay to use based on current route
   const getHelpOverlay = () => {
@@ -294,7 +309,7 @@ export default function MenuOverlayController() {
                     style={{
                       bottom: `${bubbleOffsetY}px`,
                       left: `${bubbleOffsetX}px`,
-                      transform: `scale(${bubbleScale * druScale})`, // Apply Dru's scale to speech bubble
+                      transform: `scale(${bubbleScale})`, // Keep speech bubble at full size (not affected by druScale)
                       transformOrigin: 'bottom left',
                       zIndex: 111,
                     }}
@@ -314,7 +329,7 @@ export default function MenuOverlayController() {
                     style={{ 
                       top: `${headCenterY}px`,
                       left: '50%',
-                      transform: `translateX(-50%) scale(${druScale})`, // Apply Dru's scale to menu buttons
+                      transform: `translateX(-50%) scale(${1 / druScale})`, // Compensate for container scale - keep buttons at full size
                       transformOrigin: 'center',
                       width: '200px',
                       height: '200px',
@@ -368,7 +383,7 @@ export default function MenuOverlayController() {
                   style={{ 
                     top: '-280px',
                     left: '50%',
-                    transform: `translateX(-50%) scale(${druScale})`, // Apply Dru's scale to chat menu
+                    transform: `translateX(-50%) scale(${1 / druScale})`, // Compensate for container scale - keep chat menu at full size
                     transformOrigin: 'center',
                     maxWidth: 'calc(100vw - 2rem)',
                   }}

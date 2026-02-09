@@ -1,8 +1,10 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { ArrowLeft, Sword, Scroll } from 'lucide-react';
 import ParallaxBackground from '@/components/ParallaxBackground';
 import { cn } from '@/lib/utils';
+import { globalAudioManager } from '@/systems/audio';
 
 interface QuestTypeOption {
   title: string;
@@ -25,6 +27,13 @@ const questTypes: QuestTypeOption[] = [
 
 export default function QuestTypeSelector() {
   const navigate = useNavigate();
+
+  // Play background music (track 2.5) for quest type selector
+  useEffect(() => {
+    globalAudioManager.init().then(() => {
+      globalAudioManager.playMusic('track_2_5');
+    });
+  }, []);
 
   const handleSelectType = (typeTitle: string) => {
     // Navigate directly to templates page when clicking a quest type

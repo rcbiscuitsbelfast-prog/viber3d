@@ -18,6 +18,7 @@ import { InstancedRocks } from '../components/InstancedRocks';
 import { InstancedGrass } from '../components/InstancedGrass';
 import { InstancedBushes } from '../components/InstancedBushes';
 import CharacterSelector, { CHARACTER_OPTIONS } from '../components/CharacterSelector';
+import CharacterSelectionModal from '../components/CharacterSelectionModal';
 import { PhysicsWorldProvider } from '../components/PhysicsWorldProvider';
 import { QuestMarker } from '../components/QuestLabel';
 import { WalkingNPC } from '../components/WalkingNPC';
@@ -49,6 +50,7 @@ import {
 } from '../systems/world';
 import { isFirebaseConfigured } from '../lib/firebase';
 import { globalTTSEngine } from '../systems/voice/TTSEngine';
+import { globalAudioManager } from '../systems/audio';
 
 // Patch three.js with three-mesh-bvh for accelerated raycasting
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
@@ -2513,7 +2515,7 @@ export default function TestWorld() {
   const [leftPanelMinimized, setLeftPanelMinimized] = useState(false);
   const [rightPanelMinimized, setRightPanelMinimized] = useState(false);
   const [isSquareTerrain, setIsSquareTerrain] = useState(false); // false = island, true = square/forest
-  const [templateModalOpen, setTemplateModalOpen] = useState(true); // Template selection modal - open by default
+  const [templateModalOpen, setTemplateModalOpen] = useState(false); // Template selection modal - closed by default
 
   // Building areas - now multiple
   // Default starter terrain at X: 0, Z: 50, Radius: 45, Height: 2.5
@@ -2545,6 +2547,7 @@ export default function TestWorld() {
   const [manualMode, setManualMode] = useState(false);
   const [testMode, setTestMode] = useState(directTestMode); // Start in test mode if direct link
   const [selectedCharacter, setSelectedCharacter] = useState('rogue');
+  const [characterSelectionModalOpen, setCharacterSelectionModalOpen] = useState(false);
   const [enablePhysics, setEnablePhysics] = useState(false); // Toggle physics
   const animationTriggerRef = useRef<((anim: string) => void) | null>(null);
   
@@ -2863,7 +2866,7 @@ export default function TestWorld() {
   
   // Character position/rotation refs for camera controller
   const characterPositionRef = useRef<THREE.Vector3>(new THREE.Vector3(0, 20, 0));
-  const characterRotationRef = useRef<number>(0);
+  const characterRotationRef = useRef<number>(Math.PI); // Start facing away from camera
 
   // NPC positions for collision detection - use ref only to avoid re-renders
   const npcPositionsRef = useRef<Map<string, THREE.Vector3>>(new Map());
@@ -3064,6 +3067,19 @@ export default function TestWorld() {
   useEffect(() => {
     getTerrainHeightRef.current = getTerrainHeight;
   }, [getTerrainHeight]);
+
+  // Play background music (track 2.5) for test world
+  useEffect(() => {
+    globalAudioManager.init().then(() => {
+      // Play track 2.5 on loop for test world
+      globalAudioManager.playMusic('track_2_5');
+    });
+    
+    // Keep music playing - don't stop on unmount
+    return () => {
+      // Music continues to other pages
+    };
+  }, []);
 
   const handleRegenerate = () => {
     // Regenerate both terrain and assets by changing seed
@@ -3390,15 +3406,63 @@ export default function TestWorld() {
 
   // Handle template selection - navigate to character selection
   const handleSelectTemplate = (template: WorldTemplate) => {
-    // Store template config temporarily and navigate to character selection
-    sessionStorage.setItem('pendingTemplate', JSON.stringify({
-      id: template.id,
-      config: template.config,
-    }));
-    navigate('/character-select');
+    // Load template directly - character selection will happen in-world
+    const config = template.config;
+    setRoughness(config.roughness);
+    setIslandSize(config.islandSize);
+    setTerrainDetail(config.terrainDetail);
+    setSeed(config.seed);
+    setHeightScale(config.heightScale);
+    setWaterLevel(config.waterLevel);
+    setCliffIntensity(config.cliffIntensity);
+    setTreeAmount(config.treeAmount);
+    setTreeSize(config.treeSize);
+    setGrassAmount(config.grassAmount);
+    setGrassSize(config.grassSize);
+    setTerrainGrassCoverage(config.terrainGrassCoverage);
+    setBuildingGrassFalloff(config.buildingGrassFalloff);
+    setRockAmount(config.rockAmount);
+    setRockSize(config.rockSize);
+    setBushAmount(config.bushAmount);
+    setBushSize(config.bushSize);
+    setTreeHeightOffset(config.treeHeightOffset);
+    setGrassHeightOffset(config.grassHeightOffset);
+    setRockHeightOffset(config.rockHeightOffset);
+    setBushHeightOffset(config.bushHeightOffset);
+    setSlopeAdjustmentIntensity(config.slopeAdjustmentIntensity);
+    setIsSquareTerrain(config.isSquareTerrain ?? false);
+    if (config.noiseType !== undefined) setNoiseType(config.noiseType);
+    // Set building areas if provided in template
+    if (config.buildingAreas && config.buildingAreas.length > 0) {
+      setBuildingAreas(config.buildingAreas);
+      setNextAreaId(Math.max(...config.buildingAreas.map(a => a.id)) + 1);
+    }
+    if (config.sunIntensity !== undefined) setSunIntensity(config.sunIntensity);
+    if (config.waveStrength !== undefined) setWaveStrength(config.waveStrength);
+    if (config.waveAmplitude !== undefined) setWaveAmplitude(config.waveAmplitude);
+    if (config.waveSpeed !== undefined) setWaveSpeed(config.waveSpeed);
+    if (config.oceanTransparency !== undefined) setOceanTransparency(config.oceanTransparency);
+    if (config.oceanSize !== undefined) setOceanSize(config.oceanSize);
+    if (config.rippleScale !== undefined) setRippleScale(config.rippleScale);
+    if (config.fogHeight !== undefined) setFogHeight(config.fogHeight);
+    if (config.bubbleScale !== undefined) setBubbleScale(config.bubbleScale);
+    if (config.bubbleDensity !== undefined) setBubbleDensity(config.bubbleDensity);
+    if (config.bubbleSpeed !== undefined) setBubbleSpeed(config.bubbleSpeed);
+    
+    // Close template modal - don't enable test mode automatically
+    setTemplateModalOpen(false);
+    // Test mode will be enabled when user clicks the test mode button
   };
   
-  // Handle template loading with character (called from character selection page)
+  // Handle character selection from modal
+  const handleCharacterSelect = useCallback((characterId: string, characterPath: string) => {
+    setSelectedCharacter(characterId);
+    setCharacterSelectionModalOpen(false);
+    // Reset character rotation to face away from camera when character changes
+    characterRotationRef.current = Math.PI;
+  }, []);
+  
+  // Handle template loading with character (called from character selection page - legacy, not used anymore)
   const handleLoadTemplateWithCharacter = useCallback((templateConfig: any, characterPath: string) => {
     const config = templateConfig;
     setRoughness(config.roughness);
@@ -3450,7 +3514,7 @@ export default function TestWorld() {
     setTemplateModalOpen(false);
   }, []);
   
-  // Check for pending template from character selection page
+  // Check for pending template from character selection page FIRST (before opening modal)
   useEffect(() => {
     const pendingTemplate = sessionStorage.getItem('pendingTemplate');
     if (pendingTemplate) {
@@ -3462,6 +3526,8 @@ export default function TestWorld() {
           handleLoadTemplateWithCharacter(config, characterPath);
           sessionStorage.removeItem('pendingTemplate');
           sessionStorage.removeItem('selectedCharacterPath');
+          // Don't open template modal - we're loading a template
+          return;
         } else {
           console.warn('[TestWorld] Missing template config or character path');
         }
@@ -3498,6 +3564,13 @@ export default function TestWorld() {
   useEffect(() => {
     if (hasCheckedAutoSave.current) return;
     hasCheckedAutoSave.current = true;
+
+    // Check for pending template from character selection FIRST
+    const pendingTemplate = sessionStorage.getItem('pendingTemplate');
+    if (pendingTemplate) {
+      // Don't open modal - template loading is handled by the other effect
+      return;
+    }
 
     // If a template param was passed (from TemplateQuests page), auto-select it
     if (templateParam) {
@@ -3670,3 +3743,1957 @@ export default function TestWorld() {
                 <svg className="w-5 h-5 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
+          </div>
+              <span className="font-display text-lg text-primary-foreground font-bold hidden sm:block">Questly</span>
+            </button>
+            
+            {/* Center: Title (hidden on mobile) */}
+            <div className="flex-1 text-center hidden md:block min-w-0">
+              <h1 className="text-lg md:text-xl font-bold truncate">Test World</h1>
+              <p className="text-xs text-slate-400 hidden lg:block">Low-poly island terrain</p>
+            </div>
+            
+            {/* Right: Controls */}
+            <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+              <button
+                onClick={() => {
+                  const newTestMode = !testMode;
+                  setTestMode(newTestMode);
+                  // Show character selection modal when entering test mode
+                  if (newTestMode) {
+                    setTimeout(() => {
+                      setCharacterSelectionModalOpen(true);
+                    }, 300);
+                  }
+                }}
+                className={`px-2 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-semibold transition-all whitespace-nowrap ${
+                  testMode 
+                    ? 'bg-red-600 text-white shadow-lg shadow-red-500/50' 
+                    : 'bg-green-600 text-white shadow-lg shadow-green-500/50'
+                }`}
+                title={testMode ? 'Exit Test Mode' : 'Enter Test Mode'}
+              >
+                <span className="hidden md:inline">{testMode ? '⏸️ EXIT TEST' : '🎮 TEST SCENE'}</span>
+                <span className="md:hidden">{testMode ? '⏸️' : '🎮'}</span>
+              </button>
+              
+              {/* Pan/Zoom - Hidden on mobile */}
+              <button
+                onClick={() => {
+                  setPanMode(!panMode);
+                  if (!panMode) setZoomMode(false);
+                }}
+                className={`hidden md:flex px-2 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  panMode 
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/50' 
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
+                title="Toggle Pan Mode"
+              >
+                ✋ {panMode ? 'ON' : ''}
+              </button>
+              
+              <button
+                onClick={() => {
+                  setZoomMode(!zoomMode);
+                  if (!zoomMode) setPanMode(false);
+                }}
+                className={`hidden md:flex px-2 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  zoomMode 
+                    ? 'bg-green-600 text-white shadow-lg shadow-green-500/50' 
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
+                title="Toggle Zoom Mode"
+              >
+                🔍 {zoomMode ? 'ON' : ''}
+              </button>
+              
+              {/* Camera View Buttons - Compact */}
+              <div className="hidden lg:flex items-center gap-1 border-l border-slate-600 pl-2 ml-1">
+                <button
+                  onClick={() => setCameraView('third-person')}
+                  className={`px-2 py-1.5 rounded text-xs font-semibold transition-all ${
+                    cameraView === 'third-person'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                  title="Third Person"
+                >
+                  3rd
+                </button>
+                <button
+                  onClick={() => setCameraView('topdown')}
+                  className={`px-2 py-1.5 rounded text-xs font-semibold transition-all ${
+                    cameraView === 'topdown'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                  title="Top Down"
+                >
+                  ⬇️
+                </button>
+                <button
+                  onClick={() => setCameraView('isometric')}
+                  className={`px-2 py-1.5 rounded text-xs font-semibold transition-all ${
+                    cameraView === 'isometric'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                  title="Isometric"
+                >
+                  📐
+                </button>
+                <button
+                  onClick={() => setCameraView('birdseye')}
+                  className={`px-2 py-1.5 rounded text-xs font-semibold transition-all ${
+                    cameraView === 'birdseye'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                  title="Bird's Eye"
+                >
+                  🦅
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Asset Controls - Left Panel - Mobile responsive with minimize */}
+      <div className={`fixed top-[3.5rem] md:top-16 left-2 md:left-4 ${leftPanelMinimized ? 'bottom-auto h-auto' : 'bottom-2 md:bottom-4'} z-20 ${leftPanelMinimized ? 'w-12' : 'w-[calc(100%-1rem)] md:w-64'} bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg overflow-hidden flex flex-col transition-all duration-300 shadow-xl`}>
+        {/* Panel Header */}
+        <div className="flex items-center justify-between p-2 md:p-3 border-b border-slate-700 bg-slate-800/50 flex-shrink-0 min-h-[2.75rem] md:min-h-[3rem]">
+          {!leftPanelMinimized && <h3 className="text-xs md:text-sm font-bold text-slate-300 uppercase">Controls</h3>}
+          <button
+            onClick={() => setLeftPanelMinimized(!leftPanelMinimized)}
+            className="text-slate-400 hover:text-white transition-colors p-1.5 min-w-[2.5rem] min-h-[2rem] flex items-center justify-center rounded hover:bg-slate-700"
+            title={leftPanelMinimized ? 'Expand panel' : 'Minimize panel'}
+            aria-label={leftPanelMinimized ? 'Expand panel' : 'Minimize panel'}
+          >
+            <span className="text-sm md:text-base">{leftPanelMinimized ? '▶' : '◀'}</span>
+          </button>
+        </div>
+        {!leftPanelMinimized && (
+        <div className="flex-1 overflow-y-auto p-2 md:p-4">
+        {!manualMode ? (
+          <>
+            <h3 className="text-sm font-bold text-slate-300 uppercase mb-4">Asset Controls</h3>
+            
+            {/* Slope Adjustment Intensity */}
+            <div className="pb-3 mb-4 border-b border-slate-700">
+              <label className="text-xs text-slate-400 block mb-1">
+                Slope Adjustment: <span className="text-white">{slopeAdjustmentIntensity.toFixed(1)}</span>
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="7"
+                step="0.5"
+                value={slopeAdjustmentIntensity}
+                onChange={(e) => setSlopeAdjustmentIntensity(Number(e.target.value))}
+                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+              />
+              <p className="text-[10px] text-slate-500 mt-1">Slope-based height adjustment (-0.6 flat to -3+ steep)</p>
+            </div>
+            
+            {/* Trees Section */}
+            <div className="space-y-2 mb-4">
+              <h4 className="text-xs font-semibold text-blue-400">🌲 Trees</h4>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Amount: <span className="text-white">{treeAmount}</span>
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="20000"
+                  step="100"
+                  value={treeAmount}
+                  onChange={(e) => setTreeAmount(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Size: <span className="text-white">{treeSize}%</span>
+                </label>
+                <input
+                  type="range"
+                  min="50"
+                  max="150"
+                  value={treeSize}
+                  onChange={(e) => setTreeSize(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Height: <span className="text-white">{treeHeightOffset.toFixed(1)}</span>
+                </label>
+                <input
+                  type="range"
+                  min="-3"
+                  max="3"
+                  step="0.1"
+                  value={treeHeightOffset}
+                  onChange={(e) => setTreeHeightOffset(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Grass Section */}
+            <div className="space-y-2 mb-4">
+              <h4 className="text-xs font-semibold text-green-400">🌿 Grass</h4>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Amount: <span className="text-white">{grassAmount}</span>
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="16000"
+                  step="100"
+                  value={grassAmount}
+                  onChange={(e) => setGrassAmount(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-green-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Size: <span className="text-white">{grassSize}%</span>
+                </label>
+                <input
+                  type="range"
+                  min="50"
+                  max="200"
+                  value={grassSize}
+                  onChange={(e) => setGrassSize(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-green-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Height: <span className="text-white">{grassHeightOffset.toFixed(1)}</span>
+                </label>
+                <input
+                  type="range"
+                  min="-3"
+                  max="3"
+                  step="0.1"
+                  value={grassHeightOffset}
+                  onChange={(e) => setGrassHeightOffset(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-green-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Terrain Coverage: <span className="text-white">{terrainGrassCoverage}%</span>
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="200"
+                  step="5"
+                  value={terrainGrassCoverage}
+                  onChange={(e) => setTerrainGrassCoverage(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-green-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Builder Falloff: <span className="text-white">{buildingGrassFalloff}%</span>
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={buildingGrassFalloff}
+                  onChange={(e) => setBuildingGrassFalloff(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-green-500"
+                />
+                <p className="text-xs text-slate-500 mt-1">Lower coverage near circle edges</p>
+              </div>
+            </div>
+
+            {/* Rocks Section */}
+            <div className="space-y-2 mb-4">
+              <h4 className="text-xs font-semibold text-slate-400">🪨 Rocks</h4>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Amount: <span className="text-white">{rockAmount}</span>
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="2000"
+                  step="10"
+                  value={rockAmount}
+                  onChange={(e) => setRockAmount(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-slate-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Size: <span className="text-white">{rockSize}%</span>
+                </label>
+                <input
+                  type="range"
+                  min="50"
+                  max="200"
+                  value={rockSize}
+                  onChange={(e) => setRockSize(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-slate-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Height: <span className="text-white">{rockHeightOffset.toFixed(1)}</span>
+                </label>
+                <input
+                  type="range"
+                  min="-3"
+                  max="3"
+                  step="0.1"
+                  value={rockHeightOffset}
+                  onChange={(e) => setRockHeightOffset(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-slate-500"
+                />
+              </div>
+            </div>
+
+            {/* Bushes Section */}
+            <div className="space-y-2 mb-4">
+              <h4 className="text-xs font-semibold text-emerald-400">🌳 Bushes</h4>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Amount: <span className="text-white">{bushAmount}</span>
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="4000"
+                  step="50"
+                  value={bushAmount}
+                  onChange={(e) => setBushAmount(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Size: <span className="text-white">{bushSize}%</span>
+                </label>
+                <input
+                  type="range"
+                  min="50"
+                  max="200"
+                  value={bushSize}
+                  onChange={(e) => setBushSize(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">
+                  Height: <span className="text-white">{bushHeightOffset.toFixed(1)}</span>
+                </label>
+                <input
+                  type="range"
+                  min="-3"
+                  max="3"
+                  step="0.1"
+                  value={bushHeightOffset}
+                  onChange={(e) => setBushHeightOffset(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                />
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Manual Placement Mode UI */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <h3 style={{ margin: 0, fontSize: '14px', color: '#cbd5e1', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                Manual Assets
+              </h3>
+            </div>
+            
+            
+            {/* Character Selection - only show in test mode */}
+            {testMode && (
+              <>
+                <div className="mb-4 pb-4 border-b border-slate-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-slate-300">Character</span>
+                    <button
+                      onClick={() => setCharacterSelectionModalOpen(true)}
+                      className="text-xs text-primary hover:text-primary/80 transition-colors"
+                    >
+                      Change Character
+                    </button>
+                  </div>
+                  <div className="text-sm text-slate-400">
+                    {CHARACTER_OPTIONS.find(c => c.id === selectedCharacter)?.name || 'Rogue'}
+                  </div>
+                </div>
+                
+                {/* Physics Toggle */}
+                <div className="mb-4 pb-4 border-b border-slate-700">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={enablePhysics}
+                      onChange={(e) => setEnablePhysics(e.target.checked)}
+                      className="w-4 h-4 accent-blue-500"
+                    />
+                    <span className="text-sm text-slate-300">⚡ Enable Physics</span>
+                  </label>
+                  <p className="text-xs text-slate-500 mt-1">Use Cannon-ES physics for character movement</p>
+                </div>
+              </>
+            )}
+            
+            {/* Erase Button */}
+            <button
+              onClick={() => {
+                setEraseMode(!eraseMode);
+                setSelectedAssetType(null);
+              }}
+              style={{
+                width: '100%',
+                padding: '8px',
+                marginBottom: '10px',
+                background: eraseMode ? '#dc2626' : '#475569',
+                color: 'white',
+                border: eraseMode ? '2px solid #fff' : '1px solid #475569',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: 'bold',
+              }}
+            >
+              {eraseMode ? '✕ Erase Mode ON' : '✕ Erase'}
+            </button>
+            
+            {eraseMode && (
+              <div style={{ marginBottom: '10px', padding: '8px', background: '#1e293b', borderRadius: '4px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontSize: '10px', color: '#94a3b8' }}>
+                  Erase Size: {eraseBrushSize.toFixed(1)}
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  step="0.5"
+                  value={eraseBrushSize}
+                  onChange={(e) => setEraseBrushSize(parseFloat(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            )}
+
+            {/* Nature Category */}
+            <CategorySection
+              title="Nature Assets"
+              isExpanded={expandedCategories.has('nature')}
+              onToggle={() => {
+                const newSet = new Set(expandedCategories);
+                if (newSet.has('nature')) {
+                  newSet.delete('nature');
+                } else {
+                  newSet.add('nature');
+                }
+                setExpandedCategories(newSet);
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {/* Trees - Pine and Broad side by side */}
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
+                  <button
+                    onClick={() => { setSelectedAssetType('tree'); setEraseMode(false); }}
+                    title="Place Tree"
+                    style={{
+                      flex: 1,
+                      height: '35px',
+                      background: selectedAssetType === 'tree' ? '#3b82f6' : '#2d5016',
+                      border: selectedAssetType === 'tree' ? '2px solid #fff' : '1px solid #475569',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '20px',
+                    }}
+                  >
+                    🌲
+                  </button>
+                </div>
+                
+                {/* Rocks */}
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
+                  <button
+                    onClick={() => { setSelectedAssetType('rock'); setEraseMode(false); }}
+                    title="Place Rock"
+                    style={{
+                      flex: 1,
+                      height: '35px',
+                      background: selectedAssetType === 'rock' ? '#3b82f6' : '#64748b',
+                      border: selectedAssetType === 'rock' ? '2px solid #fff' : '1px solid #475569',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '20px',
+                    }}
+                  >
+                    🪨
+                  </button>
+                </div>
+                
+                {/* Grass */}
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
+                  <button
+                    onClick={() => { setSelectedAssetType('grass'); setEraseMode(false); }}
+                    title="Place Grass"
+                    style={{
+                      flex: 1,
+                      height: '35px',
+                      background: selectedAssetType === 'grass' ? '#3b82f6' : '#3d6b2d',
+                      border: selectedAssetType === 'grass' ? '2px solid #fff' : '1px solid #475569',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '18px',
+                    }}
+                  >
+                    🌱
+                  </button>
+                </div>
+                
+                {/* Bushes */}
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
+                  <button
+                    onClick={() => { setSelectedAssetType('bush'); setEraseMode(false); }}
+                    title="Place Bush"
+                    style={{
+                      flex: 1,
+                      height: '35px',
+                      background: selectedAssetType === 'bush' ? '#3b82f6' : '#2d5016',
+                      border: selectedAssetType === 'bush' ? '2px solid #fff' : '1px solid #475569',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '18px',
+                    }}
+                  >
+                    🌳
+                  </button>
+                </div>
+              </div>
+            </CategorySection>
+
+            {selectedAssetType && !eraseMode && (
+              <p style={{ margin: '10px 0 0 0', fontSize: '10px', color: '#3b82f6', textAlign: 'center' }}>
+                Selected: {selectedAssetType}
+              </p>
+            )}
+            {eraseMode && (
+              <p style={{ margin: '10px 0 0 0', fontSize: '10px', color: '#dc2626', textAlign: 'center' }}>
+                Click assets to delete
+              </p>
+            )}
+          </>
+        )}
+        
+        {/* Building Mode UI */}
+        {manualMode && buildingMode && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold text-amber-300 uppercase mb-2">🏗️ Building Placement</h3>
+            
+            {/* Building Pack Selector */}
+            <div className="mb-3">
+              <label className="text-xs text-slate-400 block mb-1">Building Pack:</label>
+              <select
+                value={selectedBuildingPack}
+                onChange={(e) => {
+                  setSelectedBuildingPack(e.target.value);
+                  setSelectedBuildingAsset(null);
+                }}
+                className="w-full bg-slate-700 text-white text-xs py-2 px-3 rounded border border-slate-600 focus:border-amber-500 focus:outline-none"
+              >
+                {BUILDING_ASSET_PACKS.map((pack) => (
+                  <option key={pack.id} value={pack.id}>
+                    {pack.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Building Selection Grid */}
+            <div className="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
+              {BUILDING_ASSET_PACKS.find(p => p.id === selectedBuildingPack)?.assets
+                .filter((asset) => {
+                  // Filter out props/objects - keep only buildings
+                  const objectTypes = ['bag', 'bag_open', 'bags', 'barrel', 'bell', 'bench', 'bonfire', 'cart', 'cauldron', 'crate', 'hay', 'package', 'rocks', 'sawmill_saw', 'smoke', 'door_round', 'door_straight', 'fence', 'gazebo', 'market_stand', 'path_straight', 'round_window', 'stairs', 'well', 'window'];
+                  return !objectTypes.includes(asset.type);
+                })
+                .map((asset) => {
+                  const assetKey = `${selectedBuildingPack}:${asset.type}`;
+                  return (
+                    <button
+                      key={asset.id}
+                      onClick={() => {
+                        if (selectedBuildingAsset === assetKey) {
+                          setSelectedBuildingAsset(null);
+                        } else {
+                          setSelectedBuildingAsset(assetKey);
+                          setSelectedAssetType(null);
+                        }
+                      }}
+                      className={`p-2 rounded-lg border transition-colors flex flex-col items-center gap-1 ${
+                        selectedBuildingAsset === assetKey
+                          ? 'bg-amber-600/30 border-amber-500 text-white'
+                          : 'bg-slate-800/50 border-slate-700 text-slate-300 hover:bg-slate-700/50'
+                      }`}
+                    >
+                      <span className="text-xl">{asset.icon}</span>
+                      <span className="text-[10px] font-medium text-center leading-tight">{asset.name}</span>
+                    </button>
+                  );
+                })}
+            </div>
+            
+            {selectedBuildingAsset && (
+              <p className="text-[10px] text-amber-300 mt-2 text-center">
+                Selected: {BUILDING_ASSET_PACKS.find(p => p.id === selectedBuildingPack)?.assets.find(a => `${selectedBuildingPack}:${a.type}` === selectedBuildingAsset)?.name}
+              </p>
+            )}
+          </div>
+        )}
+        
+        {/* Manual Placement Mode Button */}
+        {!leftPanelMinimized && (
+        <div className="pt-4 mt-4 border-t border-slate-700 space-y-2">
+          <button
+            onClick={() => {
+              setManualMode(!manualMode);
+              setBuildingMode(false);
+              setSelectedBuildingAsset(null);
+            }}
+            className={`w-full font-bold py-3 px-4 rounded-lg transition-all ${
+              manualMode && !buildingMode
+                ? 'bg-purple-600 hover:bg-purple-700 shadow-lg shadow-purple-500/50' 
+                : 'bg-slate-700 hover:bg-slate-600'
+            } text-white text-sm`}
+          >
+            {manualMode && !buildingMode ? '← Back to Procedural Mode' : '→ Switch to Manual Placement'}
+          </button>
+          
+          {/* Building Mode Button - Only show in manual mode */}
+          {manualMode && (
+            <button
+              onClick={() => {
+                setBuildingMode(!buildingMode);
+                setSelectedAssetType(null);
+                setSelectedBuildingAsset(null);
+              }}
+              className={`w-full font-bold py-2 px-4 rounded-lg transition-all flex items-center justify-center gap-2 ${
+                buildingMode
+                  ? 'bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-500/50' 
+                  : 'bg-slate-700 hover:bg-slate-600'
+              } text-white text-sm`}
+            >
+              {buildingMode ? '← Back' : '🏗️ Buildings'}
+            </button>
+          )}
+          
+          {manualMode && !buildingMode && (
+            <p className="text-[10px] text-purple-300 mt-2 text-center">
+              Click terrain to place assets
+            </p>
+          )}
+          {buildingMode && (
+            <p className="text-[10px] text-amber-300 mt-2 text-center">
+              Click terrain to place buildings
+            </p>
+          )}
+        </div>
+        )}
+        </div>
+        )}
+      </div>
+      
+      {/* Island Controls - Right Panel - Mobile responsive with minimize */}
+      <div className={`fixed top-[3.5rem] md:top-16 right-2 md:right-4 ${rightPanelMinimized ? 'bottom-auto h-auto' : 'bottom-2 md:bottom-4'} z-20 ${rightPanelMinimized ? 'w-12' : 'w-[calc(100%-1rem)] md:w-64'} bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg overflow-hidden flex flex-col transition-all duration-300 shadow-xl`}>
+        {/* Panel Header */}
+        <div className="flex items-center justify-between p-2 md:p-3 border-b border-slate-700 bg-slate-800/50 flex-shrink-0 min-h-[2.75rem] md:min-h-[3rem]">
+          {!rightPanelMinimized && <h3 className="text-xs md:text-sm font-bold text-slate-300 uppercase">Settings</h3>}
+          <button
+            onClick={() => setRightPanelMinimized(!rightPanelMinimized)}
+            className="text-slate-400 hover:text-white transition-colors p-1.5 min-w-[2.5rem] min-h-[2rem] flex items-center justify-center rounded hover:bg-slate-700"
+            title={rightPanelMinimized ? 'Expand panel' : 'Minimize panel'}
+            aria-label={rightPanelMinimized ? 'Expand panel' : 'Minimize panel'}
+          >
+            <span className="text-sm md:text-base">{rightPanelMinimized ? '◀' : '▶'}</span>
+          </button>
+        </div>
+        {!rightPanelMinimized && (
+          <div className="flex-1 overflow-y-auto p-2 md:p-4">
+        <h3 className="text-sm font-bold text-slate-300 uppercase mb-2">Island Controls</h3>
+            
+            {/* Character Height Offset Slider - Only in test mode */}
+            {testMode && (
+              <div className="mb-4 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                <label className="text-xs font-bold text-slate-300 block mb-2">
+                  Character Height Offset: <span className="text-blue-400">{characterHeightOffset.toFixed(2)}</span>
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="2"
+                  step="0.05"
+                  value={characterHeightOffset}
+                  onChange={(e) => setCharacterHeightOffset(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Adjust if character floats or sinks into ground
+                </p>
+              </div>
+            )}
+
+            {/* Avatar Scale Slider - Only in test mode */}
+            {testMode && (
+              <div className="mb-4 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                <label className="text-xs font-bold text-slate-300 block mb-2">
+                  Avatar Scale: <span className="text-blue-400">{avatarScale.toFixed(2)}x</span>
+                </label>
+                <input
+                  type="range"
+                  min="0.1"
+                  max="3.0"
+                  step="0.1"
+                  value={avatarScale}
+                  onChange={(e) => setAvatarScale(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  Adjust size of 3D avatar in play mode
+                </p>
+              </div>
+            )}
+
+        {/* Terrain Type Presets */}
+        <div className="mb-4">
+          <label className="text-xs text-slate-400 block mb-2">Terrain Presets:</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => {
+                setRoughness(60);
+                setHeightScale(70);
+              }}
+              className="bg-slate-700 hover:bg-slate-600 text-white text-xs py-2 px-3 rounded transition-colors"
+            >
+              ⛰️ Mountains
+            </button>
+            <button
+              onClick={() => {
+                setRoughness(35);
+                setHeightScale(45);
+              }}
+              className="bg-slate-700 hover:bg-slate-600 text-white text-xs py-2 px-3 rounded transition-colors"
+            >
+              🏔️ Hills
+            </button>
+            <button
+              onClick={() => {
+                setRoughness(15);
+                setHeightScale(25);
+              }}
+              className="bg-slate-700 hover:bg-slate-600 text-white text-xs py-2 px-3 rounded transition-colors"
+            >
+              🌾 Plains
+            </button>
+            <button
+              onClick={() => {
+                setRoughness(25);
+                setHeightScale(35);
+                setCliffIntensity(80);
+              }}
+              className="bg-slate-700 hover:bg-slate-600 text-white text-xs py-2 px-3 rounded transition-colors"
+            >
+              🏞️ Valley
+            </button>
+          </div>
+        </div>
+
+        {/* Noise Type Dropdown */}
+        <div className="mb-4">
+          <label className="text-xs text-slate-400 block mb-1">Island Terrain Type:</label>
+          <select
+            value={noiseType}
+            onChange={(e) => setNoiseType(e.target.value as any)}
+            className="w-full bg-slate-700 text-white text-sm py-2 px-3 rounded border border-slate-600 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="standard">Standard</option>
+            <option value="smooth">Smooth (Rolling Hills)</option>
+            <option value="rocky">Rocky (Sharp Peaks)</option>
+            <option value="ridged">Ridged (Valleys)</option>
+            <option value="turbulent">Turbulent (Chaotic)</option>
+          </select>
+        </div>
+
+        {/* Roughness Slider */}
+        <div>
+          <label className="text-xs text-slate-400 block mb-1">
+            Roughness: <span className="text-white">{roughness}</span>
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={roughness}
+            onChange={(e) => setRoughness(Number(e.target.value))}
+            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+          />
+        </div>
+
+        {/* Terrain Size Slider */}
+        <div>
+          <label className="text-xs text-slate-400 block mb-1">
+            {isSquareTerrain ? 'Terrain' : 'Island'} Size: <span className="text-white">{islandSize}</span>
+          </label>
+          <input
+            type="range"
+            min="50"
+            max="200"
+            value={islandSize}
+            onChange={(e) => setIslandSize(Number(e.target.value))}
+            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+          />
+        </div>
+
+        {/* Terrain Detail Slider */}
+        <div>
+          <label className="text-xs text-slate-400 block mb-1">
+            Terrain Detail: <span className="text-white">{terrainDetail}</span>
+          </label>
+          <input
+            type="range"
+            min="64"
+            max="256"
+            step="32"
+            value={terrainDetail}
+            onChange={(e) => setTerrainDetail(Number(e.target.value))}
+            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+          />
+        </div>
+        
+        {/* Height Scale Slider */}
+        <div>
+          <label className="text-xs text-slate-400 block mb-1">
+            Height Scale: <span className="text-white">{heightScale}</span>
+          </label>
+          <input
+            type="range"
+            min="20"
+            max="80"
+            step="5"
+            value={heightScale}
+            onChange={(e) => setHeightScale(Number(e.target.value))}
+            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+          />
+        </div>
+        
+        {/* Water Level Slider */}
+        <div>
+          <label className="text-xs text-slate-400 block mb-1">
+            Water Level: <span className="text-white">{waterLevel.toFixed(1)}</span>
+          </label>
+          <input
+            type="range"
+            min="-2"
+            max="2"
+            step="0.1"
+            value={waterLevel}
+            onChange={(e) => setWaterLevel(Number(e.target.value))}
+            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+          />
+        </div>
+        
+        {/* Cliff Intensity Slider */}
+        <div>
+          <label className="text-xs text-slate-400 block mb-1">
+            Cliff Intensity: <span className="text-white">{cliffIntensity}</span>
+          </label>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="10"
+            value={cliffIntensity}
+            onChange={(e) => setCliffIntensity(Number(e.target.value))}
+            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+          />
+        </div>
+        
+        {/* Ocean & Sky Section */}
+        <div className="pt-4 border-t border-slate-700">
+          <h4 className="text-xs font-semibold text-cyan-400 mb-3">🌊 Ocean & Sky</h4>
+          
+          {/* Dynamic Sky Toggle */}
+          <div className="mb-3">
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={enableDynamicSky}
+                onChange={(e) => setEnableDynamicSky(e.target.checked)}
+                className="mr-2"
+              />
+              <span className="text-xs text-slate-300">Enable Dynamic Sky</span>
+            </label>
+          </div>
+          
+          {/* Time of Day */}
+          <div className="mb-2">
+            <label className="text-xs text-slate-400 block mb-1">
+              Time of Day: <span className="text-white">{(timeOfDay * 24).toFixed(1)}h</span>
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={timeOfDay}
+              onChange={(e) => setTimeOfDay(Number(e.target.value))}
+              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+            />
+            <p className="text-[10px] text-slate-500 mt-1">
+              {timeOfDay < 0.25 ? 'Night' : timeOfDay < 0.35 ? 'Sunrise' : timeOfDay < 0.65 ? 'Day' : timeOfDay < 0.75 ? 'Sunset' : 'Night'}
+            </p>
+          </div>
+          
+          {/* Sun Intensity */}
+          <div className="mb-2">
+            <label className="text-xs text-slate-400 block mb-1">
+              Sun Intensity: <span className="text-white">{sunIntensity.toFixed(1)}</span>
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.1"
+              value={sunIntensity}
+              onChange={(e) => setSunIntensity(Number(e.target.value))}
+              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-yellow-500"
+            />
+          </div>
+          
+          {/* Wave Strength */}
+          <div className="mb-2">
+            <label className="text-xs text-slate-400 block mb-1">
+              Wave Strength: <span className="text-white">{waveStrength.toFixed(2)}</span>
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="0.5"
+              step="0.01"
+              value={waveStrength}
+              onChange={(e) => setWaveStrength(Number(e.target.value))}
+              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+            />
+          </div>
+          
+          {/* Wave Speed */}
+          <div className="mb-2">
+            <label className="text-xs text-slate-400 block mb-1">
+              Wave Speed: <span className="text-white">{waveSpeed.toFixed(1)}</span>
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="3"
+              step="0.1"
+              value={waveSpeed}
+              onChange={(e) => setWaveSpeed(Number(e.target.value))}
+              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+            />
+          </div>
+          
+          {/* Ocean Transparency */}
+          <div className="mb-2">
+            <label className="text-xs text-slate-400 block mb-1">
+              Ocean Transparency: <span className="text-white">{(oceanTransparency * 100).toFixed(0)}%</span>
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={oceanTransparency}
+              onChange={(e) => setOceanTransparency(Number(e.target.value))}
+              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+            />
+          </div>
+          
+          {/* Ocean Size */}
+          <div className="mb-2">
+            <label className="text-xs text-slate-400 block mb-1">
+              Ocean Size: <span className="text-white">{oceanSize}</span> units
+            </label>
+            <input
+              type="range"
+              min="500"
+              max="5000"
+              step="100"
+              value={oceanSize}
+              onChange={(e) => setOceanSize(Number(e.target.value))}
+              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+            />
+          </div>
+          
+          {/* Ripple Detail */}
+          <div className="mb-2">
+            <label className="text-xs text-slate-400 block mb-1">
+              Ripple Detail: <span className="text-white">{rippleScale.toFixed(1)}x</span>
+            </label>
+            <input
+              type="range"
+              min="0.1"
+              max="5.0"
+              step="0.1"
+              value={rippleScale}
+              onChange={(e) => setRippleScale(Number(e.target.value))}
+              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-cyan-300 mb-1">
+              Fog Height: <span className="text-white">{fogHeight.toFixed(1)}m</span>
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="20"
+              step="0.5"
+              value={fogHeight}
+              onChange={(e) => setFogHeight(Number(e.target.value))}
+              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-cyan-300 mb-1">
+              Bubble Scale: <span className="text-white">{bubbleScale.toFixed(1)}x</span>
+            </label>
+            <input
+              type="range"
+              min="0.5"
+              max="2.5"
+              step="0.1"
+              value={bubbleScale}
+              onChange={(e) => setBubbleScale(Number(e.target.value))}
+              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-cyan-300 mb-1">
+              Bubble Density: <span className="text-white">{bubbleDensity.toFixed(1)}x</span>
+            </label>
+            <input
+              type="range"
+              min="0.5"
+              max="3.0"
+              step="0.1"
+              value={bubbleDensity}
+              onChange={(e) => setBubbleDensity(Number(e.target.value))}
+              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+            />
+          </div>
+
+          <div>
+            <div>
+            <label className="block text-xs text-cyan-300 mb-1">
+              Bubble Speed: <span className="text-white">{(bubbleSpeed * 100).toFixed(1)}%</span>
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={bubbleSpeed}
+              onChange={(e) => {
+                const newValue = Number(e.target.value);
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/c15ab070-fd58-47a7-ab6d-662197ee7dfa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'TestWorld.tsx:2856',message:'BubbleSpeed slider change',data:{oldValue:bubbleSpeed,newValue,newValueType:typeof newValue},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                // #endregion
+                setBubbleSpeed(newValue);
+              }}
+              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+            />
+            </div>
+          </div>
+        </div>
+        
+        {/* Building Area Section */}
+        <div className="pt-4 border-t border-slate-700 space-y-2">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-semibold text-amber-400">🏗️ Building Areas</h4>
+            <button
+              onClick={addBuildingArea}
+              className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-1 rounded transition-colors"
+            >
+              + Add Area
+            </button>
+          </div>
+          
+          {buildingAreas.map((area) => (
+            <div key={area.id} className="border border-slate-600 rounded-lg p-2 bg-slate-800/50">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-amber-300">Area #{area.id}</span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => updateBuildingArea(area.id, { minimized: !area.minimized })}
+                    className="text-xs text-slate-400 hover:text-white px-2 py-0.5"
+                  >
+                    {area.minimized ? '▼' : '▲'}
+                  </button>
+                  <button
+                    onClick={() => removeBuildingArea(area.id)}
+                    className="text-xs text-red-400 hover:text-red-300 px-2 py-0.5"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+              
+              {!area.minimized && (
+                <>
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">
+                      Position X: <span className="text-white">{area.x}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="-60"
+                      max="60"
+                      step="5"
+                      value={area.x}
+                      onChange={(e) => updateBuildingArea(area.id, { x: Number(e.target.value) })}
+                      className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">
+                      Position Z: <span className="text-white">{area.z}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="-60"
+                      max="60"
+                      step="5"
+                      value={area.z}
+                      onChange={(e) => updateBuildingArea(area.id, { z: Number(e.target.value) })}
+                      className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">
+                      Radius: <span className="text-white">{area.radius}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="10"
+                      max="50"
+                      step="5"
+                      value={area.radius}
+                      onChange={(e) => updateBuildingArea(area.id, { radius: Number(e.target.value) })}
+                      className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">
+                      Height: <span className="text-white">{area.height.toFixed(1)}</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="4"
+                      step="0.1"
+                      value={area.height}
+                      onChange={(e) => updateBuildingArea(area.id, { height: Number(e.target.value) })}
+                      className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                    />
+                  </div>
+                  
+                  {/* Add Buildings Dropdown */}
+                  <div className="mt-2">
+                    <label className="text-xs text-slate-400 block mb-1">Add Saved Build</label>
+                    <select
+                      onChange={(e) => {
+                        const selectedBuildName = e.target.value;
+                        if (selectedBuildName) {
+                          const builds = JSON.parse(localStorage.getItem('castleBuilds') || '{}');
+                          const buildData = builds[selectedBuildName];
+                          if (buildData) {
+                            // Place build at building area center
+                            const terrainY = getTerrainHeight(area.x, area.z);
+                            const newBuild = {
+                              id: `build-${Date.now()}-${Math.random()}`,
+                              buildName: selectedBuildName,
+                              assets: buildData.assets || [],
+                              position: [area.x, terrainY, area.z] as [number, number, number],
+                              rotation: 0,
+                              areaId: area.id,
+                              heightOffset: buildHeightOffset, // Use global offset
+                            };
+                            setPlacedBuilds(prev => [...prev, newBuild]);
+                            e.target.value = ''; // Reset dropdown
+                          }
+                        }
+                      }}
+                      className="w-full bg-slate-700 border border-slate-600 rounded text-xs text-white px-2 py-1.5"
+                      defaultValue=""
+                    >
+                      <option value="">Select build...</option>
+                      {(() => {
+                        try {
+                          const builds = JSON.parse(localStorage.getItem('castleBuilds') || '{}');
+                          return Object.keys(builds).map(name => (
+                            <option key={name} value={name}>{name}</option>
+                          ));
+                        } catch {
+                          return null;
+                        }
+                      })()}
+                    </select>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Regenerate Button */}
+        <button
+          onClick={handleRegenerate}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors"
+        >
+          🔄 Regenerate
+        </button>
+
+            {/* Save/Load Section */}
+            <div className="border-t border-slate-700 pt-4 mt-4">
+              <div className="text-xs text-slate-400 mb-2">Save & Load</div>
+
+        {/* Save Button */}
+        <button
+                onClick={() => handleSave(true)}
+                disabled={saveStatus === 'saving'}
+                className={`w-full font-bold py-2 px-4 rounded transition-colors mb-2 ${
+                  saveStatus === 'saving' 
+                    ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+                    : saveStatus === 'saved'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-green-600 hover:bg-green-700 text-white'
+                }`}
+                title="Save world (Ctrl+S)"
+              >
+                {saveStatus === 'saving' ? '⏳ Saving...' : saveStatus === 'saved' ? '✅ Saved!' : '💾 Save World'}
+              </button>
+              
+              {/* Load Button */}
+              <button
+                onClick={() => setShowLoadMenu(!showLoadMenu)}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors mb-2"
+              >
+                📂 Load World
+              </button>
+
+              {/* Load Template Button */}
+              <button
+                onClick={() => setTemplateModalOpen(true)}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded transition-colors mb-2"
+              >
+                🏝️ Load Template
+              </button>
+              
+              {/* Save as Template Button */}
+              <button
+                onClick={() => {
+                  const templateName = prompt('Enter template name:');
+                  if (templateName) {
+                    const state = getCurrentWorldState();
+                    const templateData = {
+                      ...state,
+                      name: templateName,
+                      isTemplate: true,
+                      createdAt: new Date().toISOString(),
+                    };
+                    const templates = JSON.parse(localStorage.getItem('questly_templates') || '[]');
+                    templates.push(templateData);
+                    localStorage.setItem('questly_templates', JSON.stringify(templates));
+                    alert(`Template "${templateName}" saved!`);
+                  }
+                }}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition-colors mb-2"
+              >
+                ⭐ Save as Template
+              </button>
+
+              {/* Cloud Save Button */}
+              <button
+                onClick={() => handleSave(true)}
+                disabled={!isFirebaseAvailable() || saveStatus === 'saving'}
+                className={`w-full font-bold py-2 px-4 rounded transition-colors ${
+                  isFirebaseAvailable()
+                    ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                    : 'bg-purple-600/50 text-slate-400 cursor-not-allowed'
+                }`}
+                title={isFirebaseAvailable() ? 'Save world to cloud (Firebase)' : 'Firebase not configured - set environment variables'}
+              >
+                {isFirebaseAvailable() ? '☁️ Save to Cloud' : '☁️ Cloud (Not Configured)'}
+        </button>
+      </div>
+      
+            {/* Load Menu */}
+            {showLoadMenu && (
+              <div className="absolute left-full ml-2 top-0 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-4 z-50 max-h-96 overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-white">Load World</h3>
+              <button
+                onClick={() => setShowLoadMenu(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            
+            {/* Load from File */}
+            <div className="mb-4">
+              <label className="block text-xs text-slate-400 mb-2">Load from File</label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleLoadFromFile}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full bg-slate-700 hover:bg-slate-600 text-white text-sm py-2 px-3 rounded transition-colors"
+              >
+                📄 Choose File...
+              </button>
+            </div>
+            
+            {/* Load from LocalStorage */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-2">Saved Worlds</label>
+              <div className="space-y-1">
+                {getSavedWorldsMetadata().map((meta) => {
+                  const config = loadWorldFromLocalStorage(meta.id);
+                  return (
+                    <div
+                      key={meta.id}
+                      className="flex items-center justify-between p-2 bg-slate-700 hover:bg-slate-600 rounded transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-white truncate">{meta.name}</div>
+                        <div className="text-xs text-slate-400">
+                          {new Date(meta.timestamp).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="flex gap-1 ml-2">
+                        <button
+                          onClick={() => config && handleLoad(config)}
+                          className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded"
+                          title="Load"
+                        >
+                          Load
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm('Delete this saved world?')) {
+                              deleteWorldFromLocalStorage(meta.id);
+                              setShowLoadMenu(false);
+                              setTimeout(() => setShowLoadMenu(true), 100);
+                            }
+                          }}
+                          className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded"
+                          title="Delete"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {getSavedWorldsMetadata().length === 0 && (
+                  <div className="text-xs text-slate-500 p-2 text-center">No saved worlds</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        </div>
+        )}
+      </div>
+      
+      {/* 3D Scene - Fixed to fit perfectly in viewport */}
+      <div className="fixed inset-0 w-full h-full" style={{ top: '3.5rem', paddingTop: '0' }}>
+        <Canvas
+          camera={{ position: [80, 60, 80], fov: 60, far: 10000 }}
+          shadows
+          gl={{ antialias: true }}
+        >
+          <PhysicsWorldProvider 
+            terrainMeshRef={terrainMeshRef}
+            enablePhysics={enablePhysics && testMode}
+        >
+          <Suspense fallback={null}>
+            {/* Animation system updater */}
+            <AnimationUpdater />
+            
+            {/* Dynamic fog color based on time of day */}
+            <color attach="background" args={[
+              enableDynamicSky 
+                ? (timeOfDay > 0.25 && timeOfDay < 0.75 
+                    ? '#87ceeb' // Day
+                    : '#0a1628') // Night
+                : '#87ceeb'
+            ]} />
+            
+            {/* Dynamic Sky or Static Sky */}
+            {enableDynamicSky ? (
+              <DynamicSkybox timeOfDay={timeOfDay} sunIntensity={sunIntensity} />
+            ) : (
+              <Sky sunPosition={[100, 20, 100]} />
+            )}
+            
+            {/* Dynamic lighting based on time of day */}
+            <ambientLight intensity={0.5} />
+            <directionalLight
+              position={[
+                Math.cos((timeOfDay - 0.25) * Math.PI * 2) * 100,
+                Math.sin((timeOfDay - 0.25) * Math.PI * 2) * 100,
+                25
+              ]}
+              intensity={enableDynamicSky ? (
+                timeOfDay >= 0.25 && timeOfDay <= 0.75
+                  ? sunIntensity * 1.0 // Day - stable full intensity
+                  : sunIntensity * 0.3 // Night - stable dim intensity
+              ) : 1.2}
+              color={enableDynamicSky && (timeOfDay < 0.2 || timeOfDay > 0.8) ? '#ff9944' : '#ffffff'}
+              castShadow
+              shadow-mapSize={[2048, 2048]}
+              shadow-camera-left={-100}
+              shadow-camera-right={100}
+              shadow-camera-top={100}
+              shadow-camera-bottom={-100}
+            />
+            
+            {/* Camera Controls */}
+            {testMode ? (
+              <>
+                <CameraController 
+                  cameraView={cameraView} 
+                  testMode={testMode}
+                  characterPositionRef={characterPositionRef}
+                  characterRotationRef={characterRotationRef}
+                />
+              </>
+            ) : (
+              <>
+                {cameraView === 'third-person' ? (
+                  <OrbitControls
+                    key={`controls-${panMode}-${zoomMode}`}
+                    enablePan={true}
+                    enableZoom={true}
+                    enableRotate={!panMode && !zoomMode}
+                    maxPolarAngle={Math.PI / 2.1}
+                    minDistance={5}
+                    maxDistance={300}
+                    mouseButtons={{
+                      LEFT: panMode ? 2 : (zoomMode ? 1 : 0),
+                      MIDDLE: 1,
+                      RIGHT: 2,
+                    }}
+                    touches={{
+                      ONE: panMode ? 1 : (zoomMode ? 2 : 0),
+                      TWO: panMode ? 1 : 2,
+                    }}
+                  />
+                ) : (
+                  <>
+                    {/* Build mode camera views - focus on center of terrain */}
+                    <CameraController 
+                      cameraView={cameraView} 
+                      testMode={false}
+                      characterPositionRef={buildModeCameraFocus}
+                    />
+                    {/* Disable OrbitControls when using fixed camera views */}
+                    <OrbitControls enablePan={false} enableZoom={false} enableRotate={false} />
+                  </>
+                )}
+              </>
+            )}
+            
+            {/* Terrain mesh with ref for BVH raycasting - always render for BVH */}
+                <LowPolyTerrain
+                  ref={terrainMeshRef}
+                  roughness={roughness}
+                  islandSize={islandSize}
+                  seed={seed}
+                  terrainDetail={terrainDetail}
+                  heightScale={heightScale}
+                  cliffIntensity={cliffIntensity}
+                  buildingAreas={buildingAreas}
+                  isSquareTerrain={isSquareTerrain}
+                  noiseType={noiseType}
+                />
+            
+            {/* Dynamic Ocean - Only show in island mode (not square terrain/forest) */}
+            {!isSquareTerrain && (
+              <DynamicOcean
+                timeOfDay={timeOfDay}
+                oceanSize={oceanSize}
+                waveStrength={waveStrength}
+                waveAmplitude={waveAmplitude}
+                waveSpeed={waveSpeed}
+                oceanTransparency={oceanTransparency}
+                rippleScale={rippleScale}
+                waterLevel={waterLevel}
+              />
+            )}
+            
+            {/* Volumetric Fog / Cloud Mesh - Restored donut bubble ring */}
+            {/* Stable key to prevent remounting - only change when terrain type changes */}
+            <VolumetricFog
+              key={`fog-${isSquareTerrain ? 'square' : 'circle'}`}
+              timeOfDay={timeOfDay}
+              fogHeight={fogHeight}
+              bubbleScale={bubbleScale}
+              bubbleDensity={bubbleDensity}
+              bubbleSpeed={bubbleSpeed}
+              terrainSize={isSquareTerrain ? (islandSize * 2) : 230}
+              terrainRadius={islandSize}
+              isSquareTerrain={isSquareTerrain}
+              innerFogRadius={islandSize * 0.7}
+              innerFogHeight={fogHeight * 0.25}
+              innerBubbleScale={bubbleScale * 0.7}
+              innerBubbleDensity={bubbleDensity * 0.67}
+              innerBubbleSpeed={bubbleSpeed * 0.75}
+            />
+            
+            {/* Procedural Forest Assets */}
+            <Forest
+              roughness={roughness}
+              islandSize={islandSize}
+              seed={seed}
+              terrainDetail={testMode ? Math.max(terrainDetail - 20, 20) : terrainDetail} // Reduce detail in test mode
+              treeAmount={testMode ? Math.floor(treeAmount * 0.7) : treeAmount} // Fewer trees in test mode
+              treeSize={treeSize}
+              grassAmount={testMode ? Math.floor(grassAmount * 0.6) : grassAmount} // Less grass in test mode
+              grassSize={grassSize}
+              terrainGrassCoverage={testMode ? terrainGrassCoverage * 0.7 : terrainGrassCoverage} // Less coverage in test mode
+              buildingGrassFalloff={buildingGrassFalloff}
+              rockAmount={testMode ? Math.floor(rockAmount * 0.7) : rockAmount} // Fewer rocks in test mode
+              rockSize={rockSize}
+              bushAmount={testMode ? Math.floor(bushAmount * 0.7) : bushAmount} // Fewer bushes in test mode
+              bushSize={bushSize}
+              heightScale={heightScale}
+              cliffIntensity={cliffIntensity}
+              treeHeightOffset={treeHeightOffset}
+              grassHeightOffset={grassHeightOffset}
+              rockHeightOffset={rockHeightOffset}
+              bushHeightOffset={bushHeightOffset}
+              buildingAreas={buildingAreas}
+              slopeAdjustmentIntensity={slopeAdjustmentIntensity}
+              getTerrainHeight={getTerrainHeight}
+              onAssetsGenerated={(assets) => {
+                setProceduralAssets(assets);
+              }}
+              terrainMeshRef={terrainMeshRef}
+              isSquareTerrain={isSquareTerrain}
+            />
+            
+            {/* Character Controller - only in test mode */}
+                {testMode && (() => {
+                  // Calculate spawn position at building area center with terrain height
+                  const spawnX = buildingAreas.length > 0 ? buildingAreas[0].x : 0;
+                  const spawnZ = buildingAreas.length > 0 ? buildingAreas[0].z : 50;
+                  const spawnY = getTerrainHeight(spawnX, spawnZ) + characterHeightOffset; // Use slider value
+                  const spawnPosition: [number, number, number] = [spawnX, spawnY, spawnZ];
+                  
+                  return (
+                  <CharacterController
+                      startPosition={spawnPosition}
+                    terrainMeshRef={terrainMeshRef}
+                    manualAssets={manualAssets}
+                    proceduralAssets={proceduralAssets}
+                    placedBuilds={placedBuilds}
+                    characterModelPath={CHARACTER_OPTIONS.find(c => c.id === selectedCharacter)?.modelPath}
+                    cameraView={cameraView}
+                    positionRef={characterPositionRef}
+                    rotationRef={characterRotationRef}
+                      getTerrainHeight={getTerrainHeight}
+                      characterHeightOffset={characterHeightOffset}
+                      avatarScale={avatarScale}
+                    npcPositionsRef={npcPositionsRef}
+                    onAnimationTrigger={(crossfade) => {
+                  if (animationTriggerRef.current) {
+                      animationTriggerRef.current = crossfade;
+                  }
+                    }}
+                  />
+                  );
+                })()}
+            
+            {/* Saved Castle Builds */}
+            {placedBuilds.map((build) => (
+              <Suspense key={build.id} fallback={null}>
+                <PlacedCastleBuild
+                  build={build}
+                  getTerrainHeight={getTerrainHeight}
+                  onUpdate={(updates) => {
+                    setPlacedBuilds(prev => prev.map(b => 
+                      b.id === build.id ? { ...b, ...updates } : b
+                    ));
+                  }}
+                  onDelete={() => {
+                    setPlacedBuilds(prev => prev.filter(b => b.id !== build.id));
+                  }}
+                />
+              </Suspense>
+            ))}
+
+            {/* Walking NPCs */}
+            {npcs.map((npc) => {
+              // Calculate waypoint adjustments (terrain height)
+              const adjustedWaypoints = terrainMeshRef.current
+                ? npc.waypoints.map(wp => {
+                    const terrainY = getTerrainHeight(wp[0], wp[2]);
+                    return [wp[0], terrainY + 0.0, wp[2]] as [number, number, number];
+                  })
+                : npc.waypoints;
+
+              // Ensure NPC is positioned on terrain - 0.0 offset = ground level
+              const terrainY = getTerrainHeight(npc.position[0], npc.position[2]);
+              const adjustedPosition: [number, number, number] = [npc.position[0], terrainY + 0.0, npc.position[2]];
+              
+              return (
+                <group key={npc.id}>
+                  <WalkingNPC
+                    id={npc.id}
+                    name={npc.name}
+                    position={adjustedPosition}
+                    waypoints={adjustedWaypoints}
+                    characterModelPath={npc.characterModelPath}
+                    speed={npc.id.includes('fighter') || npc.id.includes('steve') || npc.id.includes('blob') ? 3 : 2}
+                    onClick={() => handleNPCClick(npc.id)}
+                    terrainMeshRef={terrainMeshRef}
+                    getTerrainHeight={getTerrainHeight}
+                    isInteracting={interactingWith === `npc-${npc.id}`}
+                    playerPosition={characterPositionRef.current}
+                    showPath={true}
+                    isFighter={(npc as any).isFighter || false}
+                    combatTargetId={(npc as any).combatTargetId}
+                    combatRange={8}
+                    fightingDistance={2.5}
+                    weaponPath={(npc as any).weaponPath}
+                    shieldPath={(npc as any).shieldPath}
+                    maxHp={(npc as any).maxHp}
+                    invincible={(npc as any).invincible || false}
+                    showHealthBar={(npc as any).showHealthBar || false}
+                    showHitbox={(npc as any).showHitbox || false}
+                    onPositionUpdate={handleNpcPositionUpdate}
+                  />
+                  {/* Floating interaction icon above NPC */}
+                  {showFloatingIcons && testMode && (
+                    <FloatingInteractionIcon
+                      position={[adjustedPosition[0], adjustedPosition[1] + 3, adjustedPosition[2]]}
+                      icon="💬"
+                      label={npc.name}
+                      onClick={() => handleNPCClick(npc.id)}
+                      color={interactingWith === `npc-${npc.id}` ? '#10b981' : '#3b82f6'}
+                    />
+                  )}
+                </group>
+              );
+            })}
+            
+            {/* Quest Markers - 3D labels */}
+            {questMarkers.map((marker) => {
+              // If marker is linked to an NPC, use NPC position
+              let markerX = marker.position[0];
+              let markerZ = marker.position[2];
+              
+              if ((marker as any).npcId) {
+                const linkedNpc = npcs.find(n => n.id === (marker as any).npcId);
+                if (linkedNpc) {
+                  markerX = linkedNpc.position[0];
+                  markerZ = linkedNpc.position[2];
+                }
+              }
+              
+              // Ensure marker is positioned on terrain
+              const terrainY = getTerrainHeight(markerX, markerZ);
+              const adjustedPosition: [number, number, number] = [markerX, terrainY + 0.1, markerZ];
+              
+              // Get icon based on marker type
+              const getMarkerIcon = () => {
+                switch (marker.type) {
+                  case 'quest':
+                    return '⚔️';
+                  case 'location':
+                    return '📍';
+                  case 'npc':
+                    return '💬';
+                  default:
+                    return '❓';
+                }
+              };
+              
+              return (
+                <group key={marker.id}>
+                  <QuestMarker
+                    position={adjustedPosition}
+                    label={marker.label}
+                    type={marker.type}
+                    onClick={() => handleMarkerClick(marker.id)}
+                  />
+                  {/* Floating interaction icon above marker */}
+                  {showFloatingIcons && testMode && (
+                    <FloatingInteractionIcon
+                      position={[adjustedPosition[0], adjustedPosition[1] + 2.5, adjustedPosition[2]]}
+                      icon={getMarkerIcon()}
+                      label={marker.label}
+                      onClick={() => handleMarkerClick(marker.id)}
+                      color={interactingWith === `marker-${marker.id}` ? '#10b981' : '#8b5cf6'}
+                    />
+                  )}
+                </group>
+              );
+            })}
+            
+            {/* Ground Click Handler for Manual Placement */}
+            {manualMode && (
+              <>
+                <GroundClickHandler
+                  selectedAssetType={selectedAssetType}
+                  selectedBuildingAsset={selectedBuildingAsset}
+                  selectedBuildingPack={selectedBuildingPack}
+                  eraseMode={eraseMode}
+                  eraseBrushSize={eraseBrushSize}
+                  manualAssets={manualAssets}
+                  onPlaceAsset={handlePlaceAsset}
+                  onEraseAsset={handleEraseAsset}
+                  getTerrainHeight={getTerrainHeight}
+                  setGhostPreviewPosition={setGhostPreviewPosition}
+                />
+                
+                {/* Ghost preview for buildings */}
+                {buildingMode && ghostPreviewPosition && selectedBuildingAsset && selectedBuildingPack && (
+                  <Suspense fallback={null}>
+                    <GhostBuilding
+                      packId={selectedBuildingPack}
+                      assetType={selectedBuildingAsset.split(':')[1]}
+                      position={ghostPreviewPosition}
+                    />
+                  </Suspense>
+                )}
+                
+                {/* Erase Brush Visual Indicator */}
+                {eraseMode && (
+                  <EraseIndicator
+                    eraseBrushSize={eraseBrushSize}
+                    getTerrainHeight={getTerrainHeight}
+                  />
+                )}
+              </>
+            )}
+            
+            {/* Render manually placed assets - Optimized in test mode */}
+            {testMode ? (
+              // In test mode, group assets and skip grass for better performance
+              <group>
+                {manualAssets.map((asset) => {
+                  if (!asset || !asset.position) return null;
+                  
+                  const [x, y, z] = asset.position;
+                  
+                  // Skip grass in test mode for performance
+                  if (asset.type === 'grass') return null;
+                  
+                  if (asset.type === 'tree') {
+                    if (asset.treeType === 'pine') {
+                      return <PineTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                    } else if (asset.treeType === 'broad') {
+                      return <BroadTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                    } else {
+                      return <BushyTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                    }
+                  } else if (asset.type === 'rock') {
+                    return <Rock key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} variant={asset.variant || 0} />;
+                  } else if (asset.type === 'bush') {
+                    return <Bush key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} variant={asset.variant || 0} />;
+                  }
+                  return null;
+                })}
+              </group>
+            ) : (
+              // In editor mode, render all assets individually for full editability
+              manualAssets.map((asset) => {
+                if (!asset || !asset.position) return null;
+                
+                const [x, y, z] = asset.position;
+                
+                if (asset.type === 'tree') {
+                  if (asset.treeType === 'pine') {
+                    return <PineTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                  } else if (asset.treeType === 'broad') {
+                    return <BroadTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                  } else {
+                    return <BushyTree key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                  }
+                } else if (asset.type === 'rock') {
+                  return <Rock key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} variant={asset.variant || 0} />;
+                } else if (asset.type === 'grass') {
+                  return <GrassClump key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} />;
+                } else if (asset.type === 'bush') {
+                  return <Bush key={asset.id} position={[x, y, z]} rotation={asset.rotation || 0} scale={asset.scale || 1} variant={asset.variant || 0} />;
+                }
+                return null;
+              })
+            )}
+            {/* Darkness Overlay for night time */}
+            <DarknessOverlay timeOfDay={timeOfDay} />
+          </Suspense>
+          </PhysicsWorldProvider>
+        </Canvas>
+      </div>
+      
+      {/* Dialogue Box - Bottom Speech Box */}
+      <DialogueBox
+        isOpen={dialogueBox.isOpen}
+        title={dialogueBox.title}
+        message={dialogueBox.message}
+        type={dialogueBox.type}
+        onClose={closeDialogue}
+        onEdit={dialogueBox.type === 'npc' && interactingWith ? () => {
+          const npcId = interactingWith.replace('npc-', '');
+          openNPCEditor(npcId);
+          closeDialogue();
+        } : undefined}
+      />
+      
+      {/* NPC Dialogue Editor Modal */}
+      {editingNPC && (() => {
+        const npc = npcs.find(n => n.id === editingNPC);
+        if (!npc) return null;
+        
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-slate-800 border-2 border-primary rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <h2 className="text-2xl font-bold text-white mb-4">Edit {npc.name} Dialogue</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">
+                    Dialogue Lines (one per line)
+                  </label>
+                  <textarea
+                    value={npcDialogueText}
+                    onChange={(e) => setNpcDialogueText(e.target.value)}
+                    className="w-full h-40 bg-slate-900 border border-slate-700 rounded text-white p-3 font-mono text-sm"
+                    placeholder="Enter dialogue lines, one per line..."
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">
+                    Voice
+                  </label>
+                  <select
+                    value={npcVoiceId}
+                    onChange={(e) => setNpcVoiceId(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded text-white p-2"
+                  >
+                    {globalTTSEngine.getAllVoices().map(voice => (
+                      <option key={voice.id} value={voice.id}>
+                        {voice.name} - {voice.description}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      const lines = npcDialogueText.split('\n').filter(l => l.trim());
+                      if (lines.length > 0) {
+                        globalTTSEngine.speak(lines[0], npcVoiceId);
+                      }
+                    }}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                  >
+                    🔊 Preview Voice
+                  </button>
+                  <button
+                    onClick={saveNPCDialogue}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+                  >
+                    💾 Save Dialogue
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingNPC(null);
+                      setNpcDialogueText('');
+                    }}
+                    className="flex-1 bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* World Template Modal */}
+      <WorldTemplateModal
+        isOpen={templateModalOpen}
+        onClose={() => setTemplateModalOpen(false)}
+        onSelectTemplate={handleSelectTemplate}
+        onSelectSavedWorld={handleSelectSavedWorld}
+        savedWorlds={getSavedWorldsMetadata()}
+      />
+      
+      {/* Character Selection Modal - shown in-world after test mode is enabled */}
+      <CharacterSelectionModal
+        isOpen={characterSelectionModalOpen}
+        onClose={() => setCharacterSelectionModalOpen(false)}
+        onSelect={handleCharacterSelect}
+        currentCharacter={selectedCharacter}
+      />
+              </div>
+  );
+}

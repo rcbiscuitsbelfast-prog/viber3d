@@ -61,13 +61,6 @@ function CharacterPreview({
   const weaponAdjustments = weaponPath ? getWeaponConfig(weaponPath) : undefined;
   const shieldAdjustments = shieldPath ? getShieldConfig(shieldPath) : undefined;
   
-  // Rotate character slowly
-  useFrame((_, delta) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.3;
-    }
-  });
-
   return (
     <group ref={groupRef} position={[0, 0, 0]} scale={isSelected ? 1.1 : 1.0}>
       <AnimatedCharacter
@@ -83,6 +76,7 @@ function CharacterPreview({
         shieldPath={shieldPath ? getAssetPath(shieldPath) : undefined}
         weaponAdjustments={weaponAdjustments}
         shieldAdjustments={shieldAdjustments}
+        animationTimeScale={0.8}
       />
       <ambientLight intensity={0.6} />
       <directionalLight position={[5, 5, 5]} intensity={0.8} />
@@ -107,14 +101,14 @@ function MiniCanvas({
       whileTap={{ scale: 0.95 }}
       onClick={onSelect}
       className={`
-        relative w-48 h-72 rounded-lg overflow-hidden cursor-pointer transition-all
+        relative w-48 h-80 rounded-lg overflow-hidden cursor-pointer transition-all
         ${isSelected 
           ? 'ring-4 ring-primary shadow-2xl shadow-primary/50' 
           : 'ring-2 ring-slate-600 hover:ring-slate-500'
         }
       `}
     >
-      <Canvas camera={{ position: [0, 1.8, 4], fov: 45 }}>
+      <Canvas camera={{ position: [0, 2.2, 4.5], fov: 40 }}>
         <Suspense fallback={null}>
           <CharacterPreview 
             characterPath={character.modelPath} 

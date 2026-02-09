@@ -3,6 +3,8 @@
  * Provides voice synthesis for NPCs and dialogue
  */
 
+import { useSettingsStore } from '@/stores/settingsStore';
+
 export interface Voice {
   id: string;
   name: string;
@@ -76,6 +78,15 @@ class TTSEngine {
 
   speak(text: string, voiceId?: string, onEnd?: () => void): void {
     if (!this.synth || !text) return;
+    
+    // Check if audio is enabled (respects user settings)
+    const musicEnabled = useSettingsStore.getState().musicEnabled;
+    // Note: We use musicEnabled as a general audio toggle for now
+    // If you want separate TTS toggle, add it to settingsStore
+    if (!musicEnabled) {
+      console.log('Audio disabled - skipping TTS');
+      return;
+    }
     
     // Stop any current speech
     this.stop();

@@ -20,6 +20,7 @@ import { DEFAULT_AVATAR_LAYERS } from '@/lib/avatarDefaults';
 import { getWeaponConfig, getShieldConfig } from '@/data/weapon-configs';
 import { animationManager } from '@/systems/animation/AnimationManager';
 import { Font3DText } from '../r3f/Font3DText';
+import { globalAudioManager } from '@/systems/audio';
 import * as THREE from 'three';
 
 // Helper to resolve asset paths with base URL for GitHub Pages
@@ -1330,6 +1331,13 @@ export default function UserDashboard() {
   const [customizerMessage, setCustomizerMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [customizerSavedVariants, setCustomizerSavedVariants] = useState<SavedVariantSummary[]>([]);
   const [customizerLoadingVariants, setCustomizerLoadingVariants] = useState(false);
+
+  // Play background music (track 2.5) for user dashboard
+  useEffect(() => {
+    globalAudioManager.init().then(() => {
+      globalAudioManager.playMusic('track_2_5');
+    });
+  }, []);
   const [avatarMode, setAvatarMode] = useState<'idle' | 'talk'>('idle');
   const [avatarSpeech, setAvatarSpeech] = useState<{ id: number; text: string } | null>(null);
   const avatarTalkTimeoutRef = useRef<number | null>(null);

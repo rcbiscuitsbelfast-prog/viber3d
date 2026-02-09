@@ -35,6 +35,7 @@ interface AnimatedCharacterProps {
   weaponAdjustments?: WeaponAdjustments;
   shieldAdjustments?: ShieldAdjustments;
   onAnimationsLoaded?: (animations: string[]) => void;
+  animationTimeScale?: number; // Speed multiplier for animations (default: 1.0)
 }
 
 export default function AnimatedCharacter({
@@ -52,6 +53,7 @@ export default function AnimatedCharacter({
   weaponAdjustments,
   shieldAdjustments,
   onAnimationsLoaded,
+  animationTimeScale = 1.0,
 }: AnimatedCharacterProps) {
   const groupRef = useRef<THREE.Group>(null);
   const [model, setModel] = useState<THREE.Object3D | null>(null);
@@ -432,7 +434,7 @@ export default function AnimatedCharacter({
   }, [model, shieldPath, shieldAdjustments]);
 
   // Use character animation hook
-  const { crossfadeTo, isLoaded: animationsLoaded, hasAnimation } = useCharacterAnimation({
+  const { crossfadeTo, isLoaded: animationsLoaded, hasAnimation, playAnimation } = useCharacterAnimation({
     characterId,
     assetId,
     model,
@@ -453,14 +455,31 @@ export default function AnimatedCharacter({
     }
   }, [animationsLoaded, characterId, onAnimationsLoaded]);
 
-  // Handle animation switching
+  // Handle animation switching - prevent unnecessary restarts and T-pose flashing
+  const lastAnimationRef = useRef<string | undefined>(undefined);
+  const isInitialLoadRef = useRef(true);
+  
   useEffect(() => {
     if (!animationsLoaded || !model || !currentAnimation) return;
+    
+    // Don't restart if same animation is already playing
+    if (lastAnimationRef.current === currentAnimation && !isInitialLoadRef.current) {
+      return;
+    }
 
     if (hasAnimation(currentAnimation)) {
-      crossfadeTo(currentAnimation, 0.3);
+      // On initial load, play immediately without fade to prevent T-pose
+      // On subsequent changes, use fade for smooth transitions
+      const isInitial = isInitialLoadRef.current;
+      playAnimation(currentAnimation, {
+        fadeInDuration: isInitial ? 0 : 0.2, // No fade on initial load
+        fadeOutDuration: isInitial ? 0 : 0.2,
+        timeScale: animationTimeScale,
+      });
+      lastAnimationRef.current = currentAnimation;
+      isInitialLoadRef.current = false;
     }
-  }, [currentAnimation, animationsLoaded, model, crossfadeTo, hasAnimation]);
+  }, [currentAnimation, animationsLoaded, model, playAnimation, hasAnimation, animationTimeScale]);
 
   // Update mixer every frame
   useFrame((_, delta) => {

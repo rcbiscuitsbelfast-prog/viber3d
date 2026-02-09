@@ -5,6 +5,7 @@ import R3FCanvas from '@/r3f/R3FCanvas';
 import SignCanvas from '@/r3f/SignCanvas';
 import { r3f } from '@/lib/tunnel';
 import { SplashIslandScene } from '@/r3f/SplashIslandScene';
+import { globalAudioManager } from '@/systems/audio';
 
 // LocalStorage keys for fade duration
 const FADE_DURATION_KEY = 'splash_fade_duration';
@@ -67,6 +68,19 @@ export default function SplashScreen() {
   const [islandLoaded, setIslandLoaded] = useState(false);
   const [islandVisible, setIslandVisible] = useState(false);
   const [buttonVisible, setButtonVisible] = useState(false);
+
+  // Play background music (track 2.1) for splash screen
+  useEffect(() => {
+    globalAudioManager.init().then(() => {
+      // Play track 2.1 on loop for splash screen
+      globalAudioManager.playMusic('track_2_1');
+    });
+    
+    // Cleanup: stop music when component unmounts (will transition to track 2.5 on next page)
+    return () => {
+      // Don't stop here - let it transition to next page's music
+    };
+  }, []);
   
   // Fade duration with localStorage persistence
   const [fadeDuration] = useState(() => {

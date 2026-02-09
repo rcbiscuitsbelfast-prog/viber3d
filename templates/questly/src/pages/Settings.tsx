@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { ArrowLeft, Volume2, VolumeX, User, MessageSquare, Eye, EyeOff } from 'lucide-react';
 import { useSettingsStore, useAvatarSettings } from '@/stores/settingsStore';
 import CustomButton from '@/components/CustomButton';
 import MenuOverlayController from '@/components/MenuOverlayController';
+import { globalAudioManager } from '@/systems/audio';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -11,6 +13,13 @@ export default function Settings() {
     useSettingsStore.setState({ musicEnabled: enabled });
   };
   const { avatar, updateAvatar } = useAvatarSettings();
+
+  // Play background music (track 2.5) for settings page
+  useEffect(() => {
+    globalAudioManager.init().then(() => {
+      globalAudioManager.playMusic('track_2_5');
+    });
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 pt-20">

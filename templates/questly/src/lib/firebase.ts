@@ -17,6 +17,7 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { getAnalytics, Analytics, isSupported } from 'firebase/analytics';
 
 // Firebase configuration from environment variables
@@ -40,6 +41,7 @@ export const isFirebaseConfigured = () => {
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let db: Firestore | null = null;
+let storage: FirebaseStorage | null = null;
 let analytics: Analytics | null = null;
 
 if (isFirebaseConfigured()) {
@@ -48,6 +50,7 @@ if (isFirebaseConfigured()) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
+    storage = getStorage(app);
     
     // Initialize Analytics only in browser environment
     if (typeof window !== 'undefined') {
@@ -66,6 +69,7 @@ if (isFirebaseConfigured()) {
     app = getApps()[0];
     auth = getAuth(app);
     db = getFirestore(app);
+    storage = getStorage(app);
     
     // Initialize Analytics if not already initialized
     if (typeof window !== 'undefined' && !analytics) {
@@ -80,5 +84,5 @@ if (isFirebaseConfigured()) {
   console.warn('[Firebase] Not configured - using localStorage only. Set environment variables to enable cloud storage.');
 }
 
-export { app, auth, db, analytics };
+export { app, auth, db, storage, analytics };
 export { firebaseConfig };
