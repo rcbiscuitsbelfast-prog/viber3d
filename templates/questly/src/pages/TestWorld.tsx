@@ -163,10 +163,12 @@ function CharacterController({
   const groupRef = useRef<THREE.Group>(null);
   const positionRef = useRef<THREE.Vector3>(new THREE.Vector3(...startPosition));
   const [position, setPosition] = useState<THREE.Vector3>(new THREE.Vector3(...startPosition)); // For React rendering
-  const rotationRef = useRef(Math.PI); // Start facing away from camera (180 degrees = Math.PI)
-  const [rotation, setRotation] = useState(Math.PI); // Start facing away from camera (180 degrees = Math.PI)
+  const rotationRef = useRef(0); // Start facing camera for spawn animation
+  const [rotation, setRotation] = useState(0); // Start facing camera for spawn animation
   const [model, setModel] = useState<THREE.Object3D | null>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
+  const [spawnOpacity, setSpawnOpacity] = useState(0); // Start invisible for spawn fade-in
+  const [spawnScale, setSpawnScale] = useState(0.5); // Start small for spawn scale
   const velocity = useRef(new THREE.Vector3());
   const verticalVelocity = useRef(0);
   const isGrounded = useRef(true);
@@ -175,6 +177,9 @@ function CharacterController({
   const jumpPressed = useRef(false); // Track if jump was already processed this frame
   const lastPositionUpdate = useRef(0); // Throttle position state updates
   const { camera } = useThree();
+  const hasAutoRotated = useRef(false);
+  const spawnTime = useRef(Date.now());
+  const hasSpawnAnimated = useRef(false); // Track if spawn fade/scale animation completed
   
   // Load KayKit character model
   useEffect(() => {
@@ -239,6 +244,24 @@ function CharacterController({
     loadCharacter();
   }, [characterModelPath, avatarScale]);
 
+  useEffect(() => {
+    if (modelLoaded) {
+      hasAutoRotated.current = false;
+      hasSpawnAnimated.current = false;
+      spawnTime.current = Date.now();
+      rotationRef.current = 0;
+      setRotation(0);
+      setSpawnOpacity(0); // Start invisible
+      setSpawnScale(0.5); // Start small
+      if (externalRotationRef) {
+        externalRotationRef.current = 0;
+      }
+      if (groupRef.current) {
+        groupRef.current.rotation.y = 0;
+      }
+    }
+  }, [modelLoaded, externalRotationRef]);
+
   // Update scale when avatarScale prop changes
   useEffect(() => {
     if (model) {
@@ -273,6 +296,24 @@ function CharacterController({
       });
     }
   }, [onRef, crossfadeTo, animationsLoaded]);
+
+  // Update model opacity and transparency for spawn fade-in animation
+  useEffect(() => {
+    if (model) {
+      model.traverse((child: THREE.Object3D) => {
+        if (child instanceof THREE.Mesh && child.material) {
+          const materials = Array.isArray(child.material) ? child.material : [child.material];
+          materials.forEach((mat: THREE.Material) => {
+            if ('opacity' in mat) {
+              (mat as any).opacity = spawnOpacity;
+              (mat as any).transparent = true;
+              (mat as any).needsUpdate = true;
+            }
+          });
+        }
+      });
+    }
+  }, [model, spawnOpacity]);
   
   // Character movement controls
   useEffect(() => {
@@ -445,6 +486,38 @@ function CharacterController({
     const rotSpeed = 3;
     const jumpForce = 6.5;
     const gravity = -15;
+
+    // Spawn fade-in and scale-up animation: First 0.5 seconds, player fades in and scales to full size
+    if (!hasSpawnAnimated.current) {
+      const timeSinceSpawn = (Date.now() - spawnTime.current) / 1000;
+      if (timeSinceSpawn < 0.5) {
+        // Fade in: 0 -> 1
+        const spawnProgress = timeSinceSpawn / 0.5;
+        setSpawnOpacity(Math.min(spawnProgress, 1));
+        // Scale up: 0.5 -> 1.0
+        setSpawnScale(0.5 + spawnProgress * 0.5);
+      } else if (!hasSpawnAnimated.current) {
+        // Complete spawn animation
+        setSpawnOpacity(1);
+        setSpawnScale(1);
+        hasSpawnAnimated.current = true;
+      }
+    }
+
+    // Auto-rotation: After 1.5 seconds, smoothly rotate to face away from camera
+    if (!hasAutoRotated.current) {
+      const timeSinceSpawn = (Date.now() - spawnTime.current) / 1000;
+      if (timeSinceSpawn > 1.5) {
+        const targetRotation = Math.PI;
+        const rotationDiff = targetRotation - rotationRef.current;
+        if (Math.abs(rotationDiff) > 0.01) {
+          rotationRef.current += rotationDiff * Math.min(delta * 2, 1);
+        } else {
+          rotationRef.current = targetRotation;
+          hasAutoRotated.current = true;
+        }
+      }
+    }
     
     // Check if moving
     const wasMoving = isMoving.current;
@@ -637,10 +710,10 @@ function CharacterController({
   });
   
   // Initialize rotation ref on mount and sync with external ref
-  // Character should face away from camera initially (180 degrees = Math.PI)
+  // Character should face camera initially for spawn animation
   // Use useLayoutEffect to set rotation synchronously before first render
   useLayoutEffect(() => {
-    const initialRotation = Math.PI; // Face away from camera
+    const initialRotation = 0;
     rotationRef.current = initialRotation;
     setRotation(initialRotation);
     if (externalRotationRef) {
@@ -664,15 +737,17 @@ function CharacterController({
   // KayKit character model
   return (
     <group ref={characterRef} position={position}>
-      <group ref={groupRef} rotation={[0, rotation, 0]}>
+      <group ref={groupRef} rotation={[0, rotation, 0]} scale={spawnScale}>
         {model ? (
-          <primitive object={model} />
+          <group scale={1 / spawnScale}>
+            <primitive object={model} />
+          </group>
         ) : (
           // Show loading indicator only if model hasn't loaded yet
           !modelLoaded ? (
             <mesh>
               <boxGeometry args={[1, 2, 1]} />
-              <meshStandardMaterial color="orange" />
+              <meshStandardMaterial color="orange" opacity={spawnOpacity} transparent />
       </mesh>
           ) : null
         )}
@@ -2575,6 +2650,7 @@ export default function TestWorld() {
   const [testMode, setTestMode] = useState(directTestMode); // Start in test mode if direct link
   const [selectedCharacter, setSelectedCharacter] = useState('rogue');
   const [characterSelectionModalOpen, setCharacterSelectionModalOpen] = useState(false);
+  const [characterSelectionComplete, setCharacterSelectionComplete] = useState(false); // Gate for player spawn
   const [enablePhysics, setEnablePhysics] = useState(false); // Toggle physics
   const animationTriggerRef = useRef<((anim: string) => void) | null>(null);
   
@@ -3487,8 +3563,10 @@ export default function TestWorld() {
   const handleCharacterSelect = useCallback((characterId: string, characterPath: string) => {
     setSelectedCharacter(characterId);
     setCharacterSelectionModalOpen(false);
-    // Reset character rotation to face away from camera when character changes
-    characterRotationRef.current = Math.PI;
+    // Mark character selection as complete - this gates player spawn animation
+    setCharacterSelectionComplete(true);
+    // Reset character rotation to face camera for spawn animation
+    characterRotationRef.current = 0;
   }, []);
   
   // Handle template loading with character (called from character selection page - legacy, not used anymore)
@@ -3748,19 +3826,33 @@ export default function TestWorld() {
       <SidebarMenu isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
       {/* Header - Fixed with proper spacing and mobile responsive */}
-      {/* In test mode, show only home button */}
+      {/* In test mode, show only home button on mobile, full controls on desktop */}
       {testMode ? (
-        <div className="fixed top-4 left-4 z-50">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-3 bg-slate-800/90 hover:bg-slate-700 rounded-lg transition-colors shadow-lg backdrop-blur"
-            aria-label="Open menu"
-          >
-            <Home className="w-6 h-6 text-white" />
-          </button>
-        </div>
+        <>
+          {/* Mobile Test Mode Header */}
+          <div className="fixed top-4 left-4 z-50 lg:hidden">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-3 bg-slate-800/90 hover:bg-slate-700 rounded-lg transition-colors shadow-lg backdrop-blur"
+              aria-label="Open menu"
+            >
+              <Home className="w-6 h-6 text-white" />
+            </button>
+          </div>
+
+          {/* Desktop Test Mode Header */}
+          <div className="hidden lg:flex fixed top-4 left-4 z-50">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-3 bg-slate-800/90 hover:bg-slate-700 rounded-lg transition-colors shadow-lg backdrop-blur"
+              aria-label="Open menu"
+            >
+              <Home className="w-6 h-6 text-white" />
+            </button>
+          </div>
+        </>
       ) : (
-        <div className="fixed top-0 left-0 right-0 z-30 h-14 md:h-16 bg-slate-900/95 backdrop-blur border-b-2 border-slate-600 shadow-lg flex items-center">
+        <div className="hidden lg:flex fixed top-0 left-0 right-0 z-30 h-14 md:h-16 bg-slate-900/95 backdrop-blur border-b-2 border-slate-600 shadow-lg items-center">
           <div className="max-w-7xl mx-auto w-full px-2 md:px-4 flex items-center justify-between h-full gap-2">
             {/* Left: Questly Menu Button */}
             <button
@@ -3788,8 +3880,9 @@ export default function TestWorld() {
                 onClick={() => {
                   const newTestMode = !testMode;
                   setTestMode(newTestMode);
-                  // Show character selection modal when entering test mode
+                  // Show character selection modal when entering test mode, reset completion flag
                   if (newTestMode) {
+                    setCharacterSelectionComplete(false);
                     setTimeout(() => {
                       setCharacterSelectionModalOpen(true);
                     }, 300);
@@ -5241,13 +5334,23 @@ export default function TestWorld() {
             />
             
             {/* Camera Controls */}
-            {testMode ? (
+            {testMode && characterSelectionComplete ? (
               <>
                 <CameraController 
                   cameraView={cameraView} 
                   testMode={testMode}
                   characterPositionRef={characterPositionRef}
                   characterRotationRef={characterRotationRef}
+                />
+              </>
+            ) : testMode && !characterSelectionComplete ? (
+              <>
+                {/* During character selection, use static camera - no rotation */}
+                <OrbitControls 
+                  enablePan={false} 
+                  enableZoom={false} 
+                  enableRotate={false}
+                  enabled={false}
                 />
               </>
             ) : (
@@ -5365,8 +5468,8 @@ export default function TestWorld() {
               isSquareTerrain={isSquareTerrain}
             />
             
-            {/* Character Controller - only in test mode */}
-            {testMode && (() => {
+            {/* Character Controller - only render after character selected AND test mode active */}
+            {testMode && characterSelectionComplete && (() => {
                   // Calculate spawn position at building area center with terrain height
                   const spawnX = buildingAreas.length > 0 ? buildingAreas[0].x : 0;
                   const spawnZ = buildingAreas.length > 0 ? buildingAreas[0].z : 50;
@@ -5625,6 +5728,109 @@ export default function TestWorld() {
           </PhysicsWorldProvider>
         </Canvas>
       </div>
+
+      {/* Mobile Game UI - Only show in test mode on mobile */}
+      {testMode && characterSelectionComplete && (
+        <div className="fixed inset-0 pointer-events-none lg:hidden">
+          {/* Left side - Movement Controls */}
+          <div className="fixed bottom-6 left-6 z-40 pointer-events-auto">
+            {/* Movement Buttons (WASD) */}
+            <div className="flex flex-col gap-2">
+              {/* W - Forward */}
+              <button
+                onMouseDown={() => keys.current['w'] = true}
+                onMouseUp={() => keys.current['w'] = false}
+                onTouchStart={() => keys.current['w'] = true}
+                onTouchEnd={() => keys.current['w'] = false}
+                onTouchCancel={() => keys.current['w'] = false}
+                className="w-12 h-12 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition-colors text-xs flex items-center justify-center"
+                title="Move Forward"
+              >
+                ↑
+              </button>
+              
+              {/* A, S, D row */}
+              <div className="flex gap-2">
+                <button
+                  onMouseDown={() => keys.current['a'] = true}
+                  onMouseUp={() => keys.current['a'] = false}
+                  onTouchStart={() => keys.current['a'] = true}
+                  onTouchEnd={() => keys.current['a'] = false}
+                  onTouchCancel={() => keys.current['a'] = false}
+                  className="w-12 h-12 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition-colors text-xs flex items-center justify-center"
+                  title="Turn Left"
+                >
+                  ←
+                </button>
+                
+                <button
+                  onMouseDown={() => keys.current['s'] = true}
+                  onMouseUp={() => keys.current['s'] = false}
+                  onTouchStart={() => keys.current['s'] = true}
+                  onTouchEnd={() => keys.current['s'] = false}
+                  onTouchCancel={() => keys.current['s'] = false}
+                  className="w-12 h-12 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition-colors text-xs flex items-center justify-center"
+                  title="Move Backward"
+                >
+                  ↓
+                </button>
+                
+                <button
+                  onMouseDown={() => keys.current['d'] = true}
+                  onMouseUp={() => keys.current['d'] = false}
+                  onTouchStart={() => keys.current['d'] = true}
+                  onTouchEnd={() => keys.current['d'] = false}
+                  onTouchCancel={() => keys.current['d'] = false}
+                  className="w-12 h-12 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-bold rounded-lg shadow-lg transition-colors text-xs flex items-center justify-center"
+                  title="Turn Right"
+                >
+                  →
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right side - Action Buttons */}
+          <div className="fixed bottom-6 right-6 z-40 pointer-events-auto flex flex-col gap-3">
+            {/* Jump Button */}
+            <button
+              onMouseDown={() => keys.current[' '] = true}
+              onMouseUp={() => keys.current[' '] = false}
+              onTouchStart={() => {
+                keys.current[' '] = true;
+                keys.current['Space'] = true;
+              }}
+              onTouchEnd={() => {
+                keys.current[' '] = false;
+                keys.current['Space'] = false;
+              }}
+              onTouchCancel={() => {
+                keys.current[' '] = false;
+                keys.current['Space'] = false;
+              }}
+              className="px-6 py-3 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-bold rounded-lg shadow-lg transition-colors flex items-center justify-center gap-2"
+              title="Jump"
+            >
+              <span>⬆️</span>
+              <span className="text-sm">JUMP</span>
+            </button>
+            
+            {/* Interact Button */}
+            <button
+              onClick={() => {
+                if (interactingWith) {
+                  handleMarkerClick(parseInt(interactingWith.replace('marker-', '')) || 0);
+                }
+              }}
+              className="px-6 py-3 bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white font-bold rounded-lg shadow-lg transition-colors flex items-center justify-center gap-2"
+              title="Interact"
+            >
+              <span>🤝</span>
+              <span className="text-sm">INTERACT</span>
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Dialogue Box - Bottom Speech Box */}
       <DialogueBox

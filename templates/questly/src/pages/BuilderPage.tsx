@@ -661,6 +661,17 @@ function PlayTestCharacter({
     loadCharacter();
   }, []);
 
+  // Reset spawn animation state when entering play mode (component mount or model load)
+  useEffect(() => {
+    if (modelLoaded) {
+      hasAutoRotated.current = false;
+      spawnTime.current = Date.now();
+      rotationRef.current = 0; // Start facing camera for spawn animation
+      cameraRotationRef.current = 0; // Sync camera to start position
+      console.log('[PlayTestCharacter] Spawn animation reset - player facing camera');
+    }
+  }, [modelLoaded]);
+
   // Skip undo/redo setup in PlayTestCharacter - undo/redo is handled in BuilderPage parent component
   // PlayTestCharacter is for play mode only, where undo/redo is not needed
 
@@ -925,6 +936,7 @@ function PlayTestCharacter({
         } else {
           rotationRef.current = targetRotation;
           hasAutoRotated.current = true;
+          console.log('[PlayTestCharacter] Auto-rotation completed - player now facing away from camera');
         }
       }
     }
