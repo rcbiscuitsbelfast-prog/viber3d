@@ -60,8 +60,12 @@ class AudioManager {
    * @param loop - Whether to loop the track (default: true)
    */
   playMusic(trackId: string, loop: boolean = true): void {
+    // Auto-initialize if not already done
     if (!this.isInitialized) {
-      console.warn('[AudioManager] Not initialized. Call init() first.');
+      console.log('[AudioManager] Auto-initializing on first playMusic call');
+      this.init().then(() => {
+        this.playMusic(trackId, loop);
+      });
       return;
     }
 
