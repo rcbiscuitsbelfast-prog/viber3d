@@ -7,6 +7,7 @@ import HelpOverlay from './HelpOverlay';
 import SettingsHelpOverlay from './SettingsHelpOverlay';
 import HaveYourSayHelpOverlay from './HaveYourSayHelpOverlay';
 import PlayerDashboardHelpOverlay from './PlayerDashboardHelpOverlay';
+import DashboardHelpOverlay from './DashboardHelpOverlay';
 import { DEFAULT_AVATAR_LAYERS } from '@/lib/avatarDefaults';
 import { useAvatarSettings } from '@/stores/settingsStore';
 
@@ -111,7 +112,6 @@ export default function MenuOverlayController() {
       return PlayerDashboardHelpOverlay;
     } else if (path === '/dashboard') {
       // User dashboard uses DashboardHelpOverlay
-      const DashboardHelpOverlay = require('./DashboardHelpOverlay').default;
       return DashboardHelpOverlay;
     }
     return HelpOverlay;
