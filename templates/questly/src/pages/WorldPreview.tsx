@@ -7,7 +7,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import TestWorld from './TestWorld';
 import { useState, useEffect } from 'react';
 import { Eye, Edit, Play, ArrowLeft } from 'lucide-react';
-import { loadWorld } from '@/systems/world/WorldStorage';
+import { loadWorld } from '@/utils/worldStorage';
 
 interface PreviewData {
   questId?: string;
