@@ -5892,11 +5892,25 @@ export default function TestWorld({
           <div className="fixed bottom-6 right-6 z-40 pointer-events-auto flex flex-col gap-3">
             {/* Jump Button */}
             <button
-              onMouseDown={() => keys.current[' '] = true}
-              onMouseUp={() => keys.current[' '] = false}
+              onMouseDown={() => {
+                keys.current[' '] = true;
+                keys.current['Space'] = true;
+                // Trigger jump animation if available
+                if (animationTriggerRef.current && characterControllerRef.current) {
+                  characterControllerRef.current.playAnimation('jump');
+                }
+              }}
+              onMouseUp={() => {
+                keys.current[' '] = false;
+                keys.current['Space'] = false;
+              }}
               onTouchStart={() => {
                 keys.current[' '] = true;
                 keys.current['Space'] = true;
+                // Trigger jump animation if available
+                if (animationTriggerRef.current && characterControllerRef.current) {
+                  characterControllerRef.current.playAnimation('jump');
+                }
               }}
               onTouchEnd={() => {
                 keys.current[' '] = false;
@@ -5916,8 +5930,19 @@ export default function TestWorld({
             {/* Interact Button */}
             <button
               onClick={() => {
+                // Trigger interact animation
+                if (animationTriggerRef.current && characterControllerRef.current) {
+                  characterControllerRef.current.playAnimation('interact');
+                }
+
+                // Handle interaction with markers or NPCs
                 if (interactingWith) {
-                  handleMarkerClick(parseInt(interactingWith.replace('marker-', '')) || 0);
+                  if (interactingWith.startsWith('marker-')) {
+                    handleMarkerClick(parseInt(interactingWith.replace('marker-', '')) || 0);
+                  } else if (interactingWith.startsWith('npc-')) {
+                    const npcId = interactingWith.replace('npc-', '');
+                    handleNPCClick(npcId);
+                  }
                 }
               }}
               className="px-6 py-3 bg-purple-500 hover:bg-purple-600 active:bg-purple-700 text-white font-bold rounded-lg shadow-lg transition-colors flex items-center justify-center gap-2"
