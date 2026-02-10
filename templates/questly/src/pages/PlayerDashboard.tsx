@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  Globe, Play, Trash2, Flag, User, Settings, ChevronRight, 
+import {
+  Globe, Play, Trash2, Flag, User, Settings, ChevronRight,
   Activity, BarChart3, Clock, Star, FileText, Shield, Bell
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth';
@@ -27,10 +27,12 @@ const tabs: Tab[] = [
 
 export default function PlayerDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated } = useAuthStore();
   const [worlds, setWorlds] = useState<WorldMetadata[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('worlds');
+  const isPlayMode = location.state?.mode === 'play';
 
   useEffect(() => {
     const loadWorlds = async () => {
@@ -190,7 +192,14 @@ export default function PlayerDashboard() {
             <button
               onClick={() => {
                 recordWorldEvent(world.id, 'played');
-                navigate(`/quest-builder?worldId=${world.id}`);
+                // If in play mode, go to character selection first, then world preview
+                if (isPlayMode) {
+                  // Store world ID for character selection to use
+                  sessionStorage.setItem('playWorldId', world.id);
+                  navigate('/character-select', { state: { mode: 'play', worldId: world.id } });
+                } else {
+                  navigate(`/quest-builder?worldId=${world.id}`);
+                }
               }}
               className="p-2 rounded-lg bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 transition"
               title="Play world"

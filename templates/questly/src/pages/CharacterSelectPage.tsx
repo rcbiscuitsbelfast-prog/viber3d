@@ -2,7 +2,7 @@ import React, { useState, Suspense, useRef, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, Check } from 'lucide-react';
 import * as THREE from 'three';
 import { CHARACTER_OPTIONS } from '../components/CharacterSelector';
@@ -147,10 +147,13 @@ function MiniCanvas({
 
 export default function CharacterSelectPage({ templateId, templateConfig, onConfirm }: CharacterSelectPageProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [selectedCharacter, setSelectedCharacter] = useState<string>('rogue');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const selectedCharacterData = CHARACTER_OPTIONS.find(c => c.id === selectedCharacter);
+  const isPlayMode = location.state?.mode === 'play';
+  const playWorldId = location.state?.worldId;
 
   // Load template from sessionStorage if available
   useEffect(() => {
@@ -163,28 +166,37 @@ export default function CharacterSelectPage({ templateId, templateConfig, onConf
 
   const handleConfirm = () => {
     if (selectedCharacterData) {
-      // Ensure template ID is preserved
+      // Store character selection
+      sessionStorage.setItem('selectedCharacterPath', selectedCharacterData.modelPath);
+
+      // If in play mode, navigate to WorldPreview with world data
+      if (isPlayMode && playWorldId) {
+        navigate('/world-preview', {
+          state: {
+            mode: 'play',
+            worldId: playWorldId,
+            characterPath: selectedCharacterData.modelPath,
+            readOnly: true,
+          }
+        });
+        return;
+      }
+
+      // Otherwise, handle builder mode (existing logic)
       const pendingTemplate = sessionStorage.getItem('pendingTemplate');
       if (pendingTemplate) {
         try {
           const templateData = JSON.parse(pendingTemplate);
-          // Store character selection and ensure template ID is preserved
-          sessionStorage.setItem('selectedCharacterPath', selectedCharacterData.modelPath);
           sessionStorage.setItem('pendingTemplate', JSON.stringify({
-            id: templateData.id || templateId || 'island', // Preserve template ID
+            id: templateData.id || templateId || 'island',
             config: templateData.config || templateConfig,
           }));
         } catch (error) {
           console.error('[CharacterSelectPage] Failed to parse pending template:', error);
-          // Fallback: just store character
-          sessionStorage.setItem('selectedCharacterPath', selectedCharacterData.modelPath);
         }
-      } else {
-        // No template in storage, store character anyway
-        sessionStorage.setItem('selectedCharacterPath', selectedCharacterData.modelPath);
       }
-      
-      // Navigate back to test-world
+
+      // Navigate back to test-world for builder mode
       navigate('/test-world');
     }
   };

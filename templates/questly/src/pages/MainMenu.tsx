@@ -49,7 +49,8 @@ export default function MainMenu() {
   };
 
   const handlePlay = () => {
-    navigate('/quest-type', { state: { mode: 'play' } });
+    // Navigate to player dashboard to select a world to play
+    navigate('/player-dashboard', { state: { mode: 'play' } });
   };
 
   const handleHaveYourSay = () => {
