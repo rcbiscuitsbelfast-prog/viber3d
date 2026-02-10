@@ -119,13 +119,33 @@ export default function PlayerDashboard() {
         <div className="text-slate-400 text-center py-12">
           <Globe className="w-12 h-12 mx-auto mb-4 opacity-50" />
           <p className="text-lg mb-2">No worlds saved yet</p>
-          <p className="text-sm">Create one to see it here.</p>
-          <CustomButton
-            onClick={() => navigate('/quest-type')}
-            className="mt-4"
-          >
-            Create New Quest
-          </CustomButton>
+          {isPlayMode ? (
+            <>
+              <p className="text-sm mb-4">You need to create a world first before you can play.</p>
+              <CustomButton
+                onClick={() => navigate('/quest-type', { state: { mode: 'build' } })}
+                className="mt-4"
+              >
+                Create Your First World
+              </CustomButton>
+              <button
+                onClick={() => navigate('/menu')}
+                className="mt-2 px-4 py-2 text-slate-400 hover:text-white transition"
+              >
+                Back to Menu
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm">Create one to see it here.</p>
+              <CustomButton
+                onClick={() => navigate('/quest-type')}
+                className="mt-4"
+              >
+                Create New Quest
+              </CustomButton>
+            </>
+          )}
         </div>
       );
     }

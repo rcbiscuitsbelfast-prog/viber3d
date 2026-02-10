@@ -155,14 +155,19 @@ export default function CharacterSelectPage({ templateId, templateConfig, onConf
   const isPlayMode = location.state?.mode === 'play';
   const playWorldId = location.state?.worldId;
 
-  // Load template from sessionStorage if available
+  // Load template from sessionStorage if available (skip check in play mode)
   useEffect(() => {
+    // Skip this check if we're in play mode - we have worldId instead
+    if (isPlayMode && playWorldId) {
+      return;
+    }
+
     const pendingTemplate = sessionStorage.getItem('pendingTemplate');
     if (!pendingTemplate && !templateConfig) {
       // No template selected, redirect back
       navigate('/test-world');
     }
-  }, [navigate, templateConfig]);
+  }, [navigate, templateConfig, isPlayMode, playWorldId]);
 
   const handleConfirm = () => {
     if (selectedCharacterData) {
