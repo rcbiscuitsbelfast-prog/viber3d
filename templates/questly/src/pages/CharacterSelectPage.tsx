@@ -153,14 +153,13 @@ export default function CharacterSelectPage({ templateId, templateConfig, onConf
 
   const selectedCharacterData = CHARACTER_OPTIONS.find(c => c.id === selectedCharacter);
   const isPlayMode = location.state?.mode === 'play';
-  const playWorldId = location.state?.worldId;
-  const playTemplate = location.state?.template; // Template from TemplateQuests
-  const playWorldData = location.state?.worldData; // World data from TemplateQuests
+  const playTemplate = location.state?.template; // Template from TemplateQuests (forest/island)
+  const questType = location.state?.questType; // Quest type from QuestTypeSelector
 
   // Load template from sessionStorage if available (skip check in play mode)
   useEffect(() => {
-    // Skip this check if we're in play mode - we have worldId instead
-    if (isPlayMode && playWorldId) {
+    // Skip this check if we're in play mode - we have template from TemplateQuests
+    if (isPlayMode && playTemplate) {
       return;
     }
 
@@ -169,7 +168,7 @@ export default function CharacterSelectPage({ templateId, templateConfig, onConf
       // No template selected, redirect back
       navigate('/test-world');
     }
-  }, [navigate, templateConfig, isPlayMode, playWorldId]);
+  }, [navigate, templateConfig, isPlayMode, playTemplate]);
 
   const handleConfirm = () => {
     if (selectedCharacterData) {
@@ -177,17 +176,16 @@ export default function CharacterSelectPage({ templateId, templateConfig, onConf
       sessionStorage.setItem('selectedCharacterPath', selectedCharacterData.modelPath);
 
       // If in play mode, navigate directly to TestWorld with template and character
-      if (isPlayMode && playWorldId && playTemplate) {
+      if (isPlayMode && playTemplate) {
         // Store play mode data for TestWorld
         sessionStorage.setItem('playMode', 'true');
-        sessionStorage.setItem('playWorldId', playWorldId);
         sessionStorage.setItem('playTemplate', playTemplate);
-        if (playWorldData) {
-          sessionStorage.setItem('playWorldData', JSON.stringify(playWorldData));
+        if (questType) {
+          sessionStorage.setItem('playQuestType', questType);
         }
 
-        // Navigate to TestWorld with template parameter and character selection
-        navigate(`/test-world?template=${playTemplate}&mode=play&worldId=${playWorldId}&character=${selectedCharacterData.modelPath}`);
+        // Navigate to TestWorld with template parameter, play mode, and character selection
+        navigate(`/test-world?template=${playTemplate}&mode=play&character=${selectedCharacterData.modelPath}`);
         return;
       }
 

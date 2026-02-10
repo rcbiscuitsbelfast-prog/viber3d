@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { ArrowLeft, Sword, Scroll } from 'lucide-react';
 import ParallaxBackground from '@/components/ParallaxBackground';
@@ -27,6 +27,10 @@ const questTypes: QuestTypeOption[] = [
 
 export default function QuestTypeSelector() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Detect if coming from PLAY button (play mode) or BUILD button (build mode)
+  const isPlayMode = location.state?.mode === 'play';
 
   // Play background music for quest type selector (no need to reinit - done in App)
   useEffect(() => {
@@ -34,8 +38,13 @@ export default function QuestTypeSelector() {
   }, []);
 
   const handleSelectType = (typeTitle: string) => {
-    // Navigate directly to templates page when clicking a quest type
-    navigate('/templates', { state: { questType: typeTitle } });
+    // Navigate to templates page, passing along the mode (play or build)
+    navigate('/templates', {
+      state: {
+        questType: typeTitle,
+        mode: isPlayMode ? 'play' : 'build'
+      }
+    });
   };
 
   return (
