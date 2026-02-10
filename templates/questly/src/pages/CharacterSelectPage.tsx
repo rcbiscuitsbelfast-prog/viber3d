@@ -1,14 +1,8 @@
-import React, { useState, Suspense, useRef, useEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, Check } from 'lucide-react';
-import * as THREE from 'three';
 import { CHARACTER_OPTIONS } from '../components/CharacterSelector';
-import AnimatedCharacter from '../r3f/AnimatedCharacter';
-import { getAssetPath } from '../utils/assetPath';
-import { getWeaponConfig, getShieldConfig } from '../data/weapon-configs';
 
 interface CharacterSelectPageProps {
   templateId?: string;
@@ -16,140 +10,10 @@ interface CharacterSelectPageProps {
   onConfirm?: (characterId: string, characterPath: string) => void;
 }
 
-// Get asset ID from character path
-const getAssetId = (characterPath: string): string => {
-  const characterName = characterPath.split('/').pop()?.replace('.glb', '').toLowerCase() || 'rogue';
-  if (characterName.includes('mage')) return 'char_mage';
-  if (characterName.includes('ranger')) return 'char_ranger';
-  if (characterName.includes('barbarian')) return 'char_barbarian';
-  if (characterName.includes('rogue')) return 'char_rogue';
-  return 'char_knight'; // Default
-};
-
-// Get weapon path from character path
-const getWeaponPath = (characterPath: string): string | undefined => {
-  if (characterPath.includes('Mage')) return '/Assets/weapons/staff.gltf';
-  if (characterPath.includes('Ranger')) return '/Assets/weapons/bow.gltf';
-  if (characterPath.includes('Barbarian')) return '/Assets/weapons/sword_2handed.gltf';
-  if (characterPath.includes('Rogue')) return '/Assets/weapons/dagger.gltf';
-  return '/Assets/weapons/sword_1handed.gltf'; // Default for Knight
-};
-
-// Get shield path from character path
-const getShieldPath = (characterPath: string): string | undefined => {
-  if (characterPath.includes('Barbarian')) return '/Assets/weapons/shield_round_barbarian.gltf';
-  if (characterPath.includes('Mage') || characterPath.includes('Ranger')) return undefined; // No shield
-  return '/Assets/weapons/shield_round.gltf'; // Default shield for Knight/Rogue
-};
-
-// Character preview component for mini canvas
-function CharacterPreview({ 
-  characterPath, 
-  isSelected, 
-  onSelect 
-}: { 
-  characterPath: string; 
-  isSelected: boolean;
-  onSelect: () => void;
-}) {
-  const groupRef = useRef<THREE.Group>(null);
-  const assetId = getAssetId(characterPath);
-  const weaponPath = isSelected ? getWeaponPath(characterPath) : undefined;
-  const shieldPath = isSelected ? getShieldPath(characterPath) : undefined;
-  
-  // Get weapon/shield adjustments
-  const weaponAdjustments = weaponPath ? getWeaponConfig(weaponPath) : undefined;
-  const shieldAdjustments = shieldPath ? getShieldConfig(shieldPath) : undefined;
-  
-  return (
-    <group ref={groupRef} position={[0, 0, 0]} scale={isSelected ? 1.1 : 1.0}>
-      <AnimatedCharacter
-        characterPath={getAssetPath(characterPath)}
-        assetId={assetId}
-        characterId={`preview-${characterPath}`}
-        scale={1}
-        position={[0, 0, 0]}
-        rotation={[0, 0, 0]}
-        autoScale={false}
-        currentAnimation={isSelected ? 'idleCombat' : 'idle'}
-        weaponPath={weaponPath ? getAssetPath(weaponPath) : undefined}
-        shieldPath={shieldPath ? getAssetPath(shieldPath) : undefined}
-        weaponAdjustments={weaponAdjustments}
-        shieldAdjustments={shieldAdjustments}
-        animationTimeScale={0.8}
-      />
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[5, 5, 5]} intensity={0.8} />
-      <pointLight position={[-5, 5, -5]} intensity={0.4} />
-    </group>
-  );
-}
-
-// Mini canvas component
-function MiniCanvas({ 
-  character, 
-  isSelected, 
-  onSelect 
-}: { 
-  character: typeof CHARACTER_OPTIONS[0]; 
-  isSelected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <motion.div
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      onClick={onSelect}
-      className={`
-        relative w-48 h-80 rounded-lg overflow-hidden cursor-pointer transition-all
-        ${isSelected 
-          ? 'ring-4 ring-primary shadow-2xl shadow-primary/50' 
-          : 'ring-2 ring-slate-600 hover:ring-slate-500'
-        }
-      `}
-    >
-      <Canvas camera={{ position: [0, 2.2, 4.5], fov: 40 }}>
-        <Suspense fallback={null}>
-          <CharacterPreview 
-            characterPath={character.modelPath} 
-            isSelected={isSelected}
-            onSelect={onSelect}
-          />
-        </Suspense>
-        <OrbitControls 
-          enabled={false} 
-          target={[0, 1, 0]}
-          minDistance={2}
-          maxDistance={6}
-        />
-      </Canvas>
-      
-      {/* Character name overlay */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-white font-bold text-lg">{character.name}</h3>
-            <p className="text-slate-300 text-xs">{character.description}</p>
-          </div>
-          <span className="text-2xl">{character.icon}</span>
-        </div>
-      </div>
-      
-      {/* Selection indicator */}
-      {isSelected && (
-        <div className="absolute top-2 right-2 bg-primary rounded-full p-2">
-          <Check className="w-5 h-5 text-white" />
-        </div>
-      )}
-    </motion.div>
-  );
-}
-
 export default function CharacterSelectPage({ templateId, templateConfig, onConfirm }: CharacterSelectPageProps = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedCharacter, setSelectedCharacter] = useState<string>('rogue');
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const selectedCharacterData = CHARACTER_OPTIONS.find(c => c.id === selectedCharacter);
   const isPlayMode = location.state?.mode === 'play';
@@ -230,41 +94,48 @@ export default function CharacterSelectPage({ templateId, templateConfig, onConf
           {/* Instructions */}
           <div className="text-center mb-8">
             <p className="text-slate-300 text-lg">
-              Select a character to play as. Click to see them in combat stance.
+              Select your character
             </p>
           </div>
 
-          {/* Horizontal Scrolling Character Selection */}
-          <div 
-            ref={scrollContainerRef}
-            className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide"
-            style={{
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-            }}
-          >
+          {/* Grid Character Selection - Compact Cards */}
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 max-w-4xl mx-auto mb-8">
             {CHARACTER_OPTIONS.map((character) => (
-              <MiniCanvas
+              <button
                 key={character.id}
-                character={character}
-                isSelected={selectedCharacter === character.id}
-                onSelect={() => setSelectedCharacter(character.id)}
-              />
+                onClick={() => setSelectedCharacter(character.id)}
+                className={`
+                  aspect-square p-3 rounded-lg border-2 transition-all
+                  flex flex-col items-center justify-center gap-2
+                  ${selectedCharacter === character.id
+                    ? 'bg-blue-600/30 border-blue-500 scale-105 shadow-lg shadow-blue-500/50'
+                    : 'bg-slate-800/50 border-slate-700 hover:bg-slate-700/50 hover:border-slate-600'
+                  }
+                `}
+              >
+                <span className="text-4xl md:text-5xl">{character.icon}</span>
+                <span className="text-xs md:text-sm font-medium text-center leading-tight">
+                  {character.name}
+                </span>
+                {selectedCharacter === character.id && (
+                  <Check className="w-4 h-4 text-blue-400 absolute top-1 right-1" />
+                )}
+              </button>
             ))}
           </div>
 
-          {/* Selected Character Info */}
+          {/* Selected Character Info - Compact */}
           {selectedCharacterData && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-8 bg-slate-800/50 rounded-xl p-6 border border-slate-700 max-w-2xl mx-auto"
+              className="bg-slate-800/50 rounded-lg p-4 border border-slate-700 max-w-2xl mx-auto"
             >
-              <div className="flex items-center gap-4 mb-4">
-                <span className="text-4xl">{selectedCharacterData.icon}</span>
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">{selectedCharacterData.icon}</span>
                 <div>
-                  <h2 className="text-2xl font-bold">{selectedCharacterData.name}</h2>
-                  <p className="text-slate-400">{selectedCharacterData.description}</p>
+                  <h2 className="text-xl font-bold">{selectedCharacterData.name}</h2>
+                  <p className="text-slate-400 text-sm">{selectedCharacterData.description}</p>
                 </div>
               </div>
             </motion.div>
@@ -284,12 +155,6 @@ export default function CharacterSelectPage({ templateId, templateConfig, onConf
           </div>
         </div>
       </div>
-
-      <style>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
     </div>
   );
 }
