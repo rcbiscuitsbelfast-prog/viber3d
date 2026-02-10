@@ -3931,8 +3931,8 @@ export default function TestWorld({
           </div>
         </>
       ) : (
-        <div className="hidden lg:flex fixed top-0 left-0 right-0 z-30 h-14 md:h-16 bg-slate-900/95 backdrop-blur border-b-2 border-slate-600 shadow-lg items-center">
-          <div className="max-w-7xl mx-auto w-full px-2 md:px-4 flex items-center justify-between h-full gap-2">
+        <div className="flex fixed top-0 left-0 right-0 z-30 h-14 md:h-16 bg-slate-900/95 backdrop-blur border-b-2 border-slate-600 shadow-lg items-center overflow-x-auto">
+          <div className="w-full px-2 md:px-4 flex items-center justify-between h-full gap-2 min-w-max md:min-w-0">
             {/* Left: Questly Menu Button */}
             <button
               onClick={() => setSidebarOpen(true)}
@@ -3944,13 +3944,13 @@ export default function TestWorld({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </div>
-              <span className="font-display text-lg text-primary-foreground font-bold hidden sm:block">Questly</span>
+              <span className="font-display text-base md:text-lg text-primary-foreground font-bold hidden sm:inline">Questly</span>
             </button>
-            
-            {/* Center: Title (hidden on mobile) */}
-            <div className="flex-1 text-center hidden md:block min-w-0">
-              <h1 className="text-lg md:text-xl font-bold truncate">Test World</h1>
-              <p className="text-xs text-slate-400 hidden lg:block">Low-poly island terrain</p>
+
+            {/* Center: Title (responsive) */}
+            <div className="flex-1 text-center min-w-0 hidden sm:block">
+              <h1 className="text-sm md:text-lg lg:text-xl font-bold truncate">Test World</h1>
+              <p className="text-xs text-slate-400 hidden md:block">Low-poly island terrain</p>
             </div>
             
             {/* Right: Controls */}
