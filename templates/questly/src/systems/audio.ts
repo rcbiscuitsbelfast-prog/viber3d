@@ -40,11 +40,23 @@ class AudioManager {
       if (!enabled && this.musicAudio) {
         console.log('[AudioManager] Pausing music');
         this.musicAudio.pause();
-      } else if (enabled && this.musicAudio && this.currentTrack) {
-        console.log('[AudioManager] Resuming music');
-        this.musicAudio.play().catch((err) => {
-          console.warn('Failed to resume music:', err);
-        });
+      } else if (enabled) {
+        // When re-enabling music, check if we have a track to play
+        if (this.musicAudio && !this.musicAudio.paused) {
+          // Already playing, nothing to do
+          return;
+        }
+        if (this.musicAudio) {
+          // Resume existing paused track
+          console.log('[AudioManager] Resuming music');
+          this.musicAudio.play().catch((err) => {
+            console.warn('Failed to resume music:', err);
+          });
+        } else if (this.currentTrack) {
+          // No audio element yet, but we have a track - start playing it
+          console.log('[AudioManager] Starting music for track:', this.currentTrack);
+          this.playMusic(this.currentTrack);
+        }
       }
     });
 
