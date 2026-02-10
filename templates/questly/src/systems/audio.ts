@@ -70,13 +70,14 @@ class AudioManager {
    * Play background music
    * @param trackId - Track identifier (e.g., 'track_2_1', 'track_2_5')
    * @param loop - Whether to loop the track (default: true)
+   * @param ignoreEnabled - If true, play regardless of musicEnabled setting (for splash screen)
    */
-  playMusic(trackId: string, loop: boolean = true): void {
+  playMusic(trackId: string, loop: boolean = true, ignoreEnabled: boolean = false): void {
     // Auto-initialize if not already done
     if (!this.isInitialized) {
       console.log('[AudioManager] Auto-initializing on first playMusic call');
       this.init().then(() => {
-        this.playMusic(trackId, loop);
+        this.playMusic(trackId, loop, ignoreEnabled);
       });
       return;
     }
@@ -90,8 +91,8 @@ class AudioManager {
     // Stop current music
     this.stopMusic();
 
-    // Check if music is enabled
-    if (!this.musicEnabled) {
+    // Check if music is enabled (unless ignoreEnabled is true)
+    if (!ignoreEnabled && !this.musicEnabled) {
       console.log(`[AudioManager] Music disabled, will play ${trackId} when enabled`);
       this.currentTrack = trackId; // Remember the track for when music is re-enabled
       return;

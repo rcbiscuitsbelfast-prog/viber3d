@@ -170,9 +170,9 @@ export default function SplashScreen() {
     setIslandLoaded(true);
   };
 
-  // Play splash screen music on component mount
+  // Play splash screen music on component mount - always play regardless of mute setting
   useEffect(() => {
-    globalAudioManager.playMusic('track_1');
+    globalAudioManager.playMusic('track_1', true, true); // ignoreEnabled = true
   }, []);
 
   const handleStart = () => {
