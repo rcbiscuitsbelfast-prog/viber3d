@@ -212,11 +212,12 @@ export default function PlayerDashboard() {
             <button
               onClick={() => {
                 recordWorldEvent(world.id, 'played');
-                // If in play mode, go to character selection first, then world preview
+                // If in play mode, go to templates page first to load the world's template
                 if (isPlayMode) {
-                  // Store world ID for character selection to use
+                  // Store world ID and world data for templates page
                   sessionStorage.setItem('playWorldId', world.id);
-                  navigate('/character-select', { state: { mode: 'play', worldId: world.id } });
+                  sessionStorage.setItem('playWorldData', JSON.stringify(world));
+                  navigate('/templates', { state: { mode: 'play', worldId: world.id, worldData: world } });
                 } else {
                   navigate(`/quest-builder?worldId=${world.id}`);
                 }

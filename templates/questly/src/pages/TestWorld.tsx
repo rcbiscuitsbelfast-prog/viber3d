@@ -2660,13 +2660,42 @@ export default function TestWorld({
   const [searchParams] = useSearchParams();
   const directTestMode = searchParams.get('direct') === 'true';
   const templateParam = searchParams.get('template'); // 'forest' or 'island' from TemplateQuests
-  
+  const modeParam = searchParams.get('mode'); // 'play' mode from PLAY flow
+  const characterParam = searchParams.get('character'); // Character path from character select
+  const worldIdParam = searchParams.get('worldId'); // World ID from PLAY flow
+
+  // Play mode detection - PLAY flow should hide ALL builder UI
+  const isPlayMode = previewMode || modeParam === 'play';
+
   // Manual placement mode
   const [manualMode, setManualMode] = useState(false);
-  const [testMode, setTestMode] = useState(directTestMode); // Start in test mode if direct link
-  const [selectedCharacter, setSelectedCharacter] = useState('rogue');
+  const [testMode, setTestMode] = useState(directTestMode || isPlayMode); // Start in test mode if direct link OR play mode
+
+  // Character selection - use URL param if in play mode, otherwise from sessionStorage or default
+  const initialCharacter = () => {
+    if (isPlayMode && characterParam) {
+      // Extract character ID from path (e.g., "/Assets/characters/Rogue.glb" -> "rogue")
+      const pathLower = characterParam.toLowerCase();
+      if (pathLower.includes('mage')) return 'mage';
+      if (pathLower.includes('ranger')) return 'ranger';
+      if (pathLower.includes('barbarian')) return 'barbarian';
+      if (pathLower.includes('knight')) return 'knight';
+      return 'rogue';
+    }
+    if (propCharacterPath) {
+      const pathLower = propCharacterPath.toLowerCase();
+      if (pathLower.includes('mage')) return 'mage';
+      if (pathLower.includes('ranger')) return 'ranger';
+      if (pathLower.includes('barbarian')) return 'barbarian';
+      if (pathLower.includes('knight')) return 'knight';
+      return 'rogue';
+    }
+    return sessionStorage.getItem('selectedCharacterPath') || 'rogue';
+  };
+
+  const [selectedCharacter, setSelectedCharacter] = useState(initialCharacter());
   const [characterSelectionModalOpen, setCharacterSelectionModalOpen] = useState(false);
-  const [characterSelectionComplete, setCharacterSelectionComplete] = useState(false); // Gate for player spawn
+  const [characterSelectionComplete, setCharacterSelectionComplete] = useState(isPlayMode); // Skip modal in play mode
   const [enablePhysics, setEnablePhysics] = useState(false); // Toggle physics
   const animationTriggerRef = useRef<((anim: string) => void) | null>(null);
   

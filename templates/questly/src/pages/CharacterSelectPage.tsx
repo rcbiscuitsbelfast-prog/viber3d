@@ -154,6 +154,8 @@ export default function CharacterSelectPage({ templateId, templateConfig, onConf
   const selectedCharacterData = CHARACTER_OPTIONS.find(c => c.id === selectedCharacter);
   const isPlayMode = location.state?.mode === 'play';
   const playWorldId = location.state?.worldId;
+  const playTemplate = location.state?.template; // Template from TemplateQuests
+  const playWorldData = location.state?.worldData; // World data from TemplateQuests
 
   // Load template from sessionStorage if available (skip check in play mode)
   useEffect(() => {
@@ -174,16 +176,18 @@ export default function CharacterSelectPage({ templateId, templateConfig, onConf
       // Store character selection
       sessionStorage.setItem('selectedCharacterPath', selectedCharacterData.modelPath);
 
-      // If in play mode, navigate to WorldPreview with world data
-      if (isPlayMode && playWorldId) {
-        navigate('/world-preview', {
-          state: {
-            mode: 'play',
-            worldId: playWorldId,
-            characterPath: selectedCharacterData.modelPath,
-            readOnly: true,
-          }
-        });
+      // If in play mode, navigate directly to TestWorld with template and character
+      if (isPlayMode && playWorldId && playTemplate) {
+        // Store play mode data for TestWorld
+        sessionStorage.setItem('playMode', 'true');
+        sessionStorage.setItem('playWorldId', playWorldId);
+        sessionStorage.setItem('playTemplate', playTemplate);
+        if (playWorldData) {
+          sessionStorage.setItem('playWorldData', JSON.stringify(playWorldData));
+        }
+
+        // Navigate to TestWorld with template parameter and character selection
+        navigate(`/test-world?template=${playTemplate}&mode=play&worldId=${playWorldId}&character=${selectedCharacterData.modelPath}`);
         return;
       }
 

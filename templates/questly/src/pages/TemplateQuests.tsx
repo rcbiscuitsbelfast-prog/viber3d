@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, Mountain, Trees, Lock } from 'lucide-react';
 import ParallaxBackground from '@/components/ParallaxBackground';
 import { globalAudioManager } from '@/systems/audio';
+import { loadWorld } from '@/utils/worldStorage';
 
 interface WorldOption {
   id: string;
@@ -32,16 +33,68 @@ const worldOptions: WorldOption[] = [
 
 export default function TemplateQuests() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [worldTemplate, setWorldTemplate] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Detect play mode
+  const isPlayMode = location.state?.mode === 'play';
+  const playWorldId = location.state?.worldId;
 
   // Play background music for template selection (no need to reinit - done in App)
   useEffect(() => {
     globalAudioManager.playMusic('track_5');
   }, []);
 
+  // In play mode, load the world's template and auto-proceed
+  useEffect(() => {
+    if (isPlayMode && playWorldId) {
+      loadWorld(playWorldId).then((worldData) => {
+        if (worldData) {
+          // Extract template from world data (should be 'forest' or 'island')
+          const template = worldData.worldType || worldData.template || 'forest';
+          setWorldTemplate(template);
+
+          // Auto-proceed to character selection after a brief moment
+          setTimeout(() => {
+            navigate('/character-select', {
+              state: {
+                mode: 'play',
+                worldId: playWorldId,
+                template: template,
+                worldData: worldData
+              }
+            });
+          }, 800); // Brief delay to show the template
+        }
+        setIsLoading(false);
+      }).catch((error) => {
+        console.error('[TemplateQuests] Failed to load world:', error);
+        setIsLoading(false);
+      });
+    } else {
+      setIsLoading(false);
+    }
+  }, [isPlayMode, playWorldId, navigate]);
+
   const handleSelectTemplate = (templateId: string) => {
     // Navigate directly to test-world with template param when clicking a template
     navigate(`/test-world?template=${templateId}`);
   };
+
+  // Show loading state in play mode
+  if (isPlayMode && isLoading) {
+    return (
+      <ParallaxBackground>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-primary mb-4">Loading World...</h2>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          </div>
+        </div>
+      </ParallaxBackground>
+    );
+  }
 
   return (
     <ParallaxBackground>
@@ -54,7 +107,9 @@ export default function TemplateQuests() {
           >
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
-          <span className="text-primary font-display font-bold">Choose Your World</span>
+          <span className="text-primary font-display font-bold">
+            {isPlayMode ? 'Loading World Template...' : 'Choose Your World'}
+          </span>
           <div className="w-16" />
         </div>
 
@@ -65,10 +120,12 @@ export default function TemplateQuests() {
           className="text-center mb-10"
         >
           <h1 className="text-3xl md:text-4xl font-bold font-serif text-primary mb-2">
-            Pick a World Template
+            {isPlayMode ? 'Preparing Your Adventure' : 'Pick a World Template'}
           </h1>
           <p className="text-muted-foreground font-display">
-            Choose the terrain for your adventure
+            {isPlayMode
+              ? `Loading ${worldTemplate || 'world'} template...`
+              : 'Choose the terrain for your adventure'}
           </p>
         </motion.div>
 
