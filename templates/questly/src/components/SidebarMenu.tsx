@@ -3,6 +3,8 @@ import { Home, Settings, Music, LogIn, LayoutDashboard, X } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
+import SettingsOverlay from './SettingsOverlay';
 
 interface SidebarMenuProps {
   isOpen: boolean;
@@ -13,6 +15,7 @@ export default function SidebarMenu({ isOpen, onClose }: SidebarMenuProps) {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuthStore();
   const musicEnabled = useSettingsStore((state) => state.musicEnabled);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const setMusicEnabled = (enabled: boolean) => {
     useSettingsStore.setState({ musicEnabled: enabled });
     // The audio manager subscribes to this setting automatically
@@ -45,7 +48,7 @@ export default function SidebarMenu({ isOpen, onClose }: SidebarMenuProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]"
           />
         )}
       </AnimatePresence>
@@ -58,7 +61,7 @@ export default function SidebarMenu({ isOpen, onClose }: SidebarMenuProps) {
             animate={{ x: 0 }}
             exit={{ x: -300 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 left-0 h-full w-72 bg-slate-900/98 backdrop-blur-lg border-r-2 border-slate-700 shadow-2xl z-50 flex flex-col"
+            className="fixed top-0 left-0 h-full w-72 bg-slate-900/98 backdrop-blur-lg border-r-2 border-slate-700 shadow-2xl z-[70] flex flex-col"
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b-2 border-slate-700 bg-slate-800/50">
@@ -130,10 +133,7 @@ export default function SidebarMenu({ isOpen, onClose }: SidebarMenuProps) {
 
               {/* Settings */}
               <button
-                onClick={() => {
-                  navigate('/settings');
-                  onClose();
-                }}
+                onClick={() => setSettingsOpen(true)}
                 className="w-full flex items-center gap-3 p-3 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors text-slate-300 hover:text-white"
               >
                 <Settings className="w-5 h-5" />
@@ -143,6 +143,12 @@ export default function SidebarMenu({ isOpen, onClose }: SidebarMenuProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Settings Overlay */}
+      <SettingsOverlay
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </>
   );
 }

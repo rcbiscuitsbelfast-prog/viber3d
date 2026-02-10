@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import R3FCanvas from '@/r3f/R3FCanvas';
 import SignCanvas from '@/r3f/SignCanvas';
 import { r3f } from '@/lib/tunnel';
 import { SplashIslandScene } from '@/r3f/SplashIslandScene';
 import { globalAudioManager } from '@/systems/audio';
+import AvatarController2D from '@/components/AvatarController2D';
+import SpeechBubbleController from '@/components/SpeechBubbleController';
+import { useAvatarSettings } from '@/stores/settingsStore';
 
 // LocalStorage keys for fade duration
 const FADE_DURATION_KEY = 'splash_fade_duration';
@@ -63,11 +66,18 @@ function SplashScene({
 export default function SplashScreen() {
   const navigate = useNavigate();
   const [showCanvas, setShowCanvas] = useState(true);
-  
+
   // Loading states
   const [islandLoaded, setIslandLoaded] = useState(false);
   const [islandVisible, setIslandVisible] = useState(false);
   const [buttonVisible, setButtonVisible] = useState(false);
+
+  // Dru states
+  const [druVisible, setDruVisible] = useState(false);
+  const [druSpeechText, setDruSpeechText] = useState<string>('');
+  const [showDruSpeech, setShowDruSpeech] = useState(false);
+  const druTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { avatarSettings } = useAvatarSettings();
   
   // Fade duration with localStorage persistence
   const [fadeDuration] = useState(() => {
@@ -117,10 +127,33 @@ export default function SplashScreen() {
       setTimeout(() => {
         setIslandVisible(true);
         const buttonDelay = islandFadeDurationMs;
-        setTimeout(() => setButtonVisible(true), buttonDelay);
+        setTimeout(() => {
+          // Show Dru first, just before button appears
+          setDruVisible(true);
+          setDruSpeechText("You should probably hit, start building... Or whatever, I don't really care...");
+          setShowDruSpeech(true);
+
+          // Start 30-second timeout for reminder message
+          druTimeoutRef.current = setTimeout(() => {
+            setDruSpeechText("You should probably hit, start building... Or whatever, I don't really care...");
+            setShowDruSpeech(true);
+          }, 30000);
+
+          // Show button after brief delay
+          setTimeout(() => setButtonVisible(true), 500);
+        }, buttonDelay);
       }, islandFadeDelayMs);
     }
   }, [fadeDuration, islandLoaded]);
+
+  // Cleanup Dru timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (druTimeoutRef.current) {
+        clearTimeout(druTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Animate blur reduction as island fades in
   useEffect(() => {
@@ -176,8 +209,20 @@ export default function SplashScreen() {
   }, []);
 
   const handleStart = () => {
-    setShowCanvas(false);
-    navigate('/menu');
+    // Clear timeout if user clicks before 30 seconds
+    if (druTimeoutRef.current) {
+      clearTimeout(druTimeoutRef.current);
+    }
+
+    // Show Dru's goodbye message
+    setDruSpeechText("If you click Start Building, I'd probably have more to say on the next page...");
+    setShowDruSpeech(true);
+
+    // Navigate after brief delay to show message
+    setTimeout(() => {
+      setShowCanvas(false);
+      navigate('/menu');
+    }, 2000);
   };
 
   return (
@@ -246,6 +291,39 @@ export default function SplashScreen() {
       
       {/* UI Content on Top */}
       <div className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden text-white px-4 z-20 pointer-events-auto">
+        {/* Dru Avatar - Appears before button */}
+        <AnimatePresence>
+          {druVisible && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.5 }}
+              className="fixed bottom-32 right-8 z-30 pointer-events-none"
+            >
+              <div className="relative">
+                <AvatarController2D
+                  size={100}
+                  mode={showDruSpeech ? 'talk' : 'idle'}
+                />
+                <div className="absolute -top-24 right-0 pointer-events-auto">
+                  <SpeechBubbleController
+                    text={druSpeechText}
+                    visible={showDruSpeech}
+                    durationMs={8000}
+                    onHide={() => setShowDruSpeech(false)}
+                    style={{
+                      transform: 'scale(1)',
+                      transformOrigin: 'bottom right',
+                      zIndex: 111
+                    }}
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Start Button */}
         <div
           className="absolute inset-x-0 z-10 flex justify-center"

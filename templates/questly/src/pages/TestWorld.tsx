@@ -172,8 +172,8 @@ function CharacterController({
   const groupRef = useRef<THREE.Group>(null);
   const positionRef = useRef<THREE.Vector3>(new THREE.Vector3(...startPosition));
   const [position, setPosition] = useState<THREE.Vector3>(new THREE.Vector3(...startPosition)); // For React rendering
-  const rotationRef = useRef(isPlayMode ? Math.PI : 0); // In play mode, start facing away; in builder, face camera
-  const [rotation, setRotation] = useState(isPlayMode ? Math.PI : 0); // In play mode, start facing away; in builder, face camera
+  const rotationRef = useRef(0); // Always start at 0 (facing forward/north)
+  const [rotation, setRotation] = useState(0); // Always start at 0 (facing forward/north)
   const [model, setModel] = useState<THREE.Object3D | null>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
   const [spawnOpacity, setSpawnOpacity] = useState(0); // Start invisible for spawn fade-in
