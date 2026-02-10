@@ -30,23 +30,27 @@ class AudioManager {
     if (this.isInitialized) return;
 
     // Subscribe to music enabled setting changes
-    useSettingsStore.subscribe(
-      (state) => state.musicEnabled,
-      (enabled) => {
-        this.musicEnabled = enabled;
-        if (!enabled && this.musicAudio) {
-          this.musicAudio.pause();
-        } else if (enabled && this.musicAudio && this.currentTrack) {
-          this.musicAudio.play().catch((err) => {
-            console.warn('Failed to resume music:', err);
-          });
-        }
-      },
-      { fireImmediately: true }
-    );
+    useSettingsStore.subscribe((state) => {
+      const enabled = state.musicEnabled;
+      console.log('[AudioManager] Music setting changed:', enabled);
+
+      if (this.musicEnabled === enabled) return; // No change
+
+      this.musicEnabled = enabled;
+      if (!enabled && this.musicAudio) {
+        console.log('[AudioManager] Pausing music');
+        this.musicAudio.pause();
+      } else if (enabled && this.musicAudio && this.currentTrack) {
+        console.log('[AudioManager] Resuming music');
+        this.musicAudio.play().catch((err) => {
+          console.warn('Failed to resume music:', err);
+        });
+      }
+    });
 
     // Get initial music enabled state
     this.musicEnabled = useSettingsStore.getState().musicEnabled;
+    console.log('[AudioManager] Initial music enabled state:', this.musicEnabled);
     this.isInitialized = true;
   }
 
