@@ -29,6 +29,10 @@ import FloatingInteractionIcon from '../components/FloatingInteractionIcon';
 import { ActionBar, ActionSlot } from '../components/ActionBar';
 import { RadialMenu } from '../components/RadialMenu';
 import Joystick from '../components/Joystick';
+import DynamicJoystick from '../components/DynamicJoystick';
+import TouchCameraControl from '../components/TouchCameraControl';
+import MobileActionButtons from '../components/MobileActionButtons';
+import { useDeviceDetection } from '../hooks/useDeviceDetection';
 // import ModularCastle from '../components/ModularCastle'; // Removed - using saved builds instead
 import { CastleAsset, BUILDING_ASSET_PACKS } from './CastleBuilder';
 import { QuestProgressTracker } from '../components/QuestProgressTracker';
@@ -167,6 +171,8 @@ function CharacterController({
   onRef?: (ref: { playAnimation: (name: string) => void }) => void;
   isPlayMode?: boolean;
   joystickMove?: React.MutableRefObject<{ x: number; y: number }>;
+  cameraOrbitAngle?: React.MutableRefObject<number>;
+  cameraOrbitPitch?: React.MutableRefObject<number>;
 }) {
   const characterRef = useRef<THREE.Group>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -524,8 +530,8 @@ function CharacterController({
       }
     }
 
-    // Auto-rotation: After 1.5 seconds, smoothly rotate to face away from camera (builder mode only)
-    if (!isPlayMode && !hasAutoRotated.current) {
+    // Auto-rotation: After 1.5 seconds, smoothly rotate to face away from camera (both play and builder mode)
+    if (!hasAutoRotated.current) {
       const timeSinceSpawn = (Date.now() - spawnTime.current) / 1000;
       if (timeSinceSpawn > 1.5) {
         const targetRotation = Math.PI;
@@ -539,9 +545,12 @@ function CharacterController({
       }
     }
     
-    // Check if moving
+    // Check if moving (keyboard or joystick)
     const wasMoving = isMoving.current;
-    isMoving.current = keys.current['w'] || keys.current['s'] || keys.current['arrowup'] || keys.current['arrowdown'];
+    const joystick = joystickMove?.current || {x: 0, y: 0};
+    const joystickMagnitude = Math.sqrt(joystick.x * joystick.x + joystick.y * joystick.y);
+    const joystickActive = joystickMagnitude > 0.2;
+    isMoving.current = keys.current['w'] || keys.current['s'] || keys.current['arrowup'] || keys.current['arrowdown'] || joystickActive;
     
     // Update animation based on movement
     if (animationsLoaded) {
@@ -583,32 +592,57 @@ function CharacterController({
       const rightKey = keys.current['d'] || keys.current['arrowright'];
 
       // Check joystick input (threshold 0.2 to avoid drift)
-      const forwardJoy = joystickMove ? joystickMove.current.y < -0.2 : false;
-      const backwardJoy = joystickMove ? joystickMove.current.y > 0.2 : false;
-      const leftJoy = joystickMove ? joystickMove.current.x < -0.2 : false;
-      const rightJoy = joystickMove ? joystickMove.current.x > 0.2 : false;
+      const joystick = joystickMove?.current || {x: 0, y: 0};
+      const joystickMagnitude = Math.sqrt(joystick.x * joystick.x + joystick.y * joystick.y);
+      const joystickActive = joystickMagnitude > 0.2;
 
-      // Forward/backward movement (keyboard OR joystick)
-      if (forwardKey || forwardJoy) {
-        velocity.current.z = -moveSpeed * delta;
-      } else if (backwardKey || backwardJoy) {
-        velocity.current.z = moveSpeed * delta;
-      } else {
-        velocity.current.z = 0;
-      }
+      // Joystick movement with auto-facing (Roblox style)
+      if (joystickActive) {
+        // Calculate movement direction from joystick
+        const joystickAngle = Math.atan2(joystick.x, -joystick.y); // Negative Y because joystick Y is inverted
 
-      // Rotation (keyboard OR joystick)
-      if (leftKey || leftJoy) {
-        rotationRef.current += rotSpeed * delta;
-        setRotation(rotationRef.current); // Update state for React rendering
+        // Get camera orbit angle to calculate world-space movement
+        const cameraAngle = cameraOrbitAngle?.current || 0;
+        const worldAngle = joystickAngle + cameraAngle;
+
+        // Move in world-space direction
+        const moveStrength = Math.min(joystickMagnitude, 1.0) * moveSpeed * delta;
+        velocity.current.x = Math.sin(worldAngle) * moveStrength;
+        velocity.current.z = Math.cos(worldAngle) * moveStrength;
+
+        // Auto-face movement direction (smooth rotation)
+        const targetRotation = worldAngle;
+        const rotationDiff = targetRotation - rotationRef.current;
+        // Normalize angle difference to -PI to PI
+        let normalizedDiff = ((rotationDiff + Math.PI) % (Math.PI * 2)) - Math.PI;
+        // Smooth rotation
+        rotationRef.current += normalizedDiff * Math.min(delta * 8, 1); // 8 = rotation speed
+        setRotation(rotationRef.current);
       }
-      if (rightKey || rightJoy) {
-        rotationRef.current -= rotSpeed * delta;
-        setRotation(rotationRef.current); // Update state for React rendering
+      // Keyboard movement (existing WASD behavior for desktop)
+      else {
+        // Forward/backward movement
+        if (forwardKey) {
+          velocity.current.z = -moveSpeed * delta;
+        } else if (backwardKey) {
+          velocity.current.z = moveSpeed * delta;
+        } else {
+          velocity.current.z = 0;
+        }
+
+        // Rotation (A/D keys on desktop)
+        if (leftKey) {
+          rotationRef.current += rotSpeed * delta;
+          setRotation(rotationRef.current);
+        }
+        if (rightKey) {
+          rotationRef.current -= rotSpeed * delta;
+          setRotation(rotationRef.current);
+        }
       }
     } else {
       // No movement during spawn animation
-      velocity.current.z = 0;
+      velocity.current.set(0, 0, 0);
     }
     
     // Use ref for rotation (immediate, no state lag)
@@ -740,9 +774,24 @@ function CharacterController({
     
     // Position camera based on view mode (only if third-person, otherwise CameraController handles it)
     if (cameraView === 'third-person' || !cameraView) {
-      const cameraOffset = new THREE.Vector3(0, 4, 6);
-      cameraOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), currentRotation); // Use ref for sync
-      camera.position.copy(positionRef.current).add(cameraOffset);
+      // Base offset (distance from character)
+      const distance = 6;
+      const height = 4;
+
+      // Apply orbit angle (from touch camera control)
+      const orbitAngle = cameraOrbitAngle?.current || 0;
+      const orbitPitch = cameraOrbitPitch?.current || 0.3;
+
+      // Calculate camera position based on orbit
+      const offsetX = Math.sin(orbitAngle) * Math.cos(orbitPitch) * distance;
+      const offsetY = Math.sin(orbitPitch) * distance + height;
+      const offsetZ = Math.cos(orbitAngle) * Math.cos(orbitPitch) * distance;
+
+      camera.position.set(
+        positionRef.current.x + offsetX,
+        positionRef.current.y + offsetY,
+        positionRef.current.z + offsetZ
+      );
       camera.lookAt(positionRef.current.x, positionRef.current.y + 1, positionRef.current.z);
     }
   });
@@ -2706,6 +2755,14 @@ export default function TestWorld({
   const [testMode, setTestMode] = useState(directTestMode || isPlayMode); // Start in test mode if direct link OR play mode
   const joystickMove = useRef({ x: 0, y: 0 }); // Virtual joystick input for mobile (shared with CharacterController)
 
+  // Device detection for mobile controls
+  const { isMobile, isTouchDevice } = useDeviceDetection();
+  const showMobileControls = isMobile || isTouchDevice;
+
+  // Camera orbit state for mobile touch camera control
+  const cameraOrbitAngle = useRef(0); // Horizontal orbit angle
+  const cameraOrbitPitch = useRef(0.3); // Vertical pitch (slight downward angle)
+
   // Character selection - use URL param if in play mode, otherwise from sessionStorage or default
   const initialCharacter = () => {
     if (isPlayMode && characterParam) {
@@ -3727,7 +3784,50 @@ export default function TestWorld({
     // Close template modal
     setTemplateModalOpen(false);
   }, []);
-  
+
+  // Mobile camera rotation handler - Roblox-style orbit camera
+  const handleCameraRotate = useCallback((deltaX: number, deltaY: number) => {
+    const sensitivity = 0.003;
+
+    // Horizontal orbit
+    cameraOrbitAngle.current -= deltaX * sensitivity;
+
+    // Vertical pitch (clamped)
+    cameraOrbitPitch.current = Math.max(
+      0.1, // Min pitch (looking down)
+      Math.min(Math.PI / 2.5, cameraOrbitPitch.current - deltaY * sensitivity) // Max pitch (looking up)
+    );
+  }, []);
+
+  // Mobile jump button handler
+  const handleMobileJump = useCallback(() => {
+    // Simulate space key press for character controller
+    if (characterControllerRef.current) {
+      characterControllerRef.current.playAnimation('jump');
+    }
+  }, []);
+
+  // Mobile interact button handler
+  const handleMobileInteract = useCallback(() => {
+    // Trigger interact animation
+    if (characterControllerRef.current) {
+      characterControllerRef.current.playAnimation('interact');
+    }
+
+    // Find and interact with nearby NPC
+    const nearestNPC = Array.from(npcPositionsRef.current.entries())
+      .map(([id, pos]) => ({
+        id,
+        distance: characterPositionRef.current.distanceTo(pos)
+      }))
+      .filter(npc => npc.distance < 3)
+      .sort((a, b) => a.distance - b.distance)[0];
+
+    if (nearestNPC) {
+      handleNPCInteraction(nearestNPC.id);
+    }
+  }, [handleNPCInteraction]);
+
   // Check for pending template from character selection page FIRST (before opening modal)
   useEffect(() => {
     const pendingTemplate = sessionStorage.getItem('pendingTemplate');
@@ -5589,6 +5689,8 @@ export default function TestWorld({
                     npcPositionsRef={npcPositionsRef}
                     isPlayMode={isPlayMode}
                     joystickMove={joystickMove}
+                    cameraOrbitAngle={cameraOrbitAngle}
+                    cameraOrbitPitch={cameraOrbitPitch}
                     onAnimationTrigger={(crossfade) => {
                   if (animationTriggerRef.current) {
                       animationTriggerRef.current = crossfade;
@@ -6128,13 +6230,31 @@ export default function TestWorld({
             }}
           />
 
-          {/* Virtual Joystick - Show in play mode only */}
-          {isPlayMode && (
-            <Joystick
-              onMove={(dx, dy) => {
-                joystickMove.current = { x: dx, y: dy };
-              }}
-            />
+          {/* Mobile Controls - Roblox-style dynamic joystick, camera, and action buttons */}
+          {showMobileControls && testMode && (
+            <>
+              <DynamicJoystick
+                onMove={(dx, dy) => {
+                  joystickMove.current = {x: dx, y: dy};
+                }}
+                onRelease={() => {
+                  joystickMove.current = {x: 0, y: 0};
+                }}
+                visible={true}
+              />
+
+              <TouchCameraControl
+                onRotate={handleCameraRotate}
+                visible={true}
+              />
+
+              <MobileActionButtons
+                onJump={handleMobileJump}
+                onInteract={handleMobileInteract}
+                visible={true}
+                showInteract={npcPositionsRef.current.size > 0} // Show interact if any NPCs exist
+              />
+            </>
           )}
 
           {/* Quest Progress Tracker - Show in play/preview mode, centered on mobile */}
