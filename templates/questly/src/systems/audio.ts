@@ -9,6 +9,7 @@ class AudioManager {
   private currentTrack: string | null = null;
   private isInitialized = false;
   private musicEnabled = true;
+  private pendingIgnoreEnabled = false; // Track if pending playback should ignore enabled setting
 
   // Track paths - update these when music files are added
   private readonly trackPaths: Record<string, string> = {
@@ -95,8 +96,12 @@ class AudioManager {
     if (!ignoreEnabled && !this.musicEnabled) {
       console.log(`[AudioManager] Music disabled, will play ${trackId} when enabled`);
       this.currentTrack = trackId; // Remember the track for when music is re-enabled
+      this.pendingIgnoreEnabled = false;
       return;
     }
+
+    // Store ignoreEnabled flag for fallback playback
+    this.pendingIgnoreEnabled = ignoreEnabled;
 
     const trackPath = this.trackPaths[trackId];
     if (!trackPath) {
@@ -141,10 +146,16 @@ class AudioManager {
         console.warn(`[AudioManager] Failed to play music track ${trackId}:`, err);
         console.warn(`[AudioManager] Track path: ${trackPath}`);
         console.warn(`[AudioManager] Music enabled: ${this.musicEnabled}`);
+        console.warn(`[AudioManager] Ignore enabled: ${ignoreEnabled}`);
         // User interaction may be required - try to play on next user interaction
+        // Store the current track so we can reference it in the callback
+        this.currentTrack = trackId;
         // Add a one-time click listener to start music
         const tryPlayOnInteraction = () => {
-          if (this.musicAudio && this.currentTrack === trackId) {
+          // Check if we should play regardless of mute setting or respect it
+          const shouldPlay = this.pendingIgnoreEnabled || this.musicEnabled;
+          if (this.musicAudio && shouldPlay) {
+            console.log(`[AudioManager] Attempting to play after user interaction (ignoreEnabled: ${this.pendingIgnoreEnabled})`);
             this.musicAudio.play()
               .then(() => {
                 console.log(`[AudioManager] Music started after user interaction`);
@@ -153,7 +164,10 @@ class AudioManager {
               })
               .catch(() => {
                 // Still failed, keep listener
+                console.warn(`[AudioManager] Still failed to play after user interaction`);
               });
+          } else {
+            console.log(`[AudioManager] Skipping playback after interaction - shouldPlay: ${shouldPlay}`);
           }
         };
         document.addEventListener('click', tryPlayOnInteraction, { once: true });
@@ -171,6 +185,7 @@ class AudioManager {
       this.musicAudio = null;
     }
     this.currentTrack = null;
+    this.pendingIgnoreEnabled = false;
   }
 
   /**
