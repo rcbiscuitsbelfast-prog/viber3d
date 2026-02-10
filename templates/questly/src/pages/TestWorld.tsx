@@ -186,6 +186,7 @@ function CharacterController({
   const hasAutoRotated = useRef(false);
   const spawnTime = useRef(Date.now());
   const hasSpawnAnimated = useRef(false); // Track if spawn fade/scale animation completed
+  const [movementEnabled, setMovementEnabled] = useState(false); // Disable movement during spawn animation
   
   // Load KayKit character model
   useEffect(() => {
@@ -249,6 +250,16 @@ function CharacterController({
 
     loadCharacter();
   }, [characterModelPath, avatarScale]);
+
+  // Enable movement after spawn delay
+  useEffect(() => {
+    const delay = isPlayMode ? 500 : 2500; // Shorter delay in play mode (no rotation animation)
+    const timer = setTimeout(() => {
+      setMovementEnabled(true);
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [isPlayMode]);
 
   useEffect(() => {
     if (modelLoaded) {
@@ -559,24 +570,29 @@ function CharacterController({
     
     // Apply gravity with smoother curve
     verticalVelocity.current += gravity * delta;
-    
-    // WASD movement
-    if (keys.current['w'] || keys.current['arrowup']) {
-      velocity.current.z = -moveSpeed * delta;
-    } else if (keys.current['s'] || keys.current['arrowdown']) {
-      velocity.current.z = moveSpeed * delta;
+
+    // WASD movement - only if movement is enabled
+    if (movementEnabled) {
+      if (keys.current['w'] || keys.current['arrowup']) {
+        velocity.current.z = -moveSpeed * delta;
+      } else if (keys.current['s'] || keys.current['arrowdown']) {
+        velocity.current.z = moveSpeed * delta;
+      } else {
+        velocity.current.z = 0;
+      }
+
+      // Rotation - update ref immediately for camera sync
+      if (keys.current['a'] || keys.current['arrowleft']) {
+        rotationRef.current += rotSpeed * delta;
+        setRotation(rotationRef.current); // Update state for React rendering
+      }
+      if (keys.current['d'] || keys.current['arrowright']) {
+        rotationRef.current -= rotSpeed * delta;
+        setRotation(rotationRef.current); // Update state for React rendering
+      }
     } else {
+      // No movement during spawn animation
       velocity.current.z = 0;
-    }
-    
-    // Rotation - update ref immediately for camera sync
-    if (keys.current['a'] || keys.current['arrowleft']) {
-      rotationRef.current += rotSpeed * delta;
-      setRotation(rotationRef.current); // Update state for React rendering
-    }
-    if (keys.current['d'] || keys.current['arrowright']) {
-      rotationRef.current -= rotSpeed * delta;
-      setRotation(rotationRef.current); // Update state for React rendering
     }
     
     // Use ref for rotation (immediate, no state lag)
