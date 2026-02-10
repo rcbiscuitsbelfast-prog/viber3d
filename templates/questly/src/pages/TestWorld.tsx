@@ -3919,32 +3919,8 @@ export default function TestWorld({
       {/* In test mode, show only home button on mobile, full controls on desktop */}
       {testMode ? (
         <>
-          {/* Mobile Test Mode Header */}
-          <div className="fixed top-4 left-4 z-50 lg:hidden flex gap-2">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="p-3 bg-slate-800/90 hover:bg-slate-700 rounded-lg transition-colors shadow-lg backdrop-blur"
-              aria-label="Open menu"
-            >
-              <Home className="w-6 h-6 text-white" />
-            </button>
-            
-            {/* Mobile Mute Button */}
-            <button
-              onClick={() => useSettingsStore.setState({ musicEnabled: !useSettingsStore.getState().musicEnabled })}
-              className="p-3 bg-slate-800/90 hover:bg-slate-700 rounded-lg transition-colors shadow-lg backdrop-blur"
-              aria-label={useSettingsStore.getState().musicEnabled ? 'Mute' : 'Unmute'}
-            >
-              {useSettingsStore.getState().musicEnabled ? (
-                <Volume2 className="w-6 h-6 text-white" />
-              ) : (
-                <VolumeX className="w-6 h-6 text-slate-400" />
-              )}
-            </button>
-          </div>
-
-          {/* Desktop Test Mode Header */}
-          <div className="hidden lg:flex fixed top-4 left-4 z-50">
+          {/* Test/Play Mode Header - Home button only */}
+          <div className="fixed top-4 left-4 z-50">
             <button
               onClick={() => setSidebarOpen(true)}
               className="p-3 bg-slate-800/90 hover:bg-slate-700 rounded-lg transition-colors shadow-lg backdrop-blur"
