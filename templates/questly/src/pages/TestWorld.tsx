@@ -30,6 +30,9 @@ import { ActionBar, ActionSlot } from '../components/ActionBar';
 import { RadialMenu } from '../components/RadialMenu';
 // import ModularCastle from '../components/ModularCastle'; // Removed - using saved builds instead
 import { CastleAsset, BUILDING_ASSET_PACKS } from './CastleBuilder';
+import { QuestProgressTracker } from '../components/QuestProgressTracker';
+import { QuestLogicManager, type Quest } from '../systems/quest/QuestLogic';
+import { createExplorationQuest, createCombatQuest, createMixedQuest } from '../data/example-quests';
 import { generateSimplexTerrain, sampleTerrainHeight } from '../utils/simplexTerrain';
 import { createNoise2D } from 'simplex-noise';
 import * as CANNON from 'cannon-es';
@@ -2586,7 +2589,19 @@ function DarknessOverlay({ timeOfDay }: { timeOfDay: number }) {
   return null;
 }
 
-export default function TestWorld() {
+interface TestWorldProps {
+  previewMode?: boolean;
+  worldId?: string;
+  selectedCharacterPath?: string;
+  worldData?: any;
+}
+
+export default function TestWorld({
+  previewMode = false,
+  worldId,
+  selectedCharacterPath: propCharacterPath,
+  worldData
+}: TestWorldProps = {}) {
   const navigate = useNavigate();
   const [roughness, setRoughness] = useState(26);
   const [islandSize, setIslandSize] = useState(44);
@@ -2875,7 +2890,31 @@ export default function TestWorld() {
     message: '',
     type: 'info'
   });
-  
+
+  // Quest system integration
+  const [activeQuest, setActiveQuest] = useState<Quest | null>(() => {
+    // Initialize with example exploration quest if in preview/play mode
+    if (previewMode) {
+      const quest = createExplorationQuest();
+      return QuestLogicManager.startQuest(quest);
+    }
+    return null;
+  });
+
+  // Handle NPC interactions for quest progress
+  const handleNPCInteraction = useCallback((npcId: string) => {
+    if (activeQuest && activeQuest.state === 'in-progress') {
+      // Find talk-to-npc objectives for this NPC
+      activeQuest.objectives.forEach((obj) => {
+        if (obj.type === 'talk-to-npc' && !obj.completed) {
+          const updated = QuestLogicManager.updateObjective(activeQuest, obj.id, 1);
+          setActiveQuest(updated);
+          console.log('[TestWorld] Quest objective updated:', obj.description);
+        }
+      });
+    }
+  }, [activeQuest]);
+
   // Floating icon state (which NPCs/markers have icons visible)
   // Temporarily disabled until browser cache clears - component needs hard refresh
   const [showFloatingIcons, setShowFloatingIcons] = useState(false);
@@ -2900,17 +2939,20 @@ export default function TestWorld() {
     const npc = npcs.find(n => n.id === npcId);
     if (npc) {
       setInteractingWith(`npc-${npcId}`);
-      
+
+      // Update quest progress if applicable
+      handleNPCInteraction(npcId);
+
       // Get random dialogue or default message
       const dialogue = (npc as any).dialogue || [`Hello! I'm ${npc.name}.`];
       const randomMessage = dialogue[Math.floor(Math.random() * dialogue.length)];
-      
+
       // Play TTS if voice is available
       const voiceId = (npc as any).voiceId || 'google-us';
       if (globalTTSEngine.isVoiceAvailable(voiceId)) {
         globalTTSEngine.speak(randomMessage, voiceId);
       }
-      
+
       setDialogueBox({
         isOpen: true,
         title: npc.name,
@@ -6018,6 +6060,13 @@ export default function TestWorld() {
               // Note: Radial menu does NOT close - user must click outside
             }}
           />
+
+          {/* Quest Progress Tracker - Show in play/preview mode */}
+          {activeQuest && previewMode && (
+            <div className="fixed top-20 right-4 z-40 w-80">
+              <QuestProgressTracker quest={activeQuest} showDetails={true} />
+            </div>
+          )}
         </>
       )}
     </div>
