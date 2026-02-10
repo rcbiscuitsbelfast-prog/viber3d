@@ -138,6 +138,7 @@ function CharacterController({
   avatarScale = 1.0,
   npcPositionsRef,
   onRef,
+  isPlayMode = false,
 }: {
   startPosition: [number, number, number];
   terrainMeshRef: React.RefObject<THREE.Mesh>;
@@ -162,13 +163,14 @@ function CharacterController({
   avatarScale?: number;
   npcPositionsRef?: React.MutableRefObject<Map<string, THREE.Vector3>>;
   onRef?: (ref: { playAnimation: (name: string) => void }) => void;
+  isPlayMode?: boolean;
 }) {
   const characterRef = useRef<THREE.Group>(null);
   const groupRef = useRef<THREE.Group>(null);
   const positionRef = useRef<THREE.Vector3>(new THREE.Vector3(...startPosition));
   const [position, setPosition] = useState<THREE.Vector3>(new THREE.Vector3(...startPosition)); // For React rendering
-  const rotationRef = useRef(0); // Start facing camera for spawn animation
-  const [rotation, setRotation] = useState(0); // Start facing camera for spawn animation
+  const rotationRef = useRef(isPlayMode ? Math.PI : 0); // In play mode, start facing away; in builder, face camera
+  const [rotation, setRotation] = useState(isPlayMode ? Math.PI : 0); // In play mode, start facing away; in builder, face camera
   const [model, setModel] = useState<THREE.Object3D | null>(null);
   const [modelLoaded, setModelLoaded] = useState(false);
   const [spawnOpacity, setSpawnOpacity] = useState(0); // Start invisible for spawn fade-in
@@ -508,8 +510,8 @@ function CharacterController({
       }
     }
 
-    // Auto-rotation: After 1.5 seconds, smoothly rotate to face away from camera
-    if (!hasAutoRotated.current) {
+    // Auto-rotation: After 1.5 seconds, smoothly rotate to face away from camera (builder mode only)
+    if (!isPlayMode && !hasAutoRotated.current) {
       const timeSinceSpawn = (Date.now() - spawnTime.current) / 1000;
       if (timeSinceSpawn > 1.5) {
         const targetRotation = Math.PI;
@@ -5576,6 +5578,7 @@ export default function TestWorld({
                       characterHeightOffset={characterHeightOffset}
                       avatarScale={avatarScale}
                     npcPositionsRef={npcPositionsRef}
+                    isPlayMode={isPlayMode}
                     onAnimationTrigger={(crossfade) => {
                   if (animationTriggerRef.current) {
                       animationTriggerRef.current = crossfade;
