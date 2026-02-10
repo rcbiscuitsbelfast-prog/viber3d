@@ -13,7 +13,7 @@ import { getWeaponConfig, getShieldConfig } from '../data/weapon-configs';
 interface CharacterSelectPageProps {
   templateId?: string;
   templateConfig?: any;
-  onConfirm: (characterId: string, characterPath: string) => void;
+  onConfirm?: (characterId: string, characterPath: string) => void;
 }
 
 // Get asset ID from character path
@@ -145,7 +145,7 @@ function MiniCanvas({
   );
 }
 
-export default function CharacterSelectPage({ templateId, templateConfig, onConfirm }: CharacterSelectPageProps) {
+export default function CharacterSelectPage({ templateId, templateConfig, onConfirm }: CharacterSelectPageProps = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const [selectedCharacter, setSelectedCharacter] = useState<string>('rogue');

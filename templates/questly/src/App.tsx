@@ -12,6 +12,7 @@ import WorldPreview from './pages/WorldPreview';
 import QuestSettings from './pages/QuestSettings';
 import QuestComplete from './pages/QuestComplete';
 import CastleBuilder from './pages/CastleBuilder';
+import CharacterSelectPage from './pages/CharacterSelectPage';
 import FontsDemo from './pages/FontsDemo';
 import HaveYourSay from './pages/HaveYourSay';
 import Settings from './pages/Settings';
@@ -52,6 +53,7 @@ function App() {
           <Route path="/game-builder" element={<GameBuilder />} />
           <Route path="/quest-type" element={<QuestTypeSelector />} />
           <Route path="/templates" element={<TemplateQuests />} />
+          <Route path="/character-select" element={<CharacterSelectPage />} />
           <Route path="/world-builder" element={<WorldBuilder />} />
           <Route path="/world-preview" element={<WorldPreview />} />
           <Route path="/quest-settings" element={<QuestSettings />} />
