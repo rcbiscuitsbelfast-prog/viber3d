@@ -28,6 +28,7 @@ import DialogueBox from '../components/DialogueBox';
 import FloatingInteractionIcon from '../components/FloatingInteractionIcon';
 import { ActionBar, ActionSlot } from '../components/ActionBar';
 import { RadialMenu } from '../components/RadialMenu';
+import Joystick from '../components/Joystick';
 // import ModularCastle from '../components/ModularCastle'; // Removed - using saved builds instead
 import { CastleAsset, BUILDING_ASSET_PACKS } from './CastleBuilder';
 import { QuestProgressTracker } from '../components/QuestProgressTracker';
@@ -139,6 +140,7 @@ function CharacterController({
   npcPositionsRef,
   onRef,
   isPlayMode = false,
+  joystickMove,
 }: {
   startPosition: [number, number, number];
   terrainMeshRef: React.RefObject<THREE.Mesh>;
@@ -164,6 +166,7 @@ function CharacterController({
   npcPositionsRef?: React.MutableRefObject<Map<string, THREE.Vector3>>;
   onRef?: (ref: { playAnimation: (name: string) => void }) => void;
   isPlayMode?: boolean;
+  joystickMove?: React.MutableRefObject<{ x: number; y: number }>;
 }) {
   const characterRef = useRef<THREE.Group>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -571,22 +574,35 @@ function CharacterController({
     // Apply gravity with smoother curve
     verticalVelocity.current += gravity * delta;
 
-    // WASD movement - only if movement is enabled
+    // WASD/Joystick movement - only if movement is enabled
     if (movementEnabled) {
-      if (keys.current['w'] || keys.current['arrowup']) {
+      // Check keyboard input
+      const forwardKey = keys.current['w'] || keys.current['arrowup'];
+      const backwardKey = keys.current['s'] || keys.current['arrowdown'];
+      const leftKey = keys.current['a'] || keys.current['arrowleft'];
+      const rightKey = keys.current['d'] || keys.current['arrowright'];
+
+      // Check joystick input (threshold 0.2 to avoid drift)
+      const forwardJoy = joystickMove ? joystickMove.current.y < -0.2 : false;
+      const backwardJoy = joystickMove ? joystickMove.current.y > 0.2 : false;
+      const leftJoy = joystickMove ? joystickMove.current.x < -0.2 : false;
+      const rightJoy = joystickMove ? joystickMove.current.x > 0.2 : false;
+
+      // Forward/backward movement (keyboard OR joystick)
+      if (forwardKey || forwardJoy) {
         velocity.current.z = -moveSpeed * delta;
-      } else if (keys.current['s'] || keys.current['arrowdown']) {
+      } else if (backwardKey || backwardJoy) {
         velocity.current.z = moveSpeed * delta;
       } else {
         velocity.current.z = 0;
       }
 
-      // Rotation - update ref immediately for camera sync
-      if (keys.current['a'] || keys.current['arrowleft']) {
+      // Rotation (keyboard OR joystick)
+      if (leftKey || leftJoy) {
         rotationRef.current += rotSpeed * delta;
         setRotation(rotationRef.current); // Update state for React rendering
       }
-      if (keys.current['d'] || keys.current['arrowright']) {
+      if (rightKey || rightJoy) {
         rotationRef.current -= rotSpeed * delta;
         setRotation(rotationRef.current); // Update state for React rendering
       }
@@ -2688,6 +2704,7 @@ export default function TestWorld({
   // Manual placement mode
   const [manualMode, setManualMode] = useState(false);
   const [testMode, setTestMode] = useState(directTestMode || isPlayMode); // Start in test mode if direct link OR play mode
+  const joystickMove = useRef({ x: 0, y: 0 }); // Virtual joystick input for mobile (shared with CharacterController)
 
   // Character selection - use URL param if in play mode, otherwise from sessionStorage or default
   const initialCharacter = () => {
@@ -5571,6 +5588,7 @@ export default function TestWorld({
                       avatarScale={avatarScale}
                     npcPositionsRef={npcPositionsRef}
                     isPlayMode={isPlayMode}
+                    joystickMove={joystickMove}
                     onAnimationTrigger={(crossfade) => {
                   if (animationTriggerRef.current) {
                       animationTriggerRef.current = crossfade;
@@ -6084,6 +6102,15 @@ export default function TestWorld({
               // Note: Radial menu does NOT close - user must click outside
             }}
           />
+
+          {/* Virtual Joystick - Show in play mode only */}
+          {isPlayMode && (
+            <Joystick
+              onMove={(dx, dy) => {
+                joystickMove.current = { x: dx, y: dy };
+              }}
+            />
+          )}
 
           {/* Quest Progress Tracker - Show in play/preview mode, centered on mobile */}
           {activeQuest && previewMode && (
