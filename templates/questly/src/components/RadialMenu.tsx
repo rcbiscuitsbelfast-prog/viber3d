@@ -210,8 +210,15 @@ export function RadialMenu({
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
-            className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50"
-            style={{ width: '400px', height: '400px' }}
+            className="fixed z-50"
+            style={{
+              width: '400px',
+              height: '400px',
+              bottom: '96px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              marginLeft: 0
+            }}
           >
             <div className="relative w-full h-full">
               {/* Main Category Buttons (Center) */}

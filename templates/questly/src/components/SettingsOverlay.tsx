@@ -37,7 +37,14 @@ export default function SettingsOverlay({ isOpen, onClose }: SettingsOverlayProp
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-md bg-slate-900/98 backdrop-blur-lg rounded-xl border-2 border-slate-700 shadow-2xl z-[90] overflow-hidden"
+            className="fixed w-[90vw] max-w-md bg-slate-900/98 backdrop-blur-lg rounded-xl border-2 border-slate-700 shadow-2xl z-[90] overflow-hidden"
+            style={{
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              marginLeft: 0,
+              marginTop: 0
+            }}
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b-2 border-slate-700 bg-slate-800/50">

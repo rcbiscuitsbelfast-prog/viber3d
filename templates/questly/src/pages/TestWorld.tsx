@@ -5625,11 +5625,11 @@ export default function TestWorld({
               terrainSize={isSquareTerrain ? (islandSize * 2) : 230}
               terrainRadius={islandSize}
               isSquareTerrain={isSquareTerrain}
-              innerFogRadius={islandSize * 0.7}
-              innerFogHeight={fogHeight * 0.25}
-              innerBubbleScale={bubbleScale * 0.7}
-              innerBubbleDensity={bubbleDensity * 0.67}
-              innerBubbleSpeed={bubbleSpeed * 0.75}
+              innerFogRadius={0}
+              innerFogHeight={0}
+              innerBubbleScale={0}
+              innerBubbleDensity={0}
+              innerBubbleSpeed={0}
             />
             
             {/* Procedural Forest Assets */}
