@@ -6085,9 +6085,9 @@ export default function TestWorld({
             }}
           />
 
-          {/* Quest Progress Tracker - Show in play/preview mode */}
+          {/* Quest Progress Tracker - Show in play/preview mode, centered on mobile */}
           {activeQuest && previewMode && (
-            <div className="fixed top-20 right-4 z-40 w-80">
+            <div className="fixed top-20 left-1/2 -translate-x-1/2 md:left-auto md:right-4 md:translate-x-0 z-40 w-80 max-w-[90vw]">
               <QuestProgressTracker quest={activeQuest} showDetails={true} />
             </div>
           )}

@@ -50,7 +50,7 @@ export function ActionBar({
   };
 
   return (
-    <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-2">
+    <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-1 sm:gap-2 w-[90vw] max-w-md justify-center">
       {/* Action Slots */}
       {slots.map((slot, index) => (
         <motion.button

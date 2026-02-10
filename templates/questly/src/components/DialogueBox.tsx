@@ -41,7 +41,7 @@ export default function DialogueBox({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-lg px-4"
+          className="fixed bottom-20 md:bottom-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-[90vw] sm:max-w-lg px-4"
         >
           <div className={`${getTypeColor()} border-2 rounded-lg shadow-2xl p-3 md:p-4 backdrop-blur-sm`}>
             {/* Header */}
