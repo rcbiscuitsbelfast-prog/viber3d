@@ -15,6 +15,7 @@ export default function SidebarMenu({ isOpen, onClose }: SidebarMenuProps) {
   const musicEnabled = useSettingsStore((state) => state.musicEnabled);
   const setMusicEnabled = (enabled: boolean) => {
     useSettingsStore.setState({ musicEnabled: enabled });
+    // The audio manager subscribes to this setting automatically
   };
 
   const handleAuthClick = () => {
@@ -127,13 +128,16 @@ export default function SidebarMenu({ isOpen, onClose }: SidebarMenuProps) {
                 <span className="font-medium">{musicEnabled ? 'Music On' : 'Music Off'}</span>
               </button>
 
-              {/* Settings - Coming Soon */}
+              {/* Settings */}
               <button
-                disabled
-                className="flex items-center gap-3 p-3 rounded-lg opacity-50 cursor-not-allowed text-slate-500"
+                onClick={() => {
+                  navigate('/settings');
+                  onClose();
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors text-slate-300 hover:text-white"
               >
                 <Settings className="w-5 h-5" />
-                <span className="font-medium">Settings (Soon)</span>
+                <span className="font-medium">Settings</span>
               </button>
             </div>
           </motion.div>

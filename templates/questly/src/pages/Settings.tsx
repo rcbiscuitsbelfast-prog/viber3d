@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
-import { ArrowLeft, Volume2, VolumeX, User, MessageSquare, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Volume2, VolumeX, User, MessageSquare, Eye, EyeOff, Mic, MicOff } from 'lucide-react';
 import { useSettingsStore, useAvatarSettings } from '@/stores/settingsStore';
 import CustomButton from '@/components/CustomButton';
 import { globalAudioManager } from '@/systems/audio';
@@ -8,8 +8,14 @@ import { globalAudioManager } from '@/systems/audio';
 export default function Settings() {
   const navigate = useNavigate();
   const musicEnabled = useSettingsStore((state) => state.musicEnabled);
+  const dialogueEnabled = useSettingsStore((state) => state.dialogueEnabled);
   const setMusicEnabled = (enabled: boolean) => {
     useSettingsStore.setState({ musicEnabled: enabled });
+    // The audio manager subscribes to this setting automatically
+  };
+  const setDialogueEnabled = (enabled: boolean) => {
+    useSettingsStore.setState({ dialogueEnabled: enabled });
+    // TODO: Implement dialogue/voice muting when voice system is added
   };
   const { avatar, updateAvatar } = useAvatarSettings();
 
@@ -56,6 +62,27 @@ export default function Settings() {
                     className={`
                       absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform
                       ${musicEnabled ? 'translate-x-7' : 'translate-x-0'}
+                    `}
+                  />
+                </button>
+              </label>
+
+              <label className="flex items-center justify-between cursor-pointer group">
+                <span className="text-slate-300 group-hover:text-white transition flex items-center gap-2">
+                  {dialogueEnabled ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+                  NPC Dialogue & Voice
+                </span>
+                <button
+                  onClick={() => setDialogueEnabled(!dialogueEnabled)}
+                  className={`
+                    relative w-14 h-7 rounded-full transition-colors
+                    ${dialogueEnabled ? 'bg-primary' : 'bg-slate-600'}
+                  `}
+                >
+                  <span
+                    className={`
+                      absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform
+                      ${dialogueEnabled ? 'translate-x-7' : 'translate-x-0'}
                     `}
                   />
                 </button>

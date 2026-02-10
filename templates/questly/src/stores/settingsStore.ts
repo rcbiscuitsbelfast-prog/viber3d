@@ -11,11 +11,13 @@ interface AvatarSettings {
 
 interface AppSettings {
   musicEnabled: boolean;
+  dialogueEnabled: boolean; // NPC dialogue/voice audio
   avatar: AvatarSettings;
 }
 
 const defaultSettings: AppSettings = {
   musicEnabled: true,
+  dialogueEnabled: true,
   avatar: {
     showSpeechBubble: true,
     headOnlyMode: false,

@@ -1,14 +1,16 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Settings, Music, LogIn, LayoutDashboard } from 'lucide-react';
-import { useState } from 'react';
 import { useAuthStore } from '@/lib/auth';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 export default function Navigation() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [isMusicOn, setIsMusicOn] = useState(true);
-
   const { isAuthenticated } = useAuthStore();
+  const musicEnabled = useSettingsStore((state) => state.musicEnabled);
+  const setMusicEnabled = (enabled: boolean) => {
+    useSettingsStore.setState({ musicEnabled: enabled });
+  };
 
   // Don't show on splash screen, TestWorld, or FontsDemo (they have their own headers)
   if (location.pathname === '/' || location.pathname === '/test-world' || location.pathname === '/fonts-demo') return null;
@@ -62,12 +64,12 @@ export default function Navigation() {
           </button>
 
           <button
-            onClick={() => setIsMusicOn(!isMusicOn)}
+            onClick={() => setMusicEnabled(!musicEnabled)}
             data-help-id="music"
             className={`
               bg-primary p-3 rounded-lg shadow-lg border-b-4 border-primary/70
               transition-all hover:scale-105 active:translate-y-1 active:border-b-2
-              ${!isMusicOn && 'opacity-50'}
+              ${!musicEnabled && 'opacity-50'}
             `}
           >
             <Music className="w-5 h-5 text-primary-foreground" />
