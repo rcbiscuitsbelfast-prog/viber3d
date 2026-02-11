@@ -117,33 +117,10 @@ export default function SplashScreen() {
       setTimeout(() => {
         setIslandVisible(true);
         const buttonDelay = islandFadeDurationMs;
-        setTimeout(() => {
-          // Show Dru first, just before button appears
-          setDruVisible(true);
-          setDruSpeechText("You should probably hit, start building... Or whatever, I don't really care...");
-          setShowDruSpeech(true);
-
-          // Start 30-second timeout for reminder message
-          druTimeoutRef.current = setTimeout(() => {
-            setDruSpeechText("You should probably hit, start building... Or whatever, I don't really care...");
-            setShowDruSpeech(true);
-          }, 30000);
-
-          // Show button after brief delay
-          setTimeout(() => setButtonVisible(true), 500);
-        }, buttonDelay);
+        setTimeout(() => setButtonVisible(true), buttonDelay);
       }, islandFadeDelayMs);
     }
   }, [fadeDuration, islandLoaded]);
-
-  // Cleanup Dru timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (druTimeoutRef.current) {
-        clearTimeout(druTimeoutRef.current);
-      }
-    };
-  }, []);
 
   // Animate blur reduction as island fades in
   useEffect(() => {
