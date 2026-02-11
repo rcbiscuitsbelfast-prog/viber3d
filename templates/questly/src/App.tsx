@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import SplashScreen from './pages/SplashScreen';
 import MainMenu from './pages/MainMenu';
@@ -20,6 +20,16 @@ import Navigation from './components/Navigation';
 import MenuOverlayController from './components/MenuOverlayController';
 import { useAuthStore } from './lib/auth';
 import { globalAudioManager } from './systems/audio';
+
+// Component to conditionally render MenuOverlayController
+function ConditionalMenuOverlay() {
+  const location = useLocation();
+  // Hide Dru on splash screen (splash has its own Dru)
+  const hideDru = location.pathname === '/';
+
+  if (hideDru) return null;
+  return <MenuOverlayController />;
+}
 
 function App() {
   const initialize = useAuthStore((state) => state.initialize);
@@ -65,9 +75,9 @@ function App() {
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-        
-        {/* Original Dru Helper - appears on all pages */}
-        <MenuOverlayController />
+
+        {/* Original Dru Helper - appears on all pages except splash */}
+        <ConditionalMenuOverlay />
       </div>
     </HashRouter>
   );
