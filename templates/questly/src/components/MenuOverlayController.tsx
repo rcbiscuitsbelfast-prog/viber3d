@@ -80,7 +80,7 @@ const jokePool = [
 ];
 
 // MenuOverlayController - Controls Dru (the helper wizard) on-screen presence
-export default function MenuOverlayController() {
+export default function MenuOverlayController({ splashMode = false }: { splashMode?: boolean }) {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false); // Start hidden
   const [isAnimating, setIsAnimating] = useState(false);
@@ -124,9 +124,16 @@ export default function MenuOverlayController() {
     const timer = setTimeout(() => {
       setIsAnimating(true);
       setIsOpen(true);
+
+      // On splash screen, show welcome message after appearing
+      if (splashMode) {
+        setTimeout(() => {
+          triggerSpeech('Welcome to Questerly! Click "Start Building" to begin your adventure.', 5000);
+        }, 600);
+      }
     }, 300); // Small delay for magical appearance
     return () => clearTimeout(timer);
-  }, []);
+  }, [splashMode]);
 
   const triggerSpeech = useCallback((text: string, duration: number = 2400) => {
     setSpeech({ id: Date.now(), text });
@@ -155,6 +162,9 @@ export default function MenuOverlayController() {
   };
 
   const handleMainMenuClick = () => {
+    // In splash mode, Dru has no menu options - just shows welcome message
+    if (splashMode) return;
+
     if (menuState === 'idle') {
       setMenuState('main');
     } else if (menuState === 'chat') {

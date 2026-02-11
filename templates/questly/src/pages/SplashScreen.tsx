@@ -1,14 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import R3FCanvas from '@/r3f/R3FCanvas';
 import SignCanvas from '@/r3f/SignCanvas';
 import { r3f } from '@/lib/tunnel';
 import { SplashIslandScene } from '@/r3f/SplashIslandScene';
 import { globalAudioManager } from '@/systems/audio';
-import AvatarController2D from '@/components/AvatarController2D';
-import SpeechBubbleController from '@/components/SpeechBubbleController';
-import { useAvatarSettings } from '@/stores/settingsStore';
 
 // LocalStorage keys for fade duration
 const FADE_DURATION_KEY = 'splash_fade_duration';
@@ -71,13 +68,6 @@ export default function SplashScreen() {
   const [islandLoaded, setIslandLoaded] = useState(false);
   const [islandVisible, setIslandVisible] = useState(false);
   const [buttonVisible, setButtonVisible] = useState(false);
-
-  // Dru states
-  const [druVisible, setDruVisible] = useState(false);
-  const [druSpeechText, setDruSpeechText] = useState<string>('');
-  const [showDruSpeech, setShowDruSpeech] = useState(false);
-  const druTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const { avatarSettings } = useAvatarSettings();
   
   // Fade duration with localStorage persistence
   const [fadeDuration] = useState(() => {
@@ -291,39 +281,6 @@ export default function SplashScreen() {
       
       {/* UI Content on Top */}
       <div className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden text-white px-4 z-20 pointer-events-auto">
-        {/* Dru Avatar - Appears before button */}
-        <AnimatePresence>
-          {druVisible && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.5 }}
-              className="fixed bottom-32 right-8 z-30 pointer-events-none"
-            >
-              <div className="relative">
-                <AvatarController2D
-                  size={100}
-                  mode={showDruSpeech ? 'talk' : 'idle'}
-                />
-                <div className="absolute -top-24 right-0 pointer-events-auto">
-                  <SpeechBubbleController
-                    text={druSpeechText}
-                    visible={showDruSpeech}
-                    durationMs={8000}
-                    onHide={() => setShowDruSpeech(false)}
-                    style={{
-                      transform: 'scale(1)',
-                      transformOrigin: 'bottom right',
-                      zIndex: 111
-                    }}
-                  />
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Start Button */}
         <div
           className="absolute inset-x-0 z-10 flex justify-center"

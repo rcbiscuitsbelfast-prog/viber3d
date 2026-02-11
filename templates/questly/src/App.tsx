@@ -24,11 +24,10 @@ import { globalAudioManager } from './systems/audio';
 // Component to conditionally render MenuOverlayController
 function ConditionalMenuOverlay() {
   const location = useLocation();
-  // Hide Dru on splash screen (splash has its own Dru)
-  const hideDru = location.pathname === '/';
+  const isSplashScreen = location.pathname === '/';
 
-  if (hideDru) return null;
-  return <MenuOverlayController />;
+  // Show Dru everywhere, but pass splash mode flag
+  return <MenuOverlayController splashMode={isSplashScreen} />;
 }
 
 function App() {
